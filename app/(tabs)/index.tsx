@@ -126,11 +126,11 @@ const styles = StyleSheet.create({
   },
   loadingText: { color: COLORS.textOnDark },
   title: { color: COLORS.textOnDark, fontSize: 32, fontWeight: "800" },
-  subtitle: { color: "#d1d5db", fontSize: 15, marginBottom: 8 },
+  subtitle: { color: "#718096", fontSize: 15, marginBottom: 8 },
   editorCard: { borderRadius: 26 },
   input: {
-    backgroundColor: "#f3f4f6",
-    borderColor: "#d1d5db",
+    backgroundColor: "#ffffff",
+    borderColor: "#e2e8f0",
     borderWidth: 1,
     borderRadius: 12,
     color: COLORS.textOnSurface,
@@ -145,5 +145,5 @@ const styles = StyleSheet.create({
   listCard: { borderRadius: 20, marginTop: 8 },
   dateLabel: { color: COLORS.textOnSurface, fontWeight: "700", marginBottom: 6 },
   lineText: { color: COLORS.textOnSurface, lineHeight: 20 },
-  empty: { color: "#9ca3af" },
+  empty: { color: "#a0aec0" },
 });

@@ -1,5 +1,5 @@
-import React from "react";
 import * as SQLite from "expo-sqlite";
+import React from "react";
 import { mapRemoteEntriesToLocal, remoteClient } from "../services/remoteSync";
 import { AuthSession, BackupPayload, Entry } from "../types/journal";
 import { toDateKey } from "../utils/date";
@@ -15,6 +15,7 @@ type JournalContextValue = {
   pendingSyncCount: number;
   session: AuthSession | null;
   upsertTodayEntry: (lines: [string, string, string]) => Promise<void>;
+  upsertEntry: (date: string, lines: [string, string, string]) => Promise<void>;
   removeEntry: (id: string) => Promise<void>;
   searchEntries: (keyword: string) => Entry[];
   signInWithEmail: (email: string, password: string) => Promise<void>;
@@ -399,9 +400,8 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
     };
   }, [performSync, refreshPendingSyncCount]);
 
-  const upsertTodayEntry = React.useCallback(
-    async (lines: [string, string, string]) => {
-      const date = toDateKey();
+  const upsertEntry = React.useCallback(
+    async (date: string, lines: [string, string, string]) => {
       const now = Date.now();
       const existing = entries.find((entry) => entry.date === date && !entry.deletedAt);
 
@@ -429,6 +429,14 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
       }
     },
     [entries, refreshPendingSyncCount, session, syncNow],
+  );
+
+  const upsertTodayEntry = React.useCallback(
+    async (lines: [string, string, string]) => {
+      const date = toDateKey();
+      await upsertEntry(date, lines);
+    },
+    [upsertEntry],
   );
 
   const removeEntry = React.useCallback(
@@ -552,6 +560,7 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
       pendingSyncCount,
       session,
       upsertTodayEntry,
+      upsertEntry,
       removeEntry,
       searchEntries,
       signInWithEmail,
@@ -579,6 +588,7 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
       syncNow,
       syncStatus,
       upsertTodayEntry,
+      upsertEntry,
       visibleEntries,
     ],
   );

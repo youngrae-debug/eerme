@@ -1,6 +1,6 @@
+import * as FileSystem from "expo-file-system/legacy";
 import React from "react";
 import { Alert, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
-import * as FileSystem from "expo-file-system/legacy";
 import { NeumorphicButton, NeumorphicCard } from "../../components/neumorphic";
 import { useJournalStore } from "../../store/journalStore";
 import { COLORS } from "../../theme/colors";
@@ -365,14 +365,14 @@ const styles = StyleSheet.create({
   },
   loadingText: { color: COLORS.textOnDark },
   title: { color: COLORS.textOnDark, fontSize: 28, fontWeight: "800" },
-  subtitle: { color: "#d1d5db" },
+  subtitle: { color: "#718096" },
   card: { borderRadius: 20 },
   label: { color: COLORS.textOnSurface, fontWeight: "700", marginBottom: 6 },
   value: { color: COLORS.textOnSurface, marginBottom: 2 },
   errorText: { color: COLORS.danger, marginTop: 4 },
   input: {
-    backgroundColor: "#f3f4f6",
-    borderColor: "#d1d5db",
+    backgroundColor: "#ffffff",
+    borderColor: "#e2e8f0",
     borderWidth: 1,
     borderRadius: 12,
     color: COLORS.textOnSurface,
@@ -381,8 +381,8 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   textArea: {
-    backgroundColor: "#f3f4f6",
-    borderColor: "#d1d5db",
+    backgroundColor: "#ffffff",
+    borderColor: "#e2e8f0",
     borderWidth: 1,
     borderRadius: 12,
     color: COLORS.textOnSurface,
@@ -397,12 +397,12 @@ const styles = StyleSheet.create({
   emptyText: { color: COLORS.textOnSurface, marginTop: 6 },
   listWrap: { marginTop: 6, gap: 8 },
   fileItem: {
-    backgroundColor: "#f3f4f6",
+    backgroundColor: "#ffffff",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#d1d5db",
+    borderColor: "#e2e8f0",
     padding: 10,
   },
   fileName: { color: COLORS.textOnSurface, fontWeight: "700", marginBottom: 2 },
-  fileUri: { color: "#4b5563", marginBottom: 8 },
+  fileUri: { color: "#718096", marginBottom: 8 },
 });
