@@ -49,31 +49,82 @@ Join our community of developers creating universal apps.
 - [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
 
-
 # eerme
 
-하루를 세줄의 문장으로 남기는 Expo Router 기반 모바일 앱 스캐폴드입니다. 
-심플한 화면/스토어/유틸 구성을 포함하며, 이후 기능 확장을 위한 기초 구조만 잡혀 있습니다.
+하루를 세 줄의 문장으로 남기는 Expo Router 기반 모바일 앱입니다.
+`sample_ui.tsx`의 뉴모피즘 색감(다크 배경 + 라이트 서피스)을 공통 테마로 사용합니다.
 
-## 폴더 구조
-```
-eerme/
+## 현재 구현 상태
+
+- 탭 네비게이션: 오늘 / 캘린더 / 검색 / 통계 / 동기화
+- 오늘 탭: 3줄 입력, 저장/삭제, 최근 기록 7개 표시
+- 캘린더 탭: 날짜별 기록 줄 수 요약
+- 검색 탭: 키워드 기반 문장 필터
+- 입력 검증: 공백 방지 + 120자 제한
+- 로컬 영속화: expo-sqlite 기반 저장/복원
+- 원격 동기화: 로컬 write + 백그라운드 push, 앱 시작 시 pull
+- 동기화 안정성: sqlite 기반 retry queue로 실패 건 재시도
+- 충돌 해결: 최신 수정 시간(updatedAt) 우선(LWW)
+- 백업/복원: JSON 내보내기/가져오기 + 파일 URI 기반 저장/복원 + 저장된 파일 목록 관리 + 네이티브 공유시트 지원
+- 통계 탭: 이번 달 기록일/문장 수, 연속 기록(streak), 상위 키워드
+
+## 인증/동기화 정책
+
+- Email 로그인: `/auth/email/login`
+- Apple 로그인: `/auth/apple/login` (identity token 전달)
+- Google 로그인: `/auth/google/login` (identity token 전달)
+- Pull: `/entries/pull?since=<timestamp>`
+- Push: `/entries/push`
+
+> 현재 빌드에서는 `custom` / `firebase` / `supabase` provider 경로가 구현되어 있습니다.
+
+## 환경 변수
+
+```bash
+EXPO_PUBLIC_SYNC_PROVIDER=firebase
+# custom provider 사용 시
+EXPO_PUBLIC_SYNC_API_BASE_URL=https://your-api.example.com
+# firebase provider 사용 시
+EXPO_PUBLIC_FIREBASE_API_KEY=your-firebase-web-api-key
+EXPO_PUBLIC_FIREBASE_DATABASE_URL=https://your-project-id-default-rtdb.firebaseio.com
+# supabase provider 사용 시
+EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
 ```
 
-## 동작 개요
-- 오늘 기록: app/index.tsx에서 한 문장 입력 후 저장, 동일 날짜 항목을 리스트로 표시
-- 달력/요약: app/calendar.tsx에서 날짜별 그룹핑된 기록 목록
-- 검색: app/search.tsx에서 키워드 필터
-- 상태 관리: Zustand persist로 AsyncStorage에 로컬 보존
-- 입력 검증: utils/validate.ts에서 공백/120자 제한 처리
-- 월별 통계/시각화, 검색 범위 필터, 백업/동기화 옵션
-- 커스텀 폰트(assets/fonts) 및 테마 토글
+
+## Firebase 보안 규칙(권장)
+
+Realtime Database Rules 예시:
+
+```json
+{
+  "rules": {
+    "entries": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    }
+  }
+}
+```
+
+## 개발 단계 (Step-by-step)
+
+1. **완료**: 공통 테마/뉴모피즘 컴포넌트 정리
+2. **완료**: 홈(오늘 기록) + 검증 + 기본 기록 리스트
+3. **완료**: 캘린더 요약 / 검색
+4. **완료**: expo-sqlite 영속화
+5. **완료**: 로컬 우선 + 원격 동기화 구조(인증 포함)
+6. **다음 단계**: 네이티브 파일 picker 연동, 테마 토글, 통계 확장(월별 비교)
 
 ## 실행
-1. 의존성 설치: npm install (또는 yarn, pnpm)
-2. 개발 서버: npm start
+
+1. 의존성 설치: `npm install`
+2. 개발 서버: `npm start`
 3. 기기/에뮬레이터에서 Expo Go로 접속
 
 ## 라이선스
-추후 결정
 
+추후 결정
