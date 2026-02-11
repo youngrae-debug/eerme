@@ -1,8 +1,24 @@
-import { Tabs } from "expo-router";
+import { Tabs, Redirect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { ActivityIndicator, View } from "react-native";
 import { COLORS } from "../../theme/colors";
+import { useJournalStore } from "../../store/journalStore";
 
 export default function TabLayout() {
+  const { isReady, session, isGuest } = useJournalStore();
+
+  if (!isReady) {
+    return (
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: COLORS.background }}>
+        <ActivityIndicator color={COLORS.surface} />
+      </View>
+    );
+  }
+
+  if (!session && !isGuest) {
+    return <Redirect href="/login" />;
+  }
+
   return (
     <Tabs
       screenOptions={{

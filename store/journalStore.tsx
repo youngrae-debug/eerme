@@ -14,12 +14,14 @@ type JournalContextValue = {
   lastSyncedAt: number | null;
   pendingSyncCount: number;
   session: AuthSession | null;
+  isGuest: boolean;
   upsertTodayEntry: (lines: [string, string, string]) => Promise<void>;
   removeEntry: (id: string) => Promise<void>;
   searchEntries: (keyword: string) => Entry[];
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signInWithApple: (identityToken: string) => Promise<void>;
   signInWithGoogle: (identityToken: string) => Promise<void>;
+  signInAsGuest: () => Promise<void>;
   signOut: () => Promise<void>;
   syncNow: () => Promise<void>;
   exportBackup: () => Promise<string>;
@@ -50,6 +52,9 @@ const TABLE_SYNC_META = "sync_meta";
 const TABLE_AUTH_SESSION = "auth_session";
 const TABLE_SYNC_QUEUE = "sync_queue";
 const SYNC_META_KEY = "lastSyncedAt";
+const AUTH_MODE_KEY = "authMode";
+const AUTH_MODE_GUEST = "guest";
+const AUTH_MODE_NONE = "none";
 
 const JournalContext = React.createContext<JournalContextValue | null>(null);
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
@@ -216,6 +221,23 @@ async function saveLastSyncedAt(value: number) {
   );
 }
 
+
+async function loadAuthMode() {
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<{ value: string }>(`SELECT value FROM ${TABLE_SYNC_META} WHERE key = ?`, [AUTH_MODE_KEY]);
+  return row?.value ?? AUTH_MODE_NONE;
+}
+
+async function saveAuthMode(value: string) {
+  const db = await getDatabase();
+  await db.runAsync(
+    `INSERT INTO ${TABLE_SYNC_META} (key, value)
+     VALUES (?, ?)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    [AUTH_MODE_KEY, value],
+  );
+}
+
 async function loadSyncQueueFromDb() {
   const db = await getDatabase();
   return db.getAllAsync<SyncQueueRow>(
@@ -298,6 +320,7 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
   const [entries, setEntries] = React.useState<Entry[]>([]);
   const [isReady, setIsReady] = React.useState(false);
   const [session, setSession] = React.useState<AuthSession | null>(null);
+  const [isGuest, setIsGuest] = React.useState(false);
   const [lastSyncedAt, setLastSyncedAt] = React.useState<number | null>(null);
   const [syncStatus, setSyncStatus] = React.useState<SyncStatus>("idle");
   const [syncError, setSyncError] = React.useState<string | null>(null);
@@ -361,16 +384,18 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
 
     const bootstrap = async () => {
       try {
-        const [loadedEntries, loadedSession, loadedLastSyncedAt] = await Promise.all([
+        const [loadedEntries, loadedSession, loadedLastSyncedAt, loadedAuthMode] = await Promise.all([
           loadEntriesFromDb(),
           loadSessionFromDb(),
           loadLastSyncedAt(),
+          loadAuthMode(),
         ]);
 
         if (!mounted) return;
 
         setEntries(loadedEntries);
         setSession(loadedSession);
+        setIsGuest(loadedAuthMode === AUTH_MODE_GUEST);
         setLastSyncedAt(loadedLastSyncedAt);
         await refreshPendingSyncCount();
         setIsReady(true);
@@ -467,7 +492,9 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
     async (email: string, password: string) => {
       const nextSession = await remoteClient.signInWithEmail(email, password);
       setSession(nextSession);
+      setIsGuest(false);
       await saveSessionToDb(nextSession);
+      await saveAuthMode(AUTH_MODE_NONE);
       await performSync(nextSession, entries, lastSyncedAt);
     },
     [entries, lastSyncedAt, performSync],
@@ -477,7 +504,9 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
     async (identityToken: string) => {
       const nextSession = await remoteClient.signInWithApple(identityToken);
       setSession(nextSession);
+      setIsGuest(false);
       await saveSessionToDb(nextSession);
+      await saveAuthMode(AUTH_MODE_NONE);
       await performSync(nextSession, entries, lastSyncedAt);
     },
     [entries, lastSyncedAt, performSync],
@@ -487,15 +516,26 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
     async (identityToken: string) => {
       const nextSession = await remoteClient.signInWithGoogle(identityToken);
       setSession(nextSession);
+      setIsGuest(false);
       await saveSessionToDb(nextSession);
+      await saveAuthMode(AUTH_MODE_NONE);
       await performSync(nextSession, entries, lastSyncedAt);
     },
     [entries, lastSyncedAt, performSync],
   );
 
+  const signInAsGuest = React.useCallback(async () => {
+    setSession(null);
+    setIsGuest(true);
+    await saveSessionToDb(null);
+    await saveAuthMode(AUTH_MODE_GUEST);
+  }, []);
+
   const signOut = React.useCallback(async () => {
     setSession(null);
+    setIsGuest(false);
     await saveSessionToDb(null);
+    await saveAuthMode(AUTH_MODE_NONE);
   }, []);
 
   const exportBackup = React.useCallback(async () => {
@@ -551,12 +591,14 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
       lastSyncedAt,
       pendingSyncCount,
       session,
+      isGuest,
       upsertTodayEntry,
       removeEntry,
       searchEntries,
       signInWithEmail,
       signInWithApple,
       signInWithGoogle,
+      signInAsGuest,
       signOut,
       syncNow,
       exportBackup,
@@ -571,9 +613,11 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
       removeEntry,
       searchEntries,
       session,
+      isGuest,
       signInWithApple,
       signInWithEmail,
       signInWithGoogle,
+      signInAsGuest,
       signOut,
       syncError,
       syncNow,
