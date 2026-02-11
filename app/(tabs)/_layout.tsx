@@ -1,19 +1,39 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { COLORS } from "../../theme/colors";
 
 export default function TabLayout() {
+  const insets = useSafeAreaInsets();
+
   return (
     <Tabs
       screenOptions={{
-        headerStyle: { backgroundColor: COLORS.background },
-        headerTintColor: COLORS.textOnDark,
+        headerStyle: {
+          backgroundColor: COLORS.background,
+          elevation: 0,
+          shadowOpacity: 0,
+          borderBottomWidth: 0,
+        },
+        headerTintColor: COLORS.primaryText,
+        headerTitleStyle: {
+          fontWeight: "600",
+          fontSize: 18,
+        },
         tabBarStyle: {
           backgroundColor: COLORS.background,
-          borderTopColor: COLORS.borderMuted,
+          borderTopColor: COLORS.softBorder,
+          borderTopWidth: 0.5,
+          paddingTop: 6,
+          paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
+          height: 56 + (insets.bottom > 0 ? insets.bottom : 8),
         },
-        tabBarActiveTintColor: "#4299e1",
-        tabBarInactiveTintColor: "#a0aec0",
+        tabBarActiveTintColor: COLORS.accentPink,
+        tabBarInactiveTintColor: COLORS.secondaryText,
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: "500",
+        },
       }}
     >
       <Tabs.Screen
@@ -57,9 +77,9 @@ export default function TabLayout() {
       <Tabs.Screen
         name="sync"
         options={{
-          title: "동기화",
+          title: "MY",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="cloud-upload-outline" size={size} color={color} />
+            <Ionicons name="person-outline" size={size} color={color} />
           ),
         }}
       />

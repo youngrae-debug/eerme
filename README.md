@@ -127,4 +127,177 @@ Realtime Database Rules 예시:
 
 ## 라이선스
 
-추후 결정
+
+
+디자인의 핵심은 차분한 베이지 배경 + 둥근 화이트 카드 + 낮은 채도 포인트 컬러 + 부드러운 그래프다.
+
+아래는 Expo 기반으로 바로 적용 가능한 통계 화면 + 마이페이지 샘플 UI 구조다.
+실사용 구조에 가깝게 설계했다.
+
+1️⃣ 디자인 토큰 정의
+🎨 컬러 시스템
+// theme/colors.ts
+
+export const colors = {
+  background: '#F3EFE8',
+  card: '#FFFFFF',
+  border: '#E7E1D8',
+
+  textPrimary: '#3C3C3C',
+  textSecondary: '#8E877F',
+
+  accentGreen: '#A8C7A2',
+  accentSoftGreen: '#DCEBD7',
+
+  accentPeach: '#F6D7C3',
+  accentLavender: '#D8D6F2',
+
+  chartLine: '#9BC59D',
+};
+
+2️⃣ 공통 카드 스타일
+// styles/common.ts
+
+import { StyleSheet } from 'react-native';
+import { colors } from '../theme/colors';
+
+export const common = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: colors.background,
+    paddingHorizontal: 20,
+    paddingTop: 60,
+  },
+
+  card: {
+    backgroundColor: colors.card,
+    borderRadius: 26,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+
+  title: {
+    fontSize: 22,
+    fontFamily: 'BodyBold',
+    color: colors.textPrimary,
+    marginBottom: 8,
+  },
+
+  subtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 16,
+  },
+});
+
+3️⃣ 📊 통계 화면 샘플
+필요 라이브러리
+npx expo install react-native-svg
+npm install react-native-chart-kit
+
+StatsScreen.tsx
+import React from 'react';
+import { View, Text, Dimensions } from 'react-native';
+import { LineChart } from 'react-native-chart-kit';
+import { common } from '../styles/common';
+import { colors } from '../theme/colors';
+
+const screenWidth = Dimensions.get('window').width;
+
+export default function StatsScreen() {
+  return (
+    <View style={common.screen}>
+      
+      <Text style={common.title}>나만의 분석보고서</Text>
+      <Text style={common.subtitle}>
+        여러가지 분석을 통해 나를 새롭게 알아갈 수 있어요
+      </Text>
+
+      <View style={common.card}>
+        <LineChart
+          data={{
+            labels: ['11/1', '11/5', '11/10', '11/15'],
+            datasets: [{ data: [3, 5, 2, 6] }],
+          }}
+          width={screenWidth - 80}
+          height={180}
+          withDots
+          withShadow={false}
+          chartConfig={{
+            backgroundColor: '#ffffff',
+            backgroundGradientFrom: '#ffffff',
+            backgroundGradientTo: '#ffffff',
+            color: () => colors.chartLine,
+            labelColor: () => '#999',
+          }}
+          bezier
+          style={{ borderRadius: 20 }}
+        />
+      </View>
+
+      <View style={common.card}>
+        <Text style={{ fontFamily: 'BodyBold', marginBottom: 10 }}>
+          이번 달 점수
+        </Text>
+
+        <Text style={{ color: colors.textSecondary }}>
+          이전 달보다 15% 상승했어요.
+        </Text>
+      </View>
+
+    </View>
+  );
+}
+
+4️⃣ 👤 마이페이지 샘플
+MyPageScreen.tsx
+import React from 'react';
+import { View, Text, Image } from 'react-native';
+import { common } from '../styles/common';
+import { colors } from '../theme/colors';
+
+export default function MyPageScreen() {
+  return (
+    <View style={common.screen}>
+      
+      <Text style={common.title}>든든한 계정 시스템</Text>
+      <Text style={common.subtitle}>
+        내 계정에 기록을 저장하고 언제든 로그인해 불러올 수 있어요
+      </Text>
+
+      <View style={common.card}>
+        <Text style={{ fontFamily: 'BodyBold', marginBottom: 10 }}>
+          내 정보
+        </Text>
+
+        <Text style={{ color: colors.textSecondary }}>
+          닉네임: sum_user
+        </Text>
+
+        <Text style={{ color: colors.textSecondary, marginTop: 6 }}>
+          이메일: user@email.com
+        </Text>
+      </View>
+
+      <View style={common.card}>
+        <Text style={{ fontFamily: 'BodyBold', marginBottom: 10 }}>
+          나의 기록
+        </Text>
+
+        <Text style={{ color: colors.textSecondary }}>
+          기록 수: 89개
+        </Text>
+
+        <Text style={{ color: colors.textSecondary, marginTop: 6 }}>
+          응답 완료: 121개
+        </Text>
+      </View>
+
+    </View>
+  );
+}

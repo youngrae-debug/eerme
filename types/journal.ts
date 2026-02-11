@@ -2,6 +2,7 @@ export type Entry = {
   id: string;
   date: string;
   lines: [string, string, string];
+  imageUri?: string | null;
   createdAt: number;
   updatedAt: number;
   deletedAt?: number | null;
