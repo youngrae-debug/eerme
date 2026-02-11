@@ -1,5 +1,5 @@
 import React from "react";
-import { Alert, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
 import * as FileSystem from "expo-file-system/legacy";
 import { NeumorphicButton, NeumorphicCard } from "../../components/neumorphic";
 import { useJournalStore } from "../../store/journalStore";
@@ -16,6 +16,7 @@ export default function SyncScreen() {
   const {
     isReady,
     session,
+    isGuest,
     syncStatus,
     syncError,
     lastSyncedAt,
@@ -31,7 +32,8 @@ export default function SyncScreen() {
 
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
-  const [tokenInput, setTokenInput] = React.useState("");
+  const [appleTokenInput, setAppleTokenInput] = React.useState("");
+  const [googleTokenInput, setGoogleTokenInput] = React.useState("");
   const [backupText, setBackupText] = React.useState("");
   const [backupFileUri, setBackupFileUri] = React.useState("");
   const [backupFiles, setBackupFiles] = React.useState<BackupFileItem[]>([]);
@@ -110,6 +112,8 @@ export default function SyncScreen() {
             <Text style={styles.value}>provider: {session.provider}</Text>
             <Text style={styles.value}>email: {session.user.email}</Text>
           </>
+        ) : isGuest ? (
+          <Text style={styles.value}>게스트 모드</Text>
         ) : (
           <Text style={styles.value}>로그인 필요</Text>
         )}
@@ -143,26 +147,56 @@ export default function SyncScreen() {
       </NeumorphicCard>
 
       <NeumorphicCard style={styles.card}>
-        <Text style={styles.label}>Apple / Google 로그인 (identity token)</Text>
+        <Text style={styles.label}>소셜 로그인 (identity token)</Text>
+        <Text style={styles.hintText}>
+          Apple / Google 가이드라인에 맞춘 버튼 스타일입니다. 발급받은 identity token을 입력한 뒤 버튼을 눌러주세요.{"\n"}
+          Apple 로그인은 iOS에서만 노출됩니다.
+        </Text>
+
+        {Platform.OS === "ios" ? (
+          <>
+            <Text style={styles.socialInputLabel}>Apple identity token</Text>
+            <TextInput
+              value={appleTokenInput}
+              onChangeText={setAppleTokenInput}
+              placeholder="Apple identity token"
+              autoCapitalize="none"
+              style={styles.input}
+            />
+
+            <Pressable
+              accessibilityRole="button"
+              style={({ pressed }) => [styles.appleSignInButton, pressed && styles.brandButtonPressed]}
+              onPress={() => run(() => signInWithApple(appleTokenInput.trim()), "Apple 로그인 성공")}
+              disabled={busy}
+            >
+              <Text style={styles.appleIcon}></Text>
+              <Text style={styles.appleSignInLabel}>{busy ? "처리 중..." : "Sign in with Apple"}</Text>
+            </Pressable>
+          </>
+        ) : (
+          <Text style={styles.platformInfoText}>Apple 로그인은 iOS 기기에서만 지원됩니다.</Text>
+        )}
+
+        <Text style={styles.socialInputLabel}>Google identity token</Text>
         <TextInput
-          value={tokenInput}
-          onChangeText={setTokenInput}
-          placeholder="identity token"
+          value={googleTokenInput}
+          onChangeText={setGoogleTokenInput}
+          placeholder="Google identity token"
           autoCapitalize="none"
           style={styles.input}
         />
-        <View style={styles.row}>
-          <NeumorphicButton
-            label={busy ? "처리 중..." : "Apple 로그인"}
-            style={styles.buttonFlex}
-            onPress={() => run(() => signInWithApple(tokenInput.trim()), "Apple 로그인 성공")}
-          />
-          <NeumorphicButton
-            label={busy ? "처리 중..." : "Google 로그인"}
-            style={styles.buttonFlex}
-            onPress={() => run(() => signInWithGoogle(tokenInput.trim()), "Google 로그인 성공")}
-          />
-        </View>
+        <Pressable
+          accessibilityRole="button"
+          style={({ pressed }) => [styles.googleSignInButton, pressed && styles.brandButtonPressed]}
+          onPress={() => run(() => signInWithGoogle(googleTokenInput.trim()), "Google 로그인 성공")}
+          disabled={busy}
+        >
+          <View style={styles.googleLogoWrap}>
+            <Text style={styles.googleLogoText}>G</Text>
+          </View>
+          <Text style={styles.googleSignInLabel}>{busy ? "처리 중..." : "Sign in with Google"}</Text>
+        </Pressable>
       </NeumorphicCard>
 
       <View style={styles.row}>
@@ -370,6 +404,9 @@ const styles = StyleSheet.create({
   label: { color: COLORS.textOnSurface, fontWeight: "700", marginBottom: 6 },
   value: { color: COLORS.textOnSurface, marginBottom: 2 },
   errorText: { color: COLORS.danger, marginTop: 4 },
+  hintText: { color: "#4b5563", marginBottom: 10, lineHeight: 18 },
+  socialInputLabel: { color: COLORS.textOnSurface, fontSize: 13, marginBottom: 6, marginTop: 2 },
+  platformInfoText: { color: "#6b7280", marginBottom: 12 },
   input: {
     backgroundColor: "#f3f4f6",
     borderColor: "#d1d5db",
@@ -394,6 +431,41 @@ const styles = StyleSheet.create({
   },
   row: { flexDirection: "row", gap: 10, marginBottom: 8 },
   buttonFlex: { flex: 1 },
+  brandButtonPressed: { opacity: 0.8 },
+  appleSignInButton: {
+    height: 48,
+    borderRadius: 10,
+    backgroundColor: "#000000",
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    marginBottom: 12,
+  },
+  appleIcon: { color: "#FFFFFF", fontSize: 20, marginRight: 10, marginTop: -1 },
+  appleSignInLabel: { color: "#FFFFFF", fontSize: 16, fontWeight: "600" },
+  googleSignInButton: {
+    height: 48,
+    borderRadius: 6,
+    backgroundColor: "#FFFFFF",
+    borderColor: "#dadce0",
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    marginBottom: 4,
+  },
+  googleLogoWrap: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 1,
+    borderColor: "#dadce0",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  googleLogoText: { color: "#4285F4", fontSize: 12, fontWeight: "700" },
+  googleSignInLabel: { color: "#3c4043", fontSize: 15, fontWeight: "500" },
   emptyText: { color: COLORS.textOnSurface, marginTop: 6 },
   listWrap: { marginTop: 6, gap: 8 },
   fileItem: {
