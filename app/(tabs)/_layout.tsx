@@ -1,10 +1,12 @@
-import { Tabs, Redirect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { Href, Redirect, Tabs } from "expo-router";
 import { ActivityIndicator, View } from "react-native";
-import { COLORS } from "../../theme/colors";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useJournalStore } from "../../store/journalStore";
+import { COLORS } from "../../theme/colors";
 
 export default function TabLayout() {
+  const insets = useSafeAreaInsets();
   const { isReady, session, isGuest } = useJournalStore();
 
   if (!isReady) {
@@ -16,20 +18,37 @@ export default function TabLayout() {
   }
 
   if (!session && !isGuest) {
-    return <Redirect href="/login" />;
+    return <Redirect href={"/login" as Href} />;
   }
 
   return (
     <Tabs
       screenOptions={{
-        headerStyle: { backgroundColor: COLORS.background },
-        headerTintColor: COLORS.textOnDark,
+        headerStyle: {
+          backgroundColor: COLORS.background,
+          elevation: 0,
+          shadowOpacity: 0,
+          borderBottomWidth: 0,
+        },
+        headerTintColor: COLORS.primaryText,
+        headerTitleStyle: {
+          fontWeight: "600",
+          fontSize: 18,
+        },
         tabBarStyle: {
           backgroundColor: COLORS.background,
-          borderTopColor: "#1f2937",
+          borderTopColor: COLORS.softBorder,
+          borderTopWidth: 0.5,
+          paddingTop: 6,
+          paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
+          height: 56 + (insets.bottom > 0 ? insets.bottom : 8),
         },
-        tabBarActiveTintColor: COLORS.surface,
-        tabBarInactiveTintColor: "#9ca3af",
+        tabBarActiveTintColor: COLORS.accentPink,
+        tabBarInactiveTintColor: COLORS.secondaryText,
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: "500",
+        },
       }}
     >
       <Tabs.Screen
@@ -73,9 +92,9 @@ export default function TabLayout() {
       <Tabs.Screen
         name="sync"
         options={{
-          title: "동기화",
+          title: "MY",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="cloud-upload-outline" size={size} color={color} />
+            <Ionicons name="person-outline" size={size} color={color} />
           ),
         }}
       />

@@ -127,4 +127,18 @@ Realtime Database Rules 예시:
 
 ## 라이선스
 
-추후 결정
+1️⃣ 가장 안전한 방법 (로컬에서 해결 후 Push)
+1. 최신 main 가져오기
+git checkout main
+git pull origin main
+
+2. 작업 브랜치로 이동
+git checkout work
+
+3. main을 병합
+git merge main
+
+4. 충돌 해결 후
+git add .
+git commit -m "resolve merge conflicts"
+git push origin work

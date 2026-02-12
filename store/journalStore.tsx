@@ -1,5 +1,5 @@
-import React from "react";
 import * as SQLite from "expo-sqlite";
+import React from "react";
 import { mapRemoteEntriesToLocal, remoteClient } from "../services/remoteSync";
 import { AuthSession, BackupPayload, Entry } from "../types/journal";
 import { toDateKey } from "../utils/date";
@@ -14,8 +14,11 @@ type JournalContextValue = {
   lastSyncedAt: number | null;
   pendingSyncCount: number;
   session: AuthSession | null;
+  isPremium: boolean;
+  setPremium: (value: boolean) => void;
   isGuest: boolean;
-  upsertTodayEntry: (lines: [string, string, string]) => Promise<void>;
+  upsertTodayEntry: (lines: [string, string, string], imageUri?: string | null) => Promise<void>;
+  upsertEntry: (date: string, lines: [string, string, string], imageUri?: string | null) => Promise<void>;
   removeEntry: (id: string) => Promise<void>;
   searchEntries: (keyword: string) => Entry[];
   signInWithEmail: (email: string, password: string) => Promise<void>;
@@ -34,6 +37,7 @@ type EntryRow = {
   line1: string;
   line2: string;
   line3: string;
+  imageUri: string | null;
   createdAt: number;
   updatedAt: number;
   deletedAt: number | null;
@@ -63,6 +67,7 @@ const toEntry = (row: EntryRow): Entry => ({
   id: row.id,
   date: row.date,
   lines: [row.line1 ?? "", row.line2 ?? "", row.line3 ?? ""],
+  imageUri: row.imageUri,
   createdAt: Number(row.createdAt),
   updatedAt: Number(row.updatedAt),
   deletedAt: row.deletedAt,
@@ -81,11 +86,18 @@ async function getDatabase() {
       line1 TEXT NOT NULL,
       line2 TEXT NOT NULL,
       line3 TEXT NOT NULL,
+      imageUri TEXT,
       createdAt INTEGER NOT NULL,
       updatedAt INTEGER NOT NULL,
       deletedAt INTEGER
     );`,
   );
+  // Migration: add imageUri column if not exists
+  try {
+    await db.execAsync(`ALTER TABLE ${TABLE_ENTRIES} ADD COLUMN imageUri TEXT;`);
+  } catch {
+    // Column already exists, ignore
+  }
   await db.execAsync(`CREATE INDEX IF NOT EXISTS idx_journal_date ON ${TABLE_ENTRIES}(date);`);
   await db.execAsync(
     `CREATE TABLE IF NOT EXISTS ${TABLE_SYNC_META} (
@@ -118,7 +130,7 @@ async function getDatabase() {
 async function loadEntriesFromDb() {
   const db = await getDatabase();
   const rows = await db.getAllAsync<EntryRow>(
-    `SELECT id, date, line1, line2, line3, createdAt, updatedAt, deletedAt
+    `SELECT id, date, line1, line2, line3, imageUri, createdAt, updatedAt, deletedAt
      FROM ${TABLE_ENTRIES}
      ORDER BY date DESC, updatedAt DESC`,
   );
@@ -130,13 +142,14 @@ async function upsertEntriesToDb(entries: Entry[]) {
   await db.withTransactionAsync(async () => {
     for (const entry of entries) {
       await db.runAsync(
-        `INSERT INTO ${TABLE_ENTRIES} (id, date, line1, line2, line3, createdAt, updatedAt, deletedAt)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO ${TABLE_ENTRIES} (id, date, line1, line2, line3, imageUri, createdAt, updatedAt, deletedAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET
             date = excluded.date,
             line1 = excluded.line1,
             line2 = excluded.line2,
             line3 = excluded.line3,
+            imageUri = excluded.imageUri,
             createdAt = excluded.createdAt,
             updatedAt = excluded.updatedAt,
             deletedAt = excluded.deletedAt`,
@@ -146,6 +159,7 @@ async function upsertEntriesToDb(entries: Entry[]) {
           entry.lines[0],
           entry.lines[1],
           entry.lines[2],
+          entry.imageUri ?? null,
           entry.createdAt,
           entry.updatedAt,
           entry.deletedAt ?? null,
@@ -310,6 +324,7 @@ function normalizeBackupEntries(entries: Entry[]) {
       id: entry.id,
       date: entry.date,
       lines: [entry.lines?.[0] ?? "", entry.lines?.[1] ?? "", entry.lines?.[2] ?? ""] as [string, string, string],
+      imageUri: entry.imageUri ?? null,
       createdAt: Number(entry.createdAt) || Date.now(),
       updatedAt: Number(entry.updatedAt) || Date.now(),
       deletedAt: entry.deletedAt ?? null,
@@ -325,6 +340,11 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
   const [syncStatus, setSyncStatus] = React.useState<SyncStatus>("idle");
   const [syncError, setSyncError] = React.useState<string | null>(null);
   const [pendingSyncCount, setPendingSyncCount] = React.useState(0);
+  const [isPremium, setIsPremium] = React.useState(false);
+
+  const setPremium = React.useCallback((value: boolean) => {
+    setIsPremium(value);
+  }, []);
 
   const visibleEntries = React.useMemo(() => entries.filter((entry) => !entry.deletedAt), [entries]);
 
@@ -424,18 +444,18 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
     };
   }, [performSync, refreshPendingSyncCount]);
 
-  const upsertTodayEntry = React.useCallback(
-    async (lines: [string, string, string]) => {
-      const date = toDateKey();
+  const upsertEntry = React.useCallback(
+    async (date: string, lines: [string, string, string], imageUri?: string | null) => {
       const now = Date.now();
       const existing = entries.find((entry) => entry.date === date && !entry.deletedAt);
 
       const nextEntry: Entry = existing
-        ? { ...existing, lines, updatedAt: now, deletedAt: null }
+        ? { ...existing, lines, imageUri: imageUri !== undefined ? imageUri : existing.imageUri, updatedAt: now, deletedAt: null }
         : {
             id: `${date}-${now}`,
             date,
             lines,
+            imageUri: imageUri ?? null,
             createdAt: now,
             updatedAt: now,
             deletedAt: null,
@@ -454,6 +474,14 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
       }
     },
     [entries, refreshPendingSyncCount, session, syncNow],
+  );
+
+  const upsertTodayEntry = React.useCallback(
+    async (lines: [string, string, string], imageUri?: string | null) => {
+      const date = toDateKey();
+      await upsertEntry(date, lines, imageUri);
+    },
+    [upsertEntry],
   );
 
   const removeEntry = React.useCallback(
@@ -591,8 +619,11 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
       lastSyncedAt,
       pendingSyncCount,
       session,
+      isPremium,
+      setPremium,
       isGuest,
       upsertTodayEntry,
+      upsertEntry,
       removeEntry,
       searchEntries,
       signInWithEmail,
@@ -607,12 +638,14 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
     [
       exportBackup,
       importBackup,
+      isPremium,
       isReady,
       lastSyncedAt,
       pendingSyncCount,
       removeEntry,
       searchEntries,
       session,
+      setPremium,
       isGuest,
       signInWithApple,
       signInWithEmail,
@@ -623,6 +656,7 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
       syncNow,
       syncStatus,
       upsertTodayEntry,
+      upsertEntry,
       visibleEntries,
     ],
   );
