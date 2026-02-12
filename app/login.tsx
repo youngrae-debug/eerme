@@ -1,14 +1,16 @@
 import React from "react";
-import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Redirect } from "expo-router";
 import { NeumorphicButton, NeumorphicCard } from "../components/neumorphic";
 import { useJournalStore } from "../store/journalStore";
 import { COLORS } from "../theme/colors";
 
 export default function LoginScreen() {
-  const { isReady, session, isGuest, signInWithEmail, signInAsGuest } = useJournalStore();
+  const { isReady, session, isGuest, signInWithEmail, signInWithApple, signInWithGoogle, signInAsGuest } = useJournalStore();
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
+  const [appleTokenInput, setAppleTokenInput] = React.useState("");
+  const [googleTokenInput, setGoogleTokenInput] = React.useState("");
   const [busy, setBusy] = React.useState(false);
 
   const run = async (task: () => Promise<void>, successMessage?: string) => {
@@ -74,6 +76,55 @@ export default function LoginScreen() {
           onPress={() => run(signInAsGuest, "게스트 모드로 시작합니다")}
         />
       </NeumorphicCard>
+
+      <NeumorphicCard style={styles.card}>
+        <Text style={styles.label}>소셜 로그인</Text>
+
+        {Platform.OS === "ios" ? (
+          <>
+            <Text style={styles.socialInputLabel}>Apple identity token</Text>
+            <TextInput
+              value={appleTokenInput}
+              onChangeText={setAppleTokenInput}
+              placeholder="Apple identity token"
+              autoCapitalize="none"
+              style={styles.input}
+            />
+
+            <Pressable
+              accessibilityRole="button"
+              style={({ pressed }) => [styles.appleSignInButton, pressed && styles.brandButtonPressed]}
+              onPress={() => run(() => signInWithApple(appleTokenInput.trim()), "Apple 로그인 성공")}
+              disabled={busy}
+            >
+              <Text style={styles.appleIcon}></Text>
+              <Text style={styles.appleSignInLabel}>{busy ? "처리 중..." : "Sign in with Apple"}</Text>
+            </Pressable>
+          </>
+        ) : (
+          <Text style={styles.platformInfoText}>Apple 로그인은 iOS 기기에서만 지원됩니다.</Text>
+        )}
+
+        <Text style={styles.socialInputLabel}>Google identity token</Text>
+        <TextInput
+          value={googleTokenInput}
+          onChangeText={setGoogleTokenInput}
+          placeholder="Google identity token"
+          autoCapitalize="none"
+          style={styles.input}
+        />
+        <Pressable
+          accessibilityRole="button"
+          style={({ pressed }) => [styles.googleSignInButton, pressed && styles.brandButtonPressed]}
+          onPress={() => run(() => signInWithGoogle(googleTokenInput.trim()), "Google 로그인 성공")}
+          disabled={busy}
+        >
+          <View style={styles.googleLogoWrap}>
+            <Text style={styles.googleLogoText}>G</Text>
+          </View>
+          <Text style={styles.googleSignInLabel}>{busy ? "처리 중..." : "Continue with Google"}</Text>
+        </Pressable>
+      </NeumorphicCard>
     </ScrollView>
   );
 }
@@ -93,6 +144,42 @@ const styles = StyleSheet.create({
   card: { borderRadius: 20 },
   label: { color: COLORS.textOnSurface, fontWeight: "700", marginBottom: 8 },
   description: { color: "#4b5563", marginBottom: 10, lineHeight: 18 },
+  socialInputLabel: { color: COLORS.textOnSurface, fontSize: 13, marginBottom: 6, marginTop: 2 },
+  platformInfoText: { color: "#6b7280", marginBottom: 12 },
+  brandButtonPressed: { opacity: 0.8 },
+  appleSignInButton: {
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: "#000000",
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    marginBottom: 12,
+  },
+  appleIcon: { color: "#FFFFFF", fontSize: 20, marginRight: 10, marginTop: -1 },
+  appleSignInLabel: { color: "#FFFFFF", fontSize: 16, fontWeight: "600" },
+  googleSignInButton: {
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#FFFFFF",
+    borderColor: "#dadce0",
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+  },
+  googleLogoWrap: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#dadce0",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+  googleLogoText: { color: "#4285F4", fontSize: 12, fontWeight: "700" },
+  googleSignInLabel: { color: "#3c4043", fontSize: 16, fontWeight: "500" },
   input: {
     backgroundColor: "#f3f4f6",
     borderColor: "#d1d5db",
