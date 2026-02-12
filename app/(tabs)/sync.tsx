@@ -1,6 +1,7 @@
-import React from "react";
-import { Alert, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
 import * as FileSystem from "expo-file-system/legacy";
+import { Image } from "expo-image";
+import React from "react";
+import { Alert, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { NeumorphicButton, NeumorphicCard } from "../../components/neumorphic";
 import { useJournalStore } from "../../store/journalStore";
 import { COLORS } from "../../theme/colors";
@@ -16,13 +17,15 @@ type MyPageTab = "login" | "status" | "subscription" | "backup";
 
 export default function SyncScreen() {
   const {
+    entries,
     isReady,
     session,
-    isGuest,
     syncStatus,
     syncError,
     lastSyncedAt,
     pendingSyncCount,
+    isPremium,
+    setPremium,
     signInWithEmail,
     signInWithApple,
     signInWithGoogle,
@@ -32,10 +35,11 @@ export default function SyncScreen() {
     importBackup,
   } = useJournalStore();
 
+  const [activeTab, setActiveTab] = React.useState<TabKey>("status");
+  const [selectedPlan, setSelectedPlan] = React.useState<"free" | "premium">(isPremium ? "premium" : "free");
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
-  const [appleTokenInput, setAppleTokenInput] = React.useState("");
-  const [googleTokenInput, setGoogleTokenInput] = React.useState("");
+  const [tokenInput, setTokenInput] = React.useState("");
   const [backupText, setBackupText] = React.useState("");
   const [backupFileUri, setBackupFileUri] = React.useState("");
   const [backupFiles, setBackupFiles] = React.useState<BackupFileItem[]>([]);
@@ -87,6 +91,10 @@ export default function SyncScreen() {
     });
   }, [isReady, loadBackupFiles]);
 
+  React.useEffect(() => {
+    setSelectedPlan(isPremium ? "premium" : "free");
+  }, [isPremium]);
+
   const run = async (task: () => Promise<void>, successMessage?: string) => {
     setBusy(true);
     try {
@@ -116,7 +124,7 @@ export default function SyncScreen() {
   if (!isReady) {
     return (
       <View style={styles.loadingWrap}>
-        <Text style={styles.loadingText}>동기화 상태를 불러오는 중...</Text>
+        <Text style={styles.loadingText}>설정을 불러오는 중...</Text>
       </View>
     );
   }
@@ -453,7 +461,7 @@ export default function SyncScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  content: { padding: 20, paddingBottom: 36, gap: 12 },
+  content: { padding: 20, paddingBottom: 36, gap: 14 },
   loadingWrap: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -482,32 +490,31 @@ const styles = StyleSheet.create({
   label: { color: COLORS.textOnSurface, fontWeight: "700", marginBottom: 6 },
   value: { color: COLORS.textOnSurface, marginBottom: 2 },
   errorText: { color: COLORS.danger, marginTop: 4 },
-  hintText: { color: "#4b5563", marginBottom: 10, lineHeight: 18 },
-  socialInputLabel: { color: COLORS.textOnSurface, fontSize: 13, marginBottom: 6, marginTop: 2 },
-  platformInfoText: { color: "#6b7280", marginBottom: 12 },
   input: {
-    backgroundColor: "#f3f4f6",
-    borderColor: "#d1d5db",
+    backgroundColor: COLORS.card,
+    borderColor: COLORS.softBorder,
     borderWidth: 1,
-    borderRadius: 12,
-    color: COLORS.textOnSurface,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderRadius: 16,
+    color: COLORS.primaryText,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     marginBottom: 10,
+    fontSize: 15,
   },
   textArea: {
-    backgroundColor: "#f3f4f6",
-    borderColor: "#d1d5db",
+    backgroundColor: COLORS.card,
+    borderColor: COLORS.softBorder,
     borderWidth: 1,
-    borderRadius: 12,
-    color: COLORS.textOnSurface,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderRadius: 16,
+    color: COLORS.primaryText,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     marginBottom: 10,
     minHeight: 130,
     textAlignVertical: "top",
+    fontSize: 15,
   },
-  row: { flexDirection: "row", gap: 10, marginBottom: 8 },
+  row: { flexDirection: "row", gap: 12, marginBottom: 8 },
   buttonFlex: { flex: 1 },
   brandButtonPressed: { opacity: 0.8 },
   appleSignInButton: {
@@ -517,7 +524,33 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 10,
+    gap: 10,
+  },
+  subscriptionBadge: {
+    backgroundColor: COLORS.accentLavender,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  subscriptionBadgePremium: {
+    backgroundColor: COLORS.accentPeach,
+  },
+  subscriptionBadgeText: {
+    color: COLORS.primaryText,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  subscriptionPlanName: {
+    color: COLORS.primaryText,
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  subscriptionDesc: {
+    color: COLORS.secondaryText,
     marginBottom: 12,
+    lineHeight: 22,
   },
   appleIcon: { color: "#FFFFFF", fontSize: 20, marginRight: 10, marginTop: -1 },
   appleSignInLabel: { color: "#FFFFFF", fontSize: 16, fontWeight: "600" },
@@ -552,6 +585,4 @@ const styles = StyleSheet.create({
     borderColor: "#d1d5db",
     padding: 10,
   },
-  fileName: { color: COLORS.textOnSurface, fontWeight: "700", marginBottom: 2 },
-  fileUri: { color: "#4b5563", marginBottom: 8 },
 });

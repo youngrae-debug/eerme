@@ -1,5 +1,6 @@
+import { Image } from "expo-image";
 import React from "react";
-import { ScrollView, StyleSheet, Text, TextInput } from "react-native";
+import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { NeumorphicCard } from "../../components/neumorphic";
 import { useJournalStore } from "../../store/journalStore";
 import { COLORS } from "../../theme/colors";
@@ -7,7 +8,7 @@ import { formatDateDisplay } from "../../utils/date";
 
 export default function SearchScreen() {
   const [keyword, setKeyword] = React.useState("");
-  const { searchEntries, isReady } = useJournalStore();
+  const { searchEntries, isReady, isPremium } = useJournalStore();
 
   const results = searchEntries(keyword);
 
@@ -22,13 +23,24 @@ export default function SearchScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <Text style={styles.title}>검색</Text>
+      {/* 프리미엄 배지 */}
+      {isPremium && (
+        <View style={styles.premiumBadge}>
+          <Image
+            source={require("../../assets/images/logo.png")}
+            style={styles.premiumLogo}
+            contentFit="contain"
+          />
+          <Text style={styles.premiumText}>Premium</Text>
+        </View>
+      )}
+
       <NeumorphicCard style={styles.searchCard}>
         <TextInput
           value={keyword}
           onChangeText={setKeyword}
           placeholder="기록에서 키워드를 찾아보세요"
-          placeholderTextColor="#6b7280"
+          placeholderTextColor={COLORS.secondaryText}
           style={styles.input}
         />
       </NeumorphicCard>
@@ -37,10 +49,10 @@ export default function SearchScreen() {
       {results.map((entry) => (
         <NeumorphicCard key={entry.id} style={styles.resultCard}>
           <Text style={styles.date}>{formatDateDisplay(entry.date)}</Text>
-          {entry.lines
+          {(entry.lines ?? [])
             .filter((line) => line && line.toLowerCase().includes(keyword.toLowerCase()))
-            .map((line) => (
-              <Text key={`${entry.id}-${line}`} style={styles.line}>
+            .map((line, idx) => (
+              <Text key={`${entry.id}-${idx}`} style={styles.line}>
                 • {line}
               </Text>
             ))}
@@ -52,21 +64,38 @@ export default function SearchScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  content: { padding: 20, paddingBottom: 32, gap: 12 },
-  title: { color: COLORS.textOnDark, fontSize: 28, fontWeight: "800" },
-  searchCard: { borderRadius: 20 },
-  input: {
-    backgroundColor: "#f3f4f6",
-    borderColor: "#d1d5db",
-    borderWidth: 1,
-    borderRadius: 12,
-    color: COLORS.textOnSurface,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+  content: { padding: 20, paddingBottom: 32, gap: 14 },
+  premiumBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    gap: 8,
   },
-  count: { color: "#d1d5db" },
-  empty: { color: "#9ca3af" },
-  resultCard: { borderRadius: 20 },
-  date: { color: COLORS.textOnSurface, fontWeight: "700", marginBottom: 4 },
-  line: { color: COLORS.textOnSurface },
+  premiumLogo: {
+    width: 28,
+    height: 28,
+  },
+  premiumText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: COLORS.accentPeach,
+  },
+  title: { color: COLORS.primaryText, fontSize: 28, fontWeight: "800" },
+  searchCard: { borderRadius: 24 },
+  input: {
+    backgroundColor: COLORS.card,
+    borderColor: COLORS.softBorder,
+    borderWidth: 1,
+    borderRadius: 16,
+    color: COLORS.primaryText,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 15,
+  },
+  count: { color: COLORS.secondaryText },
+  empty: { color: COLORS.secondaryText },
+  resultCard: { borderRadius: 24 },
+  date: { color: COLORS.primaryText, fontWeight: "600", marginBottom: 4 },
+  line: { color: COLORS.secondaryText, lineHeight: 22 },
 });

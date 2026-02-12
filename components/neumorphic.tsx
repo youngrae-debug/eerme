@@ -8,8 +8,8 @@ type NeumorphicCardProps = PropsWithChildren<{
 
 export function NeumorphicCard({ children, style }: NeumorphicCardProps) {
   return (
-    <View style={[styles.outer, style]}>
-      <View style={styles.inner}>{children}</View>
+    <View style={[styles.card, style]}>
+      {children}
     </View>
   );
 }
@@ -19,41 +19,59 @@ type NeumorphicButtonProps = {
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
   textStyle?: StyleProp<TextStyle>;
+  variant?: "primary" | "secondary" | "peach" | "mint";
 };
 
-export function NeumorphicButton({ label, onPress, style, textStyle }: NeumorphicButtonProps) {
+export function NeumorphicButton({ label, onPress, style, textStyle, variant = "primary" }: NeumorphicButtonProps) {
+  const variantStyles = {
+    primary: { backgroundColor: '#C6B193' },
+    secondary: { backgroundColor: '#BFA888' },
+    peach: { backgroundColor: '#C6B193' },
+    mint: { backgroundColor: '#BFA888' },
+  };
+
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [style, pressed && { opacity: 0.85 }]}>
-      <NeumorphicCard>
-        <Text style={[styles.buttonLabel, textStyle]}>{label}</Text>
-      </NeumorphicCard>
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.button,
+        variantStyles[variant],
+        style,
+        pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+      ]}
+    >
+      <Text style={[styles.buttonLabel, textStyle]}>{label}</Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  outer: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 20,
-    shadowColor: COLORS.accentDarkShadow,
-    shadowOffset: { width: 8, height: 8 },
-    shadowOpacity: 0.35,
-    shadowRadius: 14,
-    elevation: 12,
+  card: {
+    backgroundColor: COLORS.card,
+    borderRadius: 24,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 15,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
   },
-  inner: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 20,
-    shadowColor: COLORS.accentLightShadow,
-    shadowOffset: { width: -8, height: -8 },
-    shadowOpacity: 0.9,
-    shadowRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+  button: {
+    borderRadius: 50,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
   },
   buttonLabel: {
-    color: COLORS.textOnSurface,
-    fontWeight: "700",
+    color: '#5A4E42',
+    fontWeight: "600",
+    fontSize: 15,
     textAlign: "center",
   },
 });
