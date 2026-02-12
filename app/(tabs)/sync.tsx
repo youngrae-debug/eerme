@@ -1,7 +1,6 @@
 import * as FileSystem from "expo-file-system/legacy";
-import { Image } from "expo-image";
 import React from "react";
-import { Alert, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Alert, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
 import { NeumorphicButton, NeumorphicCard } from "../../components/neumorphic";
 import { useJournalStore } from "../../store/journalStore";
 import { COLORS } from "../../theme/colors";
@@ -26,6 +25,7 @@ export default function SyncScreen() {
     pendingSyncCount,
     isPremium,
     setPremium,
+    isGuest,
     signInWithEmail,
     signInWithApple,
     signInWithGoogle,
@@ -35,16 +35,17 @@ export default function SyncScreen() {
     importBackup,
   } = useJournalStore();
 
-  const [activeTab, setActiveTab] = React.useState<TabKey>("status");
+  const [activeTab, setActiveTab] = React.useState<MyPageTab>("status");
   const [selectedPlan, setSelectedPlan] = React.useState<"free" | "premium">(isPremium ? "premium" : "free");
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [tokenInput, setTokenInput] = React.useState("");
+  const [appleTokenInput, setAppleTokenInput] = React.useState("");
+  const [googleTokenInput, setGoogleTokenInput] = React.useState("");
   const [backupText, setBackupText] = React.useState("");
   const [backupFileUri, setBackupFileUri] = React.useState("");
   const [backupFiles, setBackupFiles] = React.useState<BackupFileItem[]>([]);
   const [busy, setBusy] = React.useState(false);
-  const [activeTab, setActiveTab] = React.useState<MyPageTab>("status");
 
   const tabItems = React.useMemo(
     () => [
@@ -524,7 +525,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
-    alignItems: "center",
     marginBottom: 10,
     gap: 10,
   },
@@ -584,5 +584,32 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#d1d5db",
     padding: 10,
+  },
+  hintText: {
+    color: COLORS.secondaryText,
+    fontSize: 13,
+    marginBottom: 12,
+  },
+  socialInputLabel: {
+    color: COLORS.textOnSurface,
+    fontWeight: "600",
+    fontSize: 14,
+    marginBottom: 6,
+  },
+  platformInfoText: {
+    color: COLORS.secondaryText,
+    fontSize: 13,
+    fontStyle: "italic",
+    marginBottom: 12,
+  },
+  fileName: {
+    color: COLORS.primaryText,
+    fontWeight: "600",
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  fileUri: {
+    color: COLORS.secondaryText,
+    fontSize: 12,
   },
 });
