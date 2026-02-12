@@ -13,14 +13,7 @@ type BackupFileItem = {
   name: string;
 };
 
-type TabKey = "status" | "subscription" | "login" | "backup";
-
-const TABS: { key: TabKey; label: string }[] = [
-  { key: "status", label: "상태" },
-  { key: "subscription", label: "구독" },
-  { key: "login", label: "로그인" },
-  { key: "backup", label: "백업" },
-];
+type MyPageTab = "login" | "status" | "subscription" | "backup";
 
 export default function SyncScreen() {
   const {
@@ -51,6 +44,25 @@ export default function SyncScreen() {
   const [backupFileUri, setBackupFileUri] = React.useState("");
   const [backupFiles, setBackupFiles] = React.useState<BackupFileItem[]>([]);
   const [busy, setBusy] = React.useState(false);
+  const [activeTab, setActiveTab] = React.useState<MyPageTab>("status");
+
+  const tabItems = React.useMemo(
+    () => [
+      { key: "login" as const, label: "로그인", visible: !session || isGuest },
+      { key: "status" as const, label: "상태", visible: true },
+      { key: "subscription" as const, label: "구독", visible: true },
+      { key: "backup" as const, label: "백업", visible: true },
+    ],
+    [isGuest, session],
+  );
+
+  const visibleTabs = React.useMemo(() => tabItems.filter((item) => item.visible), [tabItems]);
+
+  React.useEffect(() => {
+    if (!visibleTabs.some((item) => item.key === activeTab)) {
+      setActiveTab(visibleTabs[0]?.key ?? "status");
+    }
+  }, [activeTab, visibleTabs]);
 
   const loadBackupFiles = React.useCallback(async () => {
     const baseDir = FileSystem.documentDirectory;
@@ -119,186 +131,33 @@ export default function SyncScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      {/* 프리미엄 배지 */}
-      {isPremium && (
-        <View style={styles.premiumBadge}>
-          <Image
-            source={require("../../assets/images/logo.png")}
-            style={styles.premiumLogo}
-            contentFit="contain"
-          />
-          <Text style={styles.premiumText}>Premium</Text>
-        </View>
-      )}
+      <Text style={styles.title}>마이페이지</Text>
+      <Text style={styles.subtitle}>로그인, 상태, 구독, 백업 정보를 탭으로 관리할 수 있어요.</Text>
 
-      <Text style={styles.title}>든든한 계정 시스템</Text>
-      <Text style={styles.subtitle}>
-        내 계정에 기록을 저장하고 언제든 로그인해 불러올 수 있어요
-      </Text>
-
-      <View style={styles.tabBar}>
-        {TABS.map((tab) => (
-          <TouchableOpacity
+      <View style={styles.tabRow}>
+        {visibleTabs.map((tab) => (
+          <Pressable
             key={tab.key}
-            style={[styles.tabItem, activeTab === tab.key && styles.tabItemActive]}
+            accessibilityRole="button"
             onPress={() => setActiveTab(tab.key)}
+            style={[styles.tabButton, activeTab === tab.key && styles.tabButtonActive]}
           >
-            <Text style={[styles.tabText, activeTab === tab.key && styles.tabTextActive]}>
-              {tab.label}
-            </Text>
-          </TouchableOpacity>
+            <Text style={[styles.tabLabel, activeTab === tab.key && styles.tabLabelActive]}>{tab.label}</Text>
+          </Pressable>
         ))}
       </View>
 
-      {activeTab === "status" && (
+      {activeTab === "login" ? (
         <>
-          <View style={styles.infoCard}>
-            <Text style={styles.cardTitle}>내 정보</Text>
-            {session ? (
-              <>
-                <Text style={styles.infoText}>닉네임: {session.user.email?.split("@")[0] ?? "사용자"}</Text>
-                <Text style={[styles.infoText, { marginTop: 6 }]}>이메일: {session.user.email}</Text>
-              </>
-            ) : (
-              <Text style={styles.infoText}>로그인이 필요합니다</Text>
-            )}
-          </View>
-
-          <View style={styles.infoCard}>
-            <Text style={styles.cardTitle}>나의 기록</Text>
-            <Text style={styles.infoText}>기록 수: {entries.length}개</Text>
-            <Text style={[styles.infoText, { marginTop: 6 }]}>
-              총 문장 수: {entries.reduce((sum, e) => sum + e.lines.filter(l => l.trim()).length, 0)}줄
-            </Text>
-          </View>
-
           <NeumorphicCard style={styles.card}>
-            <Text style={styles.cardTitle}>동기화 상태</Text>
-            <Text style={styles.value}>상태: {syncStatus === "idle" ? "대기중" : syncStatus === "syncing" ? "동기화중" : "오류"}</Text>
+            <Text style={styles.label}>로그인</Text>
             <Text style={styles.value}>
-              마지막 동기화: {lastSyncedAt ? new Date(lastSyncedAt).toLocaleString("ko-KR") : "-"}
+              {isGuest
+                ? "게스트 모드입니다. 아래 Google/Apple 또는 이메일 로그인을 통해 계정을 연동할 수 있어요."
+                : "로그인하지 않은 상태입니다. 이메일/소셜 로그인을 진행해 주세요."}
             </Text>
-            <Text style={styles.value}>대기 중: {pendingSyncCount}건</Text>
-            {syncError ? <Text style={styles.errorText}>오류: {syncError}</Text> : null}
-            <View style={[styles.row, { marginTop: 12 }]}>
-              <NeumorphicButton
-                label={busy ? "처리 중..." : "지금 동기화"}
-                style={styles.buttonFlex}
-                onPress={() => run(syncNow, "동기화를 완료했어요")}
-              />
-              <NeumorphicButton
-                label={busy ? "처리 중..." : "로그아웃"}
-                style={styles.buttonFlex}
-                textStyle={{ color: COLORS.danger }}
-                onPress={() => run(signOut, "로그아웃 했어요")}
-              />
-            </View>
           </NeumorphicCard>
-        </>
-      )}
 
-      {activeTab === "subscription" && (
-        <NeumorphicCard style={styles.card}>
-          <Text style={styles.label}>구독</Text>
-          {/* 플랜 선택 버튼 */}
-          <Text style={styles.planSelectLabel}>플랜 선택</Text>
-          <View style={styles.planSelectRow}>
-            <TouchableOpacity
-              style={[styles.planOption, selectedPlan === "free" && styles.planOptionSelected]}
-              onPress={() => setSelectedPlan("free")}
-            >
-              <Text style={[styles.planOptionText, selectedPlan === "free" && styles.planOptionTextSelected]}>무료</Text>
-              <Text style={[styles.planOptionPrice, selectedPlan === "free" && styles.planOptionPriceSelected]}>$0</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.planOption, selectedPlan === "premium" && styles.planOptionSelected]}
-              onPress={() => setSelectedPlan("premium")}
-            >
-              <Text style={[styles.planOptionText, selectedPlan === "premium" && styles.planOptionTextSelected]}>프리미엄</Text>
-              <Text style={[styles.planOptionPrice, selectedPlan === "premium" && styles.planOptionPriceSelected]}>$3/월</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.subscriptionHeader}>
-            <View style={[styles.subscriptionBadge, selectedPlan === "premium" && styles.subscriptionBadgePremium]}>
-              <Text style={styles.subscriptionBadgeText}>{selectedPlan === "premium" ? "PREMIUM" : "FREE"}</Text>
-            </View>
-            <Text style={styles.subscriptionPlanName}>{selectedPlan === "premium" ? "프리미엄 플랜" : "무료 플랜"}</Text>
-            <Text style={styles.subscriptionPrice}>{selectedPlan === "premium" ? "$3/월" : "$0"}</Text>
-          </View>
-
-          <Text style={styles.subscriptionDesc}>
-            {selectedPlan === "premium"
-              ? "모든 프리미엄 기능을 이용할 수 있습니다."
-              : "기본 기능을 무료로 이용할 수 있어요.\n프리미엄으로 업그레이드하면 더 많은 기능을 이용할 수 있습니다."
-            }
-          </Text>
-
-          <View style={styles.subscriptionFeatures}>
-            <Text style={styles.subscriptionFeatureItem}>✓ 일기 작성 및 저장</Text>
-            <Text style={styles.subscriptionFeatureItem}>✓ 캘린더 보기</Text>
-            <Text style={styles.subscriptionFeatureItem}>✓ 로컬 백업</Text>
-            <Text style={selectedPlan === "premium" ? styles.subscriptionFeatureItem : styles.subscriptionFeatureItemLocked}>
-              {selectedPlan === "premium" ? "✓" : "✗"} 클라우드 동기화
-            </Text>
-            <Text style={selectedPlan === "premium" ? styles.subscriptionFeatureItem : styles.subscriptionFeatureItemLocked}>
-              {selectedPlan === "premium" ? "✓" : "✗"} 고급 통계
-            </Text>
-            <Text style={selectedPlan === "premium" ? styles.subscriptionFeatureItem : styles.subscriptionFeatureItemLocked}>
-              {selectedPlan === "premium" ? "✓" : "✗"} 테마 커스터마이징
-            </Text>
-          </View>
-
-          {selectedPlan === "premium" && !isPremium && (
-            <NeumorphicButton
-              label="프리미엄 업그레이드"
-              style={{ marginTop: 12 }}
-              onPress={() => {
-                Alert.alert(
-                  "프리미엄 구독",
-                  "프리미엄을 구독하시겠습니까?\n\n• 과거 일기 수정/삭제 무제한\n• 광고 없이 이용",
-                  [
-                    { text: "취소", style: "cancel" },
-                    {
-                      text: "구독하기",
-                      onPress: () => {
-                        setPremium(true);
-                        Alert.alert("프리미엄", "프리미엄 기능이 활성화되었습니다!");
-                      },
-                    },
-                  ]
-                );
-              }}
-            />
-          )}
-          {selectedPlan === "free" && isPremium && (
-            <NeumorphicButton
-              label="무료 플랜으로 변경"
-              style={{ marginTop: 12 }}
-              textStyle={{ color: COLORS.secondaryText }}
-              onPress={() => {
-                Alert.alert(
-                  "플랜 변경",
-                  "무료 플랜으로 변경하시겠습니까?\n\n프리미엄 기능을 더 이상 이용할 수 없습니다.",
-                  [
-                    { text: "취소", style: "cancel" },
-                    {
-                      text: "변경하기",
-                      onPress: () => {
-                        setPremium(false);
-                        Alert.alert("플랜 변경", "무료 플랜으로 변경되었습니다.");
-                      },
-                    },
-                  ]
-                );
-              }}
-            />
-          )}
-        </NeumorphicCard>
-      )}
-
-      {activeTab === "login" && (
-        <>
           <NeumorphicCard style={styles.card}>
             <Text style={styles.label}>이메일 로그인</Text>
             <TextInput
@@ -323,31 +182,105 @@ export default function SyncScreen() {
           </NeumorphicCard>
 
           <NeumorphicCard style={styles.card}>
-            <Text style={styles.label}>Apple / Google 로그인 (identity token)</Text>
+            <Text style={styles.label}>소셜 로그인 (identity token)</Text>
+            <Text style={styles.hintText}>
+              게스트 로그인 중이라면 아래 버튼으로 계정을 연동할 수 있어요.{"\n"}
+              Apple 로그인은 iOS에서만 노출됩니다.
+            </Text>
+
+            {Platform.OS === "ios" ? (
+              <>
+                <Text style={styles.socialInputLabel}>Apple identity token</Text>
+                <TextInput
+                  value={appleTokenInput}
+                  onChangeText={setAppleTokenInput}
+                  placeholder="Apple identity token"
+                  autoCapitalize="none"
+                  style={styles.input}
+                />
+
+                <Pressable
+                  accessibilityRole="button"
+                  style={({ pressed }) => [styles.appleSignInButton, pressed && styles.brandButtonPressed]}
+                  onPress={() => run(() => signInWithApple(appleTokenInput.trim()), "Apple 로그인 성공")}
+                  disabled={busy}
+                >
+                  <Text style={styles.appleIcon}></Text>
+                  <Text style={styles.appleSignInLabel}>{busy ? "처리 중..." : "Sign in with Apple"}</Text>
+                </Pressable>
+              </>
+            ) : (
+              <Text style={styles.platformInfoText}>Apple 로그인은 iOS 기기에서만 지원됩니다.</Text>
+            )}
+
+            <Text style={styles.socialInputLabel}>Google identity token</Text>
             <TextInput
-              value={tokenInput}
-              onChangeText={setTokenInput}
-              placeholder="identity token"
+              value={googleTokenInput}
+              onChangeText={setGoogleTokenInput}
+              placeholder="Google identity token"
               autoCapitalize="none"
               style={styles.input}
             />
-            <View style={styles.row}>
-              <NeumorphicButton
-                label={busy ? "처리 중..." : "Apple 로그인"}
-                style={styles.buttonFlex}
-                onPress={() => run(() => signInWithApple(tokenInput.trim()), "Apple 로그인 성공")}
-              />
-              <NeumorphicButton
-                label={busy ? "처리 중..." : "Google 로그인"}
-                style={styles.buttonFlex}
-                onPress={() => run(() => signInWithGoogle(tokenInput.trim()), "Google 로그인 성공")}
-              />
-            </View>
+            <Pressable
+              accessibilityRole="button"
+              style={({ pressed }) => [styles.googleSignInButton, pressed && styles.brandButtonPressed]}
+              onPress={() => run(() => signInWithGoogle(googleTokenInput.trim()), "Google 로그인 성공")}
+              disabled={busy}
+            >
+              <View style={styles.googleLogoWrap}>
+                <Text style={styles.googleLogoText}>G</Text>
+              </View>
+              <Text style={styles.googleSignInLabel}>{busy ? "처리 중..." : "Continue with Google"}</Text>
+            </Pressable>
           </NeumorphicCard>
         </>
-      )}
+      ) : null}
 
-      {activeTab === "backup" && (
+      {activeTab === "status" ? (
+        <>
+          <NeumorphicCard style={styles.card}>
+            <Text style={styles.label}>로그인 상태</Text>
+            {session ? (
+              <>
+                <Text style={styles.value}>provider: {session.provider}</Text>
+                <Text style={styles.value}>email: {session.user.email}</Text>
+              </>
+            ) : isGuest ? (
+              <Text style={styles.value}>게스트 모드</Text>
+            ) : (
+              <Text style={styles.value}>로그인 필요</Text>
+            )}
+            <Text style={styles.value}>sync status: {syncStatus}</Text>
+            <Text style={styles.value}>last synced: {lastSyncedAt ? new Date(lastSyncedAt).toLocaleString("ko-KR") : "-"}</Text>
+            <Text style={styles.value}>pending queue: {pendingSyncCount}건</Text>
+            {syncError ? <Text style={styles.errorText}>최근 오류: {syncError}</Text> : null}
+          </NeumorphicCard>
+
+          <View style={styles.row}>
+            <NeumorphicButton
+              label={busy ? "처리 중..." : "지금 동기화"}
+              style={styles.buttonFlex}
+              onPress={() => run(syncNow, "동기화를 완료했어요")}
+            />
+            <NeumorphicButton
+              label={busy ? "처리 중..." : "로그아웃"}
+              style={styles.buttonFlex}
+              textStyle={{ color: COLORS.danger }}
+              onPress={() => run(signOut, "로그아웃 했어요")}
+            />
+          </View>
+        </>
+      ) : null}
+
+      {activeTab === "subscription" ? (
+        <NeumorphicCard style={styles.card}>
+          <Text style={styles.label}>구독</Text>
+          <Text style={styles.value}>아직 구독 상품이 준비되지 않았어요.</Text>
+          <Text style={styles.value}>추후 이 탭에서 플랜/결제 상태를 확인할 수 있도록 확장할 예정입니다.</Text>
+        </NeumorphicCard>
+      ) : null}
+
+      {activeTab === "backup" ? (
         <>
           <NeumorphicCard style={styles.card}>
             <Text style={styles.label}>파일 백업 / 복원</Text>
@@ -356,7 +289,7 @@ export default function SyncScreen() {
               value={backupFileUri}
               onChangeText={setBackupFileUri}
               placeholder="backup file uri (예: file:///.../eerme-backup-123.json)"
-              placeholderTextColor={COLORS.secondaryText}
+              placeholderTextColor="#6b7280"
               autoCapitalize="none"
               style={styles.input}
             />
@@ -451,10 +384,10 @@ export default function SyncScreen() {
                         label={busy ? "처리 중..." : "공유"}
                         style={styles.buttonFlex}
                         onPress={() =>
-                        run(async () => {
-                          await Share.share({ message: file.uri });
-                        }, "공유 시트를 열었어요")
-                      }
+                          run(async () => {
+                            await Share.share({ message: file.uri });
+                          }, "공유 시트를 열었어요")
+                        }
                       />
                       <NeumorphicButton
                         label={busy ? "처리 중..." : "삭제"}
@@ -484,7 +417,7 @@ export default function SyncScreen() {
               value={backupText}
               onChangeText={setBackupText}
               placeholder="백업 JSON을 여기에 붙여넣거나 내보낸 내용을 확인하세요"
-              placeholderTextColor={COLORS.secondaryText}
+              placeholderTextColor="#6b7280"
               multiline
               style={styles.textArea}
             />
@@ -521,7 +454,7 @@ export default function SyncScreen() {
             </View>
           </NeumorphicCard>
         </>
-      )}
+      ) : null}
     </ScrollView>
   );
 }
@@ -535,54 +468,27 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  loadingText: { color: COLORS.secondaryText, fontSize: 15 },
-  title: { color: COLORS.primaryText, fontSize: 22, fontWeight: "700", marginBottom: 8 },
-  subtitle: { color: COLORS.secondaryText, fontSize: 14, marginBottom: 16 },
-  infoCard: {
-    backgroundColor: COLORS.card,
-    borderRadius: 26,
-    padding: 20,
-    marginBottom: 14,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
+  loadingText: { color: COLORS.textOnDark },
+  title: { color: COLORS.textOnDark, fontSize: 28, fontWeight: "800" },
+  subtitle: { color: "#d1d5db" },
+  tabRow: { flexDirection: "row", gap: 8, marginTop: 2, marginBottom: 2 },
+  tabButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#374151",
+    backgroundColor: "#111827",
   },
-  cardTitle: { fontWeight: "700", marginBottom: 10, color: COLORS.primaryText, fontSize: 16 },
-  infoText: { color: COLORS.secondaryText, fontSize: 14 },
-  tabBar: {
-    flexDirection: "row",
-    backgroundColor: COLORS.card,
-    borderRadius: 20,
-    padding: 4,
-    marginBottom: 8,
-    shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
+  tabButtonActive: {
+    borderColor: COLORS.surface,
+    backgroundColor: "#1f2937",
   },
-  tabItem: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: "center",
-    borderRadius: 16,
-  },
-  tabItemActive: {
-    backgroundColor: '#C6B193',
-  },
-  tabText: {
-    color: COLORS.secondaryText,
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  tabTextActive: {
-    color: '#5A4E42',
-  },
-  card: { borderRadius: 26 },
-  label: { color: COLORS.primaryText, fontWeight: "600", marginBottom: 6 },
-  value: { color: COLORS.secondaryText, marginBottom: 2, fontSize: 14 },
+  tabLabel: { color: "#9ca3af", fontWeight: "600" },
+  tabLabelActive: { color: COLORS.surface },
+  card: { borderRadius: 20 },
+  label: { color: COLORS.textOnSurface, fontWeight: "700", marginBottom: 6 },
+  value: { color: COLORS.textOnSurface, marginBottom: 2 },
   errorText: { color: COLORS.danger, marginTop: 4 },
   input: {
     backgroundColor: COLORS.card,
@@ -610,18 +516,13 @@ const styles = StyleSheet.create({
   },
   row: { flexDirection: "row", gap: 12, marginBottom: 8 },
   buttonFlex: { flex: 1 },
-  emptyText: { color: COLORS.secondaryText, marginTop: 6 },
-  listWrap: { marginTop: 6, gap: 10 },
-  fileItem: {
-    backgroundColor: COLORS.card,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: COLORS.softBorder,
-    padding: 12,
-  },
-  fileName: { color: COLORS.primaryText, fontWeight: "600", marginBottom: 2 },
-  fileUri: { color: COLORS.secondaryText, marginBottom: 8 },
-  subscriptionHeader: {
+  brandButtonPressed: { opacity: 0.8 },
+  appleSignInButton: {
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: "#000000",
+    alignItems: "center",
+    justifyContent: "center",
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 10,
@@ -651,78 +552,37 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     lineHeight: 22,
   },
-  subscriptionFeatures: {
-    marginBottom: 16,
-    gap: 8,
-  },
-  subscriptionFeatureItem: {
-    color: COLORS.primaryText,
-    fontSize: 14,
-  },
-  subscriptionFeatureItemLocked: {
-    color: COLORS.secondaryText,
-    fontSize: 14,
-  },
-  planSelectLabel: {
-    color: COLORS.primaryText,
-    fontWeight: "600",
-    marginTop: 8,
-    marginBottom: 8,
-  },
-  planSelectRow: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  planOption: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: "center",
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: COLORS.softBorder,
-    backgroundColor: COLORS.card,
-  },
-  planOptionSelected: {
-    borderColor: COLORS.accentPeach,
-    backgroundColor: "#FFF9F5",
-  },
-  planOptionText: {
-    color: COLORS.secondaryText,
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  planOptionTextSelected: {
-    color: COLORS.primaryText,
-  },
-  planOptionPrice: {
-    color: COLORS.secondaryText,
-    fontSize: 13,
-    fontWeight: "500",
-    marginTop: 2,
-  },
-  planOptionPriceSelected: {
-    color: COLORS.accentPeach,
-  },
-  subscriptionPrice: {
-    color: COLORS.accentPeach,
-    fontSize: 18,
-    fontWeight: "700",
-    marginLeft: "auto",
-  },
-  premiumBadge: {
-    flexDirection: "row",
+  appleIcon: { color: "#FFFFFF", fontSize: 20, marginRight: 10, marginTop: -1 },
+  appleSignInLabel: { color: "#FFFFFF", fontSize: 16, fontWeight: "600" },
+  googleSignInButton: {
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#FFFFFF",
+    borderColor: "#dadce0",
+    borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 12,
-    gap: 8,
+    flexDirection: "row",
   },
-  premiumLogo: {
-    width: 28,
-    height: 28,
+  googleLogoWrap: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#dadce0",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
   },
-  premiumText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: COLORS.accentPeach,
+  googleLogoText: { color: "#4285F4", fontSize: 12, fontWeight: "700" },
+  googleSignInLabel: { color: "#3c4043", fontSize: 16, fontWeight: "500" },
+  emptyText: { color: COLORS.textOnSurface, marginTop: 6 },
+  listWrap: { marginTop: 6, gap: 8 },
+  fileItem: {
+    backgroundColor: "#f3f4f6",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    padding: 10,
   },
 });
