@@ -14,6 +14,12 @@ type BackupFileItem = {
 
 type MyPageTab = "subscription" | "backup";
 
+const SYNC_STATUS_LABEL: Record<string, string> = {
+  idle: "정상",
+  syncing: "동기화 중",
+  error: "오류",
+};
+
 export default function SyncScreen() {
   const { isReady, exportBackup, importBackup } = useJournalStore();
 
@@ -22,6 +28,18 @@ export default function SyncScreen() {
   const [backupFileUri, setBackupFileUri] = React.useState("");
   const [backupFiles, setBackupFiles] = React.useState<BackupFileItem[]>([]);
   const [busy, setBusy] = React.useState(false);
+
+  const visibleEntryCount = React.useMemo(
+    () => entries.filter((entry) => !entry.deletedAt).length,
+    [entries],
+  );
+
+  const syncStatusLabel = SYNC_STATUS_LABEL[syncStatus] ?? syncStatus;
+  const syncStatusStyle = [
+    styles.statusBadge,
+    syncStatus === "error" && styles.statusBadgeError,
+    syncStatus === "syncing" && styles.statusBadgeSyncing,
+  ];
 
   const tabItems = React.useMemo(
     () => [
@@ -138,6 +156,7 @@ export default function SyncScreen() {
           </NeumorphicCard>
         </>
       ) : null}
+
 
       {activeTab === "backup" ? (
         <>
@@ -355,6 +374,7 @@ const styles = StyleSheet.create({
   label: { color: COLORS.textOnSurface, fontWeight: "700", marginBottom: 6, fontSize: 16 },
   helperText: { color: COLORS.secondaryText, marginBottom: 10, lineHeight: 20 },
   value: { color: COLORS.textOnSurface, marginBottom: 2 },
+
   bulletList: { gap: 6 },
   bulletText: { color: COLORS.textOnSurface, lineHeight: 20 },
   input: {
