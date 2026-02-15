@@ -1,4 +1,4 @@
-import { Platform } from "react-native";
+import { NativeModules, Platform } from "react-native";
 
 type InAppPurchasesModule = {
   IAPResponseCode: {
@@ -54,20 +54,21 @@ function isNativeIapModule(value: unknown): value is InAppPurchasesModule {
   );
 }
 
-function getModule(): InAppPurchasesModule {
+function tryGetModule(): InAppPurchasesModule | null {
   if (Platform.OS === "web") {
-    throw new Error("웹에서는 인앱 결제를 지원하지 않습니다. iOS/Android 빌드에서 테스트해 주세요.");
+    return null;
+  }
+
+  if (!(NativeModules as Record<string, unknown>)?.ExpoInAppPurchases) {
+    return null;
   }
 
   let requiredModule: unknown;
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports, global-require
     requiredModule = require("expo-in-app-purchases") as unknown;
-
   } catch {
-    throw new Error(
-      "expo-in-app-purchases 패키지를 찾을 수 없습니다. `npx expo install expo-in-app-purchases` 후 다시 시도해 주세요.",
-    );
+    return null;
   }
 
   const rawModule: UnknownModule | null =
@@ -82,11 +83,17 @@ function getModule(): InAppPurchasesModule {
     rawModule?.default && typeof rawModule.default === "object"
       ? (rawModule.default as UnknownModule).InAppPurchases
       : undefined,
-
   ].find(isNativeIapModule);
 
+  return resolved ?? null;
+}
+
+function getModule(): InAppPurchasesModule {
+  const resolved = tryGetModule();
   if (!resolved) {
-    throw new Error("expo-in-app-purchases 모듈을 로드했지만 네이티브 결제 API(connectAsync)를 찾지 못했습니다.");
+    throw new Error(
+      "expo-in-app-purchases 네이티브 모듈을 찾지 못했습니다. Expo Go에서는 동작하지 않습니다. 커스텀 개발 빌드 또는 스토어 빌드에서 실행해 주세요.",
+    );
   }
 
   return resolved;
@@ -97,7 +104,11 @@ export function getSubscriptionProductIds() {
 }
 
 export async function loadSubscriptionProducts() {
-  const iap = getModule();
+  const iap = tryGetModule();
+  if (!iap) {
+    return [] as Product[];
+  }
+
   await iap.connectAsync();
 
   const response = await iap.getProductsAsync(getSubscriptionProductIds());
@@ -127,12 +138,16 @@ export async function requestSubscription(productId: string) {
 }
 
 export async function closeSubscriptionConnection() {
-  const iap = getModule();
+  const iap = tryGetModule();
+  if (!iap) return;
   await iap.disconnectAsync();
 }
 
 export function attachPurchaseListener(onPurchased: (purchase: Purchase) => void) {
-  const iap = getModule();
+  const iap = tryGetModule();
+  if (!iap) {
+    return { remove: () => undefined };
+  }
 
   return iap.setPurchaseListener(async ({ responseCode, results }) => {
     if (responseCode !== iap.IAPResponseCode.OK || !results?.length) return;

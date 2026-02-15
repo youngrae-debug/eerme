@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
-import { ImagePlus, X } from "lucide-react-native";
+import { ImagePlus, MoreVertical, X } from "lucide-react-native";
 import React, { useMemo, useState } from "react";
 import {
   Alert,
@@ -262,6 +262,7 @@ function EntryModal({
   const [line3, setLine3] = useState("");
   const [imageUris, setImageUris] = useState<string[]>([]);
   const [isEditing, setIsEditing] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   React.useEffect(() => {
     if (entry) {
@@ -270,12 +271,14 @@ function EntryModal({
       setLine3(entry.lines[2] || "");
       setImageUris(entry.imageUris?.length ? entry.imageUris : entry.imageUri ? [entry.imageUri] : []);
       setIsEditing(false);
+      setIsMenuOpen(false);
     } else if (visible) {
       setLine1("");
       setLine2("");
       setLine3("");
       setImageUris([]);
       setIsEditing(true);
+      setIsMenuOpen(false);
     }
   }, [entry, visible]);
 
@@ -321,10 +324,12 @@ function EntryModal({
 
 
   const handleEdit = () => {
+    setIsMenuOpen(false);
     setIsEditing(true);
   };
 
   const handleDelete = () => {
+    setIsMenuOpen(false);
     Alert.alert("일기 삭제", "정말 삭제하시겠습니까?", [
       { text: "취소", style: "cancel" },
       {
@@ -351,16 +356,34 @@ function EntryModal({
           {/* 헤더 */}
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>{formatDateDisplay(dateKey)}</Text>
-            <Pressable onPress={onClose} style={styles.closeButton}>
-              <X size={24} color={COLORS.primaryText} />
-            </Pressable>
+            <View style={styles.headerActions}>
+              {entry && !isEditing && (
+                <View style={styles.menuWrapper}>
+                  <Pressable onPress={() => setIsMenuOpen((prev) => !prev)} style={styles.menuButton}>
+                    <MoreVertical size={22} color={COLORS.primaryText} />
+                  </Pressable>
+                  {isMenuOpen && (
+                    <View style={styles.menuDropdown}>
+                      <Pressable onPress={handleEdit} style={styles.menuItem}>
+                        <Text style={styles.menuItemText}>수정</Text>
+                      </Pressable>
+                      <Pressable onPress={handleDelete} style={[styles.menuItem, styles.menuItemDanger]}>
+                        <Text style={[styles.menuItemText, styles.menuItemDangerText]}>삭제</Text>
+                      </Pressable>
+                    </View>
+                  )}
+                </View>
+              )}
+              <Pressable onPress={onClose} style={styles.closeButton}>
+                <X size={24} color={COLORS.primaryText} />
+              </Pressable>
+            </View>
           </View>
 
           {/* 내용 */}
           <ScrollView style={styles.modalBody}>
             {/* Image section */}
             <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>사진</Text>
               {imageUris.length > 0 ? (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.modalImageList}>
                   {imageUris.map((uri, index) => (
@@ -388,63 +411,59 @@ function EntryModal({
               ) : (
                 <Text style={styles.noImageText}>등록된 사진이 없습니다</Text>
               )}
-              <Text style={styles.imageLimitText}>
-                {isPremium ? `프리미엄: 최대 5장 (${imageUris.length}/5)` : `일반: 최대 1장 (${imageUris.length}/1)`}
-              </Text>
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>첫 번째 줄</Text>
-              <TextInput
-                style={styles.input}
-                value={line1}
-                onChangeText={setLine1}
-                placeholder="무엇을 했나요?"
-                placeholderTextColor={COLORS.secondaryText}
-                editable={isEditing}
-                multiline
-              />
+              {isEditing ? (
+                <TextInput
+                  style={styles.input}
+                  value={line1}
+                  onChangeText={setLine1}
+                  placeholder="무엇을 했나요?"
+                  placeholderTextColor={COLORS.secondaryText}
+                  editable={isEditing}
+                  multiline
+                />
+              ) : (
+                <Text style={styles.readonlyText}>{line1 || " "}</Text>
+              )}
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>두 번째 줄</Text>
-              <TextInput
-                style={styles.input}
-                value={line2}
-                onChangeText={setLine2}
-                placeholder="어떤 감정이 들었나요?"
-                placeholderTextColor={COLORS.secondaryText}
-                editable={isEditing}
-                multiline
-              />
+              {isEditing ? (
+                <TextInput
+                  style={styles.input}
+                  value={line2}
+                  onChangeText={setLine2}
+                  placeholder="어떤 감정이 들었나요?"
+                  placeholderTextColor={COLORS.secondaryText}
+                  editable={isEditing}
+                  multiline
+                />
+              ) : (
+                <Text style={styles.readonlyText}>{line2 || " "}</Text>
+              )}
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>세 번째 줄</Text>
-              <TextInput
-                style={styles.input}
-                value={line3}
-                onChangeText={setLine3}
-                placeholder="무엇을 배웠나요?"
-                placeholderTextColor={COLORS.secondaryText}
-                editable={isEditing}
-                multiline
-              />
+              {isEditing ? (
+                <TextInput
+                  style={styles.input}
+                  value={line3}
+                  onChangeText={setLine3}
+                  placeholder="무엇을 배웠나요?"
+                  placeholderTextColor={COLORS.secondaryText}
+                  editable={isEditing}
+                  multiline
+                />
+              ) : (
+                <Text style={styles.readonlyText}>{line3 || " "}</Text>
+              )}
             </View>
           </ScrollView>
 
           {/* 버튼 */}
           <View style={[styles.modalFooter, { paddingBottom: 20 + insets.bottom }]}>
-            {entry && !isEditing && (
-              <>
-                <Pressable onPress={handleEdit} style={styles.editButton}>
-                  <Text style={styles.editButtonText}>수정</Text>
-                </Pressable>
-                <Pressable onPress={handleDelete} style={styles.deleteButton}>
-                  <Text style={styles.deleteButtonText}>삭제</Text>
-                </Pressable>
-              </>
-            )}
             {canSave && (
               <Pressable onPress={handleSave} style={styles.saveButton}>
                 <Text style={styles.saveButtonText}>저장</Text>
@@ -580,6 +599,50 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.softBorder,
   },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  menuWrapper: {
+    position: "relative",
+  },
+  menuButton: {
+    padding: 6,
+  },
+  menuDropdown: {
+    position: "absolute",
+    top: 34,
+    right: 0,
+    backgroundColor: COLORS.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.softBorder,
+    minWidth: 110,
+    overflow: "hidden",
+    zIndex: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  menuItem: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+  },
+  menuItemText: {
+    fontSize: 14,
+    color: COLORS.primaryText,
+    fontWeight: "600",
+  },
+  menuItemDanger: {
+    borderTopWidth: 1,
+    borderTopColor: COLORS.softBorder,
+  },
+  menuItemDangerText: {
+    color: COLORS.danger,
+  },
   modalTitle: {
     fontSize: 20,
     fontWeight: "700",
@@ -610,6 +673,13 @@ const styles = StyleSheet.create({
     textAlignVertical: "top",
     borderWidth: 1,
     borderColor: COLORS.softBorder,
+  },
+  readonlyText: {
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    fontSize: 16,
+    color: COLORS.primaryText,
+    lineHeight: 22,
   },
   warningText: {
     color: COLORS.accentPeach,

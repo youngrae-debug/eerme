@@ -2,7 +2,6 @@ import * as FileSystem from "expo-file-system/legacy";
 import React from "react";
 import { Alert, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
 import { NeumorphicButton, NeumorphicCard } from "../../components/neumorphic";
-import { useJournalStore } from "../../store/journalStore";
 import {
   attachPurchaseListener,
   closeSubscriptionConnection,
@@ -11,6 +10,7 @@ import {
   restoreSubscription,
   type Product,
 } from "../../services/subscription";
+import { useJournalStore } from "../../store/journalStore";
 import { COLORS } from "../../theme/colors";
 
 const BACKUP_FILE_PREFIX = "eerme-backup-";
@@ -183,7 +183,6 @@ export default function SyncScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Text style={styles.title}>마이페이지</Text>
-      <Text style={styles.subtitle}>구독 안내와 백업 기능을 관리할 수 있어요.</Text>
 
       <View style={styles.tabRow}>
         {tabItems.map((tab) => (
@@ -447,20 +446,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: "#2b3547",
-    backgroundColor: "#111827",
+    borderColor: COLORS.softBorder,
+    backgroundColor: COLORS.card,
+    shadowColor: COLORS.shadow,
+    shadowOpacity: 1,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   tabButtonActive: {
-    borderColor: "#cbd5ff",
-    backgroundColor: "#232f46",
+    borderColor: COLORS.accentPeach,
+    backgroundColor: "#F4E7D7",
   },
   tabHeadRow: { flexDirection: "row", alignItems: "center", gap: 7 },
-  tabIcon: { color: "#8b9bb5", fontSize: 14, fontWeight: "700" },
-  tabIconActive: { color: "#f8d06f" },
-  tabLabel: { color: "#b4bfd3", fontWeight: "700", fontSize: 14 },
-  tabLabelActive: { color: "#eef2ff" },
-  tabHint: { color: "#72819a", marginTop: 3, fontSize: 12 },
-  tabHintActive: { color: "#b7c2dd" },
+  tabIcon: { color: COLORS.secondaryText, fontSize: 14, fontWeight: "700" },
+  tabIconActive: { color: COLORS.primaryText },
+  tabLabel: { color: COLORS.secondaryText, fontWeight: "700", fontSize: 14 },
+  tabLabelActive: { color: COLORS.primaryText },
+  tabHint: { color: COLORS.secondaryText, marginTop: 3, fontSize: 12 },
+  tabHintActive: { color: COLORS.primaryText },
   card: { borderRadius: 20 },
   label: { color: COLORS.textOnSurface, fontWeight: "700", marginBottom: 6, fontSize: 16 },
   helperText: { color: COLORS.secondaryText, marginBottom: 10, lineHeight: 20 },
