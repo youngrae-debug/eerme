@@ -15,7 +15,7 @@ type BackupFileItem = {
 type MyPageTab = "subscription" | "backup";
 
 export default function SyncScreen() {
-  const { entries, isReady, exportBackup, importBackup } = useJournalStore();
+  const { isReady, exportBackup, importBackup } = useJournalStore();
 
   const [activeTab, setActiveTab] = React.useState<MyPageTab>("subscription");
   const [backupText, setBackupText] = React.useState("");
@@ -113,7 +113,7 @@ export default function SyncScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Text style={styles.title}>마이페이지</Text>
-      <Text style={styles.subtitle}>구독 안내와 백업 기능을 관리할 수 있어요. 현재 기록 {entries.length}개</Text>
+      <Text style={styles.subtitle}>구독 안내와 백업 기능을 관리할 수 있어요.</Text>
 
       <View style={styles.tabRow}>
         {tabItems.map((tab) => (
@@ -367,7 +367,6 @@ const styles = StyleSheet.create({
   label: { color: COLORS.textOnSurface, fontWeight: "700", marginBottom: 6, fontSize: 16 },
   helperText: { color: COLORS.secondaryText, marginBottom: 10, lineHeight: 20 },
   value: { color: COLORS.textOnSurface, marginBottom: 2 },
-
   bulletList: { gap: 6 },
   bulletText: { color: COLORS.textOnSurface, lineHeight: 20 },
   input: {
