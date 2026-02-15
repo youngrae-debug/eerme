@@ -3,6 +3,14 @@ import React from "react";
 import { Alert, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
 import { NeumorphicButton, NeumorphicCard } from "../../components/neumorphic";
 import { useJournalStore } from "../../store/journalStore";
+import {
+  attachPurchaseListener,
+  closeSubscriptionConnection,
+  loadSubscriptionProducts,
+  requestSubscription,
+  restoreSubscription,
+  type Product,
+} from "../../services/subscription";
 import { COLORS } from "../../theme/colors";
 
 const BACKUP_FILE_PREFIX = "eerme-backup-";
@@ -15,13 +23,43 @@ type BackupFileItem = {
 type MyPageTab = "subscription" | "backup";
 
 export default function SyncScreen() {
-  const { isReady, exportBackup, importBackup } = useJournalStore();
+  const { isReady, exportBackup, importBackup, isPremium, setPremium } = useJournalStore();
 
   const [activeTab, setActiveTab] = React.useState<MyPageTab>("subscription");
   const [backupText, setBackupText] = React.useState("");
   const [backupFileUri, setBackupFileUri] = React.useState("");
   const [backupFiles, setBackupFiles] = React.useState<BackupFileItem[]>([]);
   const [busy, setBusy] = React.useState(false);
+  const [products, setProducts] = React.useState<Product[]>([]);
+  const [subscriptionBusy, setSubscriptionBusy] = React.useState(false);
+  const [subscriptionError, setSubscriptionError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    let mounted = true;
+    let listener: { remove: () => void } | null = null;
+
+    try {
+      listener = attachPurchaseListener((purchase) => {
+        if (!mounted) return;
+
+        setPremium(true);
+        setSubscriptionBusy(false);
+        Alert.alert("구독 완료", `${purchase.productId} 구독이 활성화되었습니다.`);
+      });
+      setSubscriptionError(null);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "인앱 결제 모듈을 불러오지 못했습니다.";
+      setSubscriptionError(message);
+    }
+
+    return () => {
+      mounted = false;
+      listener?.remove();
+      closeSubscriptionConnection().catch(() => {
+        // noop
+      });
+    };
+  }, [setPremium]);
 
   const tabItems = React.useMemo(
     () => [
@@ -63,6 +101,50 @@ export default function SyncScreen() {
       console.error("Failed to load backup files", error);
     });
   }, [isReady, loadBackupFiles]);
+
+  React.useEffect(() => {
+    if (!isReady) return;
+
+    setSubscriptionBusy(true);
+    loadSubscriptionProducts()
+      .then((items) => {
+        setProducts(items);
+      })
+      .catch((error) => {
+        console.error("Failed to load subscription products", error);
+        const message = error instanceof Error ? error.message : "구독 상품을 불러오지 못했습니다.";
+        setSubscriptionError(message);
+      })
+      .finally(() => setSubscriptionBusy(false));
+  }, [isReady]);
+
+  const subscribe = React.useCallback(
+    async (productId: string) => {
+      setSubscriptionBusy(true);
+      try {
+        await requestSubscription(productId);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "결제 요청에 실패했습니다.";
+        Alert.alert("구독 오류", message);
+        setSubscriptionBusy(false);
+      }
+    },
+    [],
+  );
+
+  const restorePurchase = React.useCallback(async () => {
+    setSubscriptionBusy(true);
+    try {
+      const restored = await restoreSubscription();
+      setPremium(restored);
+      Alert.alert("복원", restored ? "구독 복원을 완료했어요." : "복원 가능한 구독이 없습니다.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "복원 중 오류가 발생했습니다.";
+      Alert.alert("복원 실패", message);
+    } finally {
+      setSubscriptionBusy(false);
+    }
+  }, [setPremium]);
 
   const run = async (task: () => Promise<void>, successMessage?: string) => {
     setBusy(true);
@@ -123,17 +205,45 @@ export default function SyncScreen() {
       {activeTab === "subscription" ? (
         <>
           <NeumorphicCard style={styles.card}>
-            <Text style={styles.label}>구독 안내</Text>
-            <Text style={styles.value}>현재는 무료 플랜으로 제공되고 있어요.</Text>
-            <Text style={styles.value}>프리미엄 상품은 준비 중이며, 출시 시 이 화면에서 바로 확인할 수 있어요.</Text>
+            <Text style={styles.label}>구독 상태</Text>
+            <Text style={styles.value}>{isPremium ? "프리미엄 구독 활성화됨" : "무료 플랜 사용 중"}</Text>
+            <Text style={styles.helperText}>
+              월 구독을 시작하면 사진 5장 첨부 등 프리미엄 기능을 사용할 수 있어요.
+            </Text>
           </NeumorphicCard>
 
           <NeumorphicCard style={styles.card}>
-            <Text style={styles.label}>예정 기능</Text>
-            <View style={styles.bulletList}>
-              <Text style={styles.bulletText}>• 요금제별 기능 비교</Text>
-              <Text style={styles.bulletText}>• 결제/갱신 상태 확인</Text>
-              <Text style={styles.bulletText}>• 결제 내역 및 영수증 관리</Text>
+            <Text style={styles.label}>구독 상품</Text>
+            {subscriptionError ? (
+              <Text style={styles.emptyText}>{subscriptionError}</Text>
+            ) : products.length === 0 ? (
+              <Text style={styles.emptyText}>상품 정보를 불러오지 못했어요. 앱스토어 설정을 확인해 주세요.</Text>
+            ) : (
+              products.map((product) => (
+                <View key={product.productId} style={styles.planItem}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.planTitle}>{product.title ?? product.productId}</Text>
+                    <Text style={styles.planPrice}>{product.price ?? "가격 정보 없음"}</Text>
+                    <Text style={styles.planDescription}>{product.description ?? "프리미엄 기능 전체 이용"}</Text>
+                  </View>
+                  <NeumorphicButton
+                    label={subscriptionBusy ? "요청 중..." : "구독"}
+                    style={styles.planButton}
+                    onPress={() => subscribe(product.productId)}
+                  />
+                </View>
+              ))
+            )}
+            <View style={styles.row}>
+              <NeumorphicButton
+                label={subscriptionBusy ? "처리 중..." : "구독 복원"}
+                style={styles.buttonFlex}
+                onPress={() => {
+                  restorePurchase().catch((error) => {
+                    console.error("restorePurchase failed", error);
+                  });
+                }}
+              />
             </View>
           </NeumorphicCard>
         </>
@@ -357,6 +467,21 @@ const styles = StyleSheet.create({
   value: { color: COLORS.textOnSurface, marginBottom: 2 },
   bulletList: { gap: 6 },
   bulletText: { color: COLORS.textOnSurface, lineHeight: 20 },
+  planItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 12,
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: "#f8fafc",
+    borderWidth: 1,
+    borderColor: "#d8dee9",
+  },
+  planTitle: { color: COLORS.primaryText, fontWeight: "700", marginBottom: 2 },
+  planPrice: { color: COLORS.textOnSurface, fontWeight: "600", marginBottom: 2 },
+  planDescription: { color: COLORS.secondaryText, fontSize: 12 },
+  planButton: { minWidth: 92 },
   input: {
     backgroundColor: COLORS.card,
     borderColor: COLORS.softBorder,
