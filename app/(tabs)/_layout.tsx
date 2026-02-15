@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Href, Redirect, Tabs } from "expo-router";
+import { Tabs } from "expo-router";
 import { ActivityIndicator, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useJournalStore } from "../../store/journalStore";
@@ -7,7 +7,7 @@ import { COLORS } from "../../theme/colors";
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
-  const { isReady, session, isGuest } = useJournalStore();
+  const { isReady } = useJournalStore();
 
   if (!isReady) {
     return (
@@ -15,10 +15,6 @@ export default function TabLayout() {
         <ActivityIndicator color={COLORS.surface} />
       </View>
     );
-  }
-
-  if (!session && !isGuest) {
-    return <Redirect href={"/login" as Href} />;
   }
 
   return (

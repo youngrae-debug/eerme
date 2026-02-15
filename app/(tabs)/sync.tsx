@@ -1,6 +1,6 @@
 import * as FileSystem from "expo-file-system/legacy";
 import React from "react";
-import { Alert, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
 import { NeumorphicButton, NeumorphicCard } from "../../components/neumorphic";
 import { useJournalStore } from "../../store/journalStore";
 import { COLORS } from "../../theme/colors";
@@ -12,36 +12,22 @@ type BackupFileItem = {
   name: string;
 };
 
-type MyPageTab = "login" | "status" | "subscription" | "backup";
+type MyPageTab = "status" | "subscription" | "backup";
 
 export default function SyncScreen() {
   const {
     entries,
     isReady,
-    session,
     syncStatus,
     syncError,
     lastSyncedAt,
     pendingSyncCount,
-    isPremium,
-    setPremium,
-    isGuest,
-    signInWithEmail,
-    signInWithApple,
-    signInWithGoogle,
-    signOut,
     syncNow,
     exportBackup,
     importBackup,
   } = useJournalStore();
 
   const [activeTab, setActiveTab] = React.useState<MyPageTab>("status");
-  const [selectedPlan, setSelectedPlan] = React.useState<"free" | "premium">(isPremium ? "premium" : "free");
-  const [email, setEmail] = React.useState("");
-  const [password, setPassword] = React.useState("");
-  const [tokenInput, setTokenInput] = React.useState("");
-  const [appleTokenInput, setAppleTokenInput] = React.useState("");
-  const [googleTokenInput, setGoogleTokenInput] = React.useState("");
   const [backupText, setBackupText] = React.useState("");
   const [backupFileUri, setBackupFileUri] = React.useState("");
   const [backupFiles, setBackupFiles] = React.useState<BackupFileItem[]>([]);
@@ -49,12 +35,11 @@ export default function SyncScreen() {
 
   const tabItems = React.useMemo(
     () => [
-      { key: "login" as const, label: "로그인", visible: !session || isGuest },
       { key: "status" as const, label: "상태", visible: true },
       { key: "subscription" as const, label: "구독", visible: true },
       { key: "backup" as const, label: "백업", visible: true },
     ],
-    [isGuest, session],
+    [],
   );
 
   const visibleTabs = React.useMemo(() => tabItems.filter((item) => item.visible), [tabItems]);
@@ -91,10 +76,6 @@ export default function SyncScreen() {
       console.error("Failed to load backup files", error);
     });
   }, [isReady, loadBackupFiles]);
-
-  React.useEffect(() => {
-    setSelectedPlan(isPremium ? "premium" : "free");
-  }, [isPremium]);
 
   const run = async (task: () => Promise<void>, successMessage?: string) => {
     setBusy(true);
@@ -133,7 +114,7 @@ export default function SyncScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Text style={styles.title}>마이페이지</Text>
-      <Text style={styles.subtitle}>로그인, 상태, 구독, 백업 정보를 탭으로 관리할 수 있어요.</Text>
+      <Text style={styles.subtitle}>상태, 구독, 백업 정보를 탭으로 관리할 수 있어요.</Text>
 
       <View style={styles.tabRow}>
         {visibleTabs.map((tab) => (
@@ -148,109 +129,11 @@ export default function SyncScreen() {
         ))}
       </View>
 
-      {activeTab === "login" ? (
-        <>
-          <NeumorphicCard style={styles.card}>
-            <Text style={styles.label}>로그인</Text>
-            <Text style={styles.value}>
-              {isGuest
-                ? "게스트 모드입니다. 아래 Google/Apple 또는 이메일 로그인을 통해 계정을 연동할 수 있어요."
-                : "로그인하지 않은 상태입니다. 이메일/소셜 로그인을 진행해 주세요."}
-            </Text>
-          </NeumorphicCard>
-
-          <NeumorphicCard style={styles.card}>
-            <Text style={styles.label}>이메일 로그인</Text>
-            <TextInput
-              value={email}
-              onChangeText={setEmail}
-              placeholder="email"
-              autoCapitalize="none"
-              keyboardType="email-address"
-              style={styles.input}
-            />
-            <TextInput
-              value={password}
-              onChangeText={setPassword}
-              placeholder="password"
-              secureTextEntry
-              style={styles.input}
-            />
-            <NeumorphicButton
-              label={busy ? "처리 중..." : "이메일 로그인"}
-              onPress={() => run(() => signInWithEmail(email.trim(), password), "이메일 로그인 성공")}
-            />
-          </NeumorphicCard>
-
-          <NeumorphicCard style={styles.card}>
-            <Text style={styles.label}>소셜 로그인 (identity token)</Text>
-            <Text style={styles.hintText}>
-              게스트 로그인 중이라면 아래 버튼으로 계정을 연동할 수 있어요.{"\n"}
-              Apple 로그인은 iOS에서만 노출됩니다.
-            </Text>
-
-            {Platform.OS === "ios" ? (
-              <>
-                <Text style={styles.socialInputLabel}>Apple identity token</Text>
-                <TextInput
-                  value={appleTokenInput}
-                  onChangeText={setAppleTokenInput}
-                  placeholder="Apple identity token"
-                  autoCapitalize="none"
-                  style={styles.input}
-                />
-
-                <Pressable
-                  accessibilityRole="button"
-                  style={({ pressed }) => [styles.appleSignInButton, pressed && styles.brandButtonPressed]}
-                  onPress={() => run(() => signInWithApple(appleTokenInput.trim()), "Apple 로그인 성공")}
-                  disabled={busy}
-                >
-                  <Text style={styles.appleIcon}></Text>
-                  <Text style={styles.appleSignInLabel}>{busy ? "처리 중..." : "Sign in with Apple"}</Text>
-                </Pressable>
-              </>
-            ) : (
-              <Text style={styles.platformInfoText}>Apple 로그인은 iOS 기기에서만 지원됩니다.</Text>
-            )}
-
-            <Text style={styles.socialInputLabel}>Google identity token</Text>
-            <TextInput
-              value={googleTokenInput}
-              onChangeText={setGoogleTokenInput}
-              placeholder="Google identity token"
-              autoCapitalize="none"
-              style={styles.input}
-            />
-            <Pressable
-              accessibilityRole="button"
-              style={({ pressed }) => [styles.googleSignInButton, pressed && styles.brandButtonPressed]}
-              onPress={() => run(() => signInWithGoogle(googleTokenInput.trim()), "Google 로그인 성공")}
-              disabled={busy}
-            >
-              <View style={styles.googleLogoWrap}>
-                <Text style={styles.googleLogoText}>G</Text>
-              </View>
-              <Text style={styles.googleSignInLabel}>{busy ? "처리 중..." : "Continue with Google"}</Text>
-            </Pressable>
-          </NeumorphicCard>
-        </>
-      ) : null}
-
       {activeTab === "status" ? (
         <>
           <NeumorphicCard style={styles.card}>
-            <Text style={styles.label}>로그인 상태</Text>
-            {session ? (
-              <>
-                <Text style={styles.value}>provider: {session.provider}</Text>
-                <Text style={styles.value}>email: {session.user.email}</Text>
-              </>
-            ) : isGuest ? (
-              <Text style={styles.value}>게스트 모드</Text>
-            ) : (
-              <Text style={styles.value}>로그인 필요</Text>
-            )}
+            <Text style={styles.label}>앱 상태</Text>
+            <Text style={styles.value}>로컬 일기 수: {entries.filter((entry) => !entry.deletedAt).length}건</Text>
             <Text style={styles.value}>sync status: {syncStatus}</Text>
             <Text style={styles.value}>last synced: {lastSyncedAt ? new Date(lastSyncedAt).toLocaleString("ko-KR") : "-"}</Text>
             <Text style={styles.value}>pending queue: {pendingSyncCount}건</Text>
@@ -262,12 +145,6 @@ export default function SyncScreen() {
               label={busy ? "처리 중..." : "지금 동기화"}
               style={styles.buttonFlex}
               onPress={() => run(syncNow, "동기화를 완료했어요")}
-            />
-            <NeumorphicButton
-              label={busy ? "처리 중..." : "로그아웃"}
-              style={styles.buttonFlex}
-              textStyle={{ color: COLORS.danger }}
-              onPress={() => run(signOut, "로그아웃 했어요")}
             />
           </View>
         </>
@@ -517,65 +394,6 @@ const styles = StyleSheet.create({
   },
   row: { flexDirection: "row", gap: 12, marginBottom: 8 },
   buttonFlex: { flex: 1 },
-  brandButtonPressed: { opacity: 0.8 },
-  appleSignInButton: {
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: "#000000",
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    marginBottom: 10,
-    gap: 10,
-  },
-  subscriptionBadge: {
-    backgroundColor: COLORS.accentLavender,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  subscriptionBadgePremium: {
-    backgroundColor: COLORS.accentPeach,
-  },
-  subscriptionBadgeText: {
-    color: COLORS.primaryText,
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  subscriptionPlanName: {
-    color: COLORS.primaryText,
-    fontSize: 18,
-    fontWeight: "700",
-  },
-  subscriptionDesc: {
-    color: COLORS.secondaryText,
-    marginBottom: 12,
-    lineHeight: 22,
-  },
-  appleIcon: { color: "#FFFFFF", fontSize: 20, marginRight: 10, marginTop: -1 },
-  appleSignInLabel: { color: "#FFFFFF", fontSize: 16, fontWeight: "600" },
-  googleSignInButton: {
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#FFFFFF",
-    borderColor: "#dadce0",
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-  },
-  googleLogoWrap: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#dadce0",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 10,
-  },
-  googleLogoText: { color: "#4285F4", fontSize: 12, fontWeight: "700" },
-  googleSignInLabel: { color: "#3c4043", fontSize: 16, fontWeight: "500" },
   emptyText: { color: COLORS.textOnSurface, marginTop: 6 },
   listWrap: { marginTop: 6, gap: 8 },
   fileItem: {
@@ -584,23 +402,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#d1d5db",
     padding: 10,
-  },
-  hintText: {
-    color: COLORS.secondaryText,
-    fontSize: 13,
-    marginBottom: 12,
-  },
-  socialInputLabel: {
-    color: COLORS.textOnSurface,
-    fontWeight: "600",
-    fontSize: 14,
-    marginBottom: 6,
-  },
-  platformInfoText: {
-    color: COLORS.secondaryText,
-    fontSize: 13,
-    fontStyle: "italic",
-    marginBottom: 12,
   },
   fileName: {
     color: COLORS.primaryText,

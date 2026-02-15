@@ -17,8 +17,8 @@ type JournalContextValue = {
   isPremium: boolean;
   setPremium: (value: boolean) => void;
   isGuest: boolean;
-  upsertTodayEntry: (lines: [string, string, string], imageUri?: string | null) => Promise<void>;
-  upsertEntry: (date: string, lines: [string, string, string], imageUri?: string | null) => Promise<void>;
+  upsertTodayEntry: (lines: [string, string, string], imageUri?: string | null, imageUris?: string[]) => Promise<void>;
+  upsertEntry: (date: string, lines: [string, string, string], imageUri?: string | null, imageUris?: string[]) => Promise<void>;
   removeEntry: (id: string) => Promise<void>;
   searchEntries: (keyword: string) => Entry[];
   signInWithEmail: (email: string, password: string) => Promise<void>;
@@ -63,15 +63,55 @@ const AUTH_MODE_NONE = "none";
 const JournalContext = React.createContext<JournalContextValue | null>(null);
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
-const toEntry = (row: EntryRow): Entry => ({
-  id: row.id,
-  date: row.date,
-  lines: [row.line1 ?? "", row.line2 ?? "", row.line3 ?? ""],
-  imageUri: row.imageUri,
-  createdAt: Number(row.createdAt),
-  updatedAt: Number(row.updatedAt),
-  deletedAt: row.deletedAt,
-});
+
+const parseImageUris = (raw: string | null): string[] => {
+  if (!raw) return [];
+
+  const trimmed = raw.trim();
+  if (!trimmed) return [];
+
+  if (trimmed.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) {
+        return parsed.filter((item): item is string => typeof item === "string" && item.length > 0);
+      }
+    } catch {
+      return [];
+    }
+  }
+
+  return [trimmed];
+};
+
+const normalizeImageUris = (imageUri?: string | null, imageUris?: string[]): string[] => {
+  if (Array.isArray(imageUris)) {
+    return imageUris.filter((item): item is string => typeof item === "string" && item.length > 0).slice(0, 5);
+  }
+
+  return imageUri ? [imageUri] : [];
+};
+
+const serializeImageUris = (imageUris: string[]): string | null => {
+  if (imageUris.length === 0) return null;
+  if (imageUris.length === 1) return imageUris[0];
+  return JSON.stringify(imageUris);
+};
+
+const toEntry = (row: EntryRow): Entry => {
+  const imageUris = parseImageUris(row.imageUri);
+
+  return {
+    id: row.id,
+    date: row.date,
+    lines: [row.line1 ?? "", row.line2 ?? "", row.line3 ?? ""],
+    imageUri: imageUris[0] ?? null,
+    imageUris,
+    createdAt: Number(row.createdAt),
+    updatedAt: Number(row.updatedAt),
+    deletedAt: row.deletedAt,
+  };
+};
 
 async function getDatabase() {
   if (!dbPromise) {
@@ -159,7 +199,7 @@ async function upsertEntriesToDb(entries: Entry[]) {
           entry.lines[0],
           entry.lines[1],
           entry.lines[2],
-          entry.imageUri ?? null,
+          serializeImageUris(normalizeImageUris(entry.imageUri, entry.imageUris)),
           entry.createdAt,
           entry.updatedAt,
           entry.deletedAt ?? null,
@@ -324,7 +364,8 @@ function normalizeBackupEntries(entries: Entry[]) {
       id: entry.id,
       date: entry.date,
       lines: [entry.lines?.[0] ?? "", entry.lines?.[1] ?? "", entry.lines?.[2] ?? ""] as [string, string, string],
-      imageUri: entry.imageUri ?? null,
+      imageUris: normalizeImageUris(entry.imageUri, entry.imageUris),
+      imageUri: normalizeImageUris(entry.imageUri, entry.imageUris)[0] ?? null,
       createdAt: Number(entry.createdAt) || Date.now(),
       updatedAt: Number(entry.updatedAt) || Date.now(),
       deletedAt: entry.deletedAt ?? null,
@@ -445,17 +486,24 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
   }, [performSync, refreshPendingSyncCount]);
 
   const upsertEntry = React.useCallback(
-    async (date: string, lines: [string, string, string], imageUri?: string | null) => {
+    async (date: string, lines: [string, string, string], imageUri?: string | null, imageUris?: string[]) => {
       const now = Date.now();
       const existing = entries.find((entry) => entry.date === date && !entry.deletedAt);
 
+      const nextImageUris = imageUris !== undefined
+        ? normalizeImageUris(undefined, imageUris)
+        : imageUri !== undefined
+          ? normalizeImageUris(imageUri, undefined)
+          : normalizeImageUris(existing?.imageUri, existing?.imageUris);
+
       const nextEntry: Entry = existing
-        ? { ...existing, lines, imageUri: imageUri !== undefined ? imageUri : existing.imageUri, updatedAt: now, deletedAt: null }
+        ? { ...existing, lines, imageUri: nextImageUris[0] ?? null, imageUris: nextImageUris, updatedAt: now, deletedAt: null }
         : {
             id: `${date}-${now}`,
             date,
             lines,
-            imageUri: imageUri ?? null,
+            imageUri: nextImageUris[0] ?? null,
+            imageUris: nextImageUris,
             createdAt: now,
             updatedAt: now,
             deletedAt: null,
@@ -477,9 +525,9 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
   );
 
   const upsertTodayEntry = React.useCallback(
-    async (lines: [string, string, string], imageUri?: string | null) => {
+    async (lines: [string, string, string], imageUri?: string | null, imageUris?: string[]) => {
       const date = toDateKey();
-      await upsertEntry(date, lines, imageUri);
+      await upsertEntry(date, lines, imageUri, imageUris);
     },
     [upsertEntry],
   );

@@ -18,11 +18,11 @@ export default function TodayScreen() {
   const todayEntry = useMemo(() => entries.find((entry) => entry.date === todayKey), [entries, todayKey]);
 
   const [lines, setLines] = useState<[string, string, string]>(todayEntry?.lines ?? ["", "", ""]);
-  const [imageUri, setImageUri] = useState<string | null>(todayEntry?.imageUri ?? null);
+  const [imageUris, setImageUris] = useState<string[]>(todayEntry?.imageUris?.length ? todayEntry.imageUris : todayEntry?.imageUri ? [todayEntry.imageUri] : []);
 
   React.useEffect(() => {
     setLines(todayEntry?.lines ?? ["", "", ""]);
-    setImageUri(todayEntry?.imageUri ?? null);
+    setImageUris(todayEntry?.imageUris?.length ? todayEntry.imageUris : todayEntry?.imageUri ? [todayEntry.imageUri] : []);
   }, [todayEntry]);
 
   const pickImage = async () => {
@@ -40,12 +40,23 @@ export default function TodayScreen() {
     });
 
     if (!result.canceled && result.assets[0]) {
-      setImageUri(result.assets[0].uri);
+      const nextUri = result.assets[0].uri;
+      setImageUris((prev) => {
+        if (isPremium) {
+          if (prev.length >= 5) {
+            Alert.alert("프리미엄", "프리미엄 사용자는 최대 5장까지 등록할 수 있어요.");
+            return prev;
+          }
+          return [...prev, nextUri];
+        }
+
+        return [nextUri];
+      });
     }
   };
 
-  const removeImage = () => {
-    setImageUri(null);
+  const removeImage = (index: number) => {
+    setImageUris((prev) => prev.filter((_, i) => i !== index));
   };
 
   const save = async () => {
@@ -57,7 +68,7 @@ export default function TodayScreen() {
 
     setIsSaving(true);
     try {
-      await upsertTodayEntry(validation.value, imageUri);
+      await upsertTodayEntry(validation.value, imageUris[0] ?? null, imageUris);
       Alert.alert("저장 완료", "오늘의 세 줄이 저장되었어요.");
     } catch (error) {
       Alert.alert("오류", "저장 중 문제가 발생했어요.");
@@ -70,7 +81,7 @@ export default function TodayScreen() {
   const remove = async () => {
     if (!todayEntry) {
       setLines(["", "", ""]);
-      setImageUri(null);
+      setImageUris([]);
       return;
     }
 
@@ -143,19 +154,32 @@ export default function TodayScreen() {
               </View>
             )}
           </View>
-          {imageUri ? (
-            <View style={styles.imagePreviewContainer}>
-              <Image source={{ uri: imageUri }} style={styles.imagePreview} contentFit="cover" />
-              <Pressable onPress={removeImage} style={styles.removeImageButton}>
-                <X size={16} color="#fff" />
-              </Pressable>
-            </View>
+          {imageUris.length > 0 ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.imageList}>
+              {imageUris.map((uri, index) => (
+                <View key={`${uri}-${index}`} style={styles.imagePreviewContainer}>
+                  <Image source={{ uri }} style={styles.imagePreview} contentFit="cover" />
+                  <Pressable onPress={() => removeImage(index)} style={styles.removeImageButton}>
+                    <X size={16} color="#fff" />
+                  </Pressable>
+                </View>
+              ))}
+              {(isPremium ? imageUris.length < 5 : imageUris.length < 1) ? (
+                <Pressable onPress={pickImage} style={styles.imagePlaceholder}>
+                  <ImagePlus size={24} color={COLORS.secondaryText} />
+                  <Text style={styles.imagePlaceholderText}>사진 추가</Text>
+                </Pressable>
+              ) : null}
+            </ScrollView>
           ) : (
             <Pressable onPress={pickImage} style={styles.imagePlaceholder}>
               <ImagePlus size={24} color={COLORS.secondaryText} />
               <Text style={styles.imagePlaceholderText}>사진 추가</Text>
             </Pressable>
           )}
+          <Text style={styles.imageLimitText}>
+            {isPremium ? `프리미엄: 최대 5장 (${imageUris.length}/5)` : `일반: 최대 1장 (${imageUris.length}/1)`}
+          </Text>
         </View>
 
         {lines.map((line, index) => (
@@ -185,8 +209,8 @@ export default function TodayScreen() {
       ) : (
         entries.slice(0, 7).map((entry) => (
           <NeumorphicCard key={entry.id} style={styles.listCard}>
-            {entry.imageUri && (
-              <Image source={{ uri: entry.imageUri }} style={styles.listImage} contentFit="cover" />
+            {(entry.imageUris?.[0] || entry.imageUri) && (
+              <Image source={{ uri: entry.imageUris?.[0] ?? entry.imageUri ?? "" }} style={styles.listImage} contentFit="cover" />
             )}
             <Text style={styles.dateLabel}>{formatDateDisplay(entry.date)}</Text>
             {(entry.lines ?? []).filter(Boolean).map((line, idx) => (
@@ -256,6 +280,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
   },
+  imageList: { gap: 8 },
   imagePreviewContainer: {
     position: "relative",
     alignSelf: "flex-start",
@@ -276,6 +301,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  imageLimitText: { color: COLORS.secondaryText, fontSize: 12, marginTop: 8 },
   imagePlaceholder: {
     flexDirection: "row",
     alignItems: "center",

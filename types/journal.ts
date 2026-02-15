@@ -3,6 +3,7 @@ export type Entry = {
   date: string;
   lines: [string, string, string];
   imageUri?: string | null;
+  imageUris?: string[];
   createdAt: number;
   updatedAt: number;
   deletedAt?: number | null;

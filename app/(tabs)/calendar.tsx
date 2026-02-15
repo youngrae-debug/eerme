@@ -24,6 +24,7 @@ type CalendarDay = {
   isCurrentMonth: boolean;
   hasEntry: boolean;
   imageUri?: string | null;
+  imageUris?: string[];
   isFuture: boolean;
 };
 
@@ -53,7 +54,8 @@ function generateMonthData(year: number, month: number, entryMap: Map<string, En
       dateKey,
       isCurrentMonth: false,
       hasEntry: !!entry,
-      imageUri: entry?.imageUri,
+      imageUri: entry?.imageUris?.[0] ?? entry?.imageUri,
+      imageUris: entry?.imageUris,
       isFuture: dateKey > todayKey,
     });
   }
@@ -68,7 +70,8 @@ function generateMonthData(year: number, month: number, entryMap: Map<string, En
       dateKey,
       isCurrentMonth: true,
       hasEntry: !!entry,
-      imageUri: entry?.imageUri,
+      imageUri: entry?.imageUris?.[0] ?? entry?.imageUri,
+      imageUris: entry?.imageUris,
       isFuture: dateKey > todayKey,
     });
   }
@@ -84,7 +87,8 @@ function generateMonthData(year: number, month: number, entryMap: Map<string, En
       dateKey,
       isCurrentMonth: false,
       hasEntry: !!entry,
-      imageUri: entry?.imageUri,
+      imageUri: entry?.imageUris?.[0] ?? entry?.imageUri,
+      imageUris: entry?.imageUris,
       isFuture: dateKey > todayKey,
     });
   }
@@ -230,14 +234,10 @@ export default function CalendarScreen() {
         onClose={handleCloseModal}
         onSave={upsertEntry}
         onDelete={removeEntry}
-        onWatchAd={() => {
-          // TODO: 실제 광고 시청 로직 구현
-          Alert.alert("광고", "광고 시청이 완료되었습니다. 이번 작업만 허용됩니다.");
-        }}
         onUpgradeToPremium={() => {
           Alert.alert(
             "프리미엄 구독",
-            "프리미엄을 구독하시겠습니까?\n\n• 과거 일기 수정/삭제 무제한\n• 광고 없이 이용",
+            "프리미엄을 구독하시겠습니까?\n\n• 과거 일기 수정/삭제 무제한",
             [
               { text: "취소", style: "cancel" },
               {
@@ -263,7 +263,6 @@ function EntryModal({
   onClose,
   onSave,
   onDelete,
-  onWatchAd,
   onUpgradeToPremium,
 }: {
   visible: boolean;
@@ -271,16 +270,15 @@ function EntryModal({
   entry: Entry | null | undefined;
   isPremium: boolean;
   onClose: () => void;
-  onSave: (date: string, lines: [string, string, string], imageUri?: string | null) => Promise<void>;
+  onSave: (date: string, lines: [string, string, string], imageUri?: string | null, imageUris?: string[]) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
-  onWatchAd: () => void;
   onUpgradeToPremium: () => void;
 }) {
   const insets = useSafeAreaInsets();
   const [line1, setLine1] = useState("");
   const [line2, setLine2] = useState("");
   const [line3, setLine3] = useState("");
-  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [imageUris, setImageUris] = useState<string[]>([]);
   const [isEditing, setIsEditing] = useState(false);
 
   React.useEffect(() => {
@@ -288,13 +286,13 @@ function EntryModal({
       setLine1(entry.lines[0] || "");
       setLine2(entry.lines[1] || "");
       setLine3(entry.lines[2] || "");
-      setImageUri(entry.imageUri ?? null);
+      setImageUris(entry.imageUris?.length ? entry.imageUris : entry.imageUri ? [entry.imageUri] : []);
       setIsEditing(false);
     } else if (visible) {
       setLine1("");
       setLine2("");
       setLine3("");
-      setImageUri(null);
+      setImageUris([]);
       setIsEditing(true);
     }
   }, [entry, visible]);
@@ -314,17 +312,28 @@ function EntryModal({
     });
 
     if (!result.canceled && result.assets[0]) {
-      setImageUri(result.assets[0].uri);
+      const nextUri = result.assets[0].uri;
+      setImageUris((prev) => {
+        if (isPremium) {
+          if (prev.length >= 5) {
+            Alert.alert("프리미엄", "프리미엄 사용자는 최대 5장까지 등록할 수 있어요.");
+            return prev;
+          }
+          return [...prev, nextUri];
+        }
+
+        return [nextUri];
+      });
     }
   };
 
-  const removeImage = () => {
-    setImageUri(null);
+  const removeImage = (index: number) => {
+    setImageUris((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSave = async () => {
     if (!dateKey) return;
-    await onSave(dateKey, [line1, line2, line3], imageUri);
+    await onSave(dateKey, [line1, line2, line3], imageUris[0] ?? null, imageUris);
     onClose();
   };
 
@@ -334,10 +343,9 @@ function EntryModal({
     if (!isPremium && !isToday) {
       Alert.alert(
         "프리미엄 기능",
-        "과거 일기 수정 기능은 프리미엄 사용자만 이용할 수 있습니다.\n광고를 시청하거나 프리미엄을 구독하시겠습니까?",
+        "과거 일기 수정 기능은 프리미엄 사용자만 이용할 수 있습니다.\n프리미엄을 구독하시겠습니까?",
         [
           { text: "취소", style: "cancel" },
-          { text: "광고 보기", onPress: onWatchAd },
           { text: "프리미엄 구독", onPress: onUpgradeToPremium },
         ]
       );
@@ -350,10 +358,9 @@ function EntryModal({
     if (!isPremium && !isToday) {
       Alert.alert(
         "프리미엄 기능",
-        "과거 일기 삭제 기능은 프리미엄 사용자만 이용할 수 있습니다.\n광고를 시청하거나 프리미엄을 구독하시겠습니까?",
+        "과거 일기 삭제 기능은 프리미엄 사용자만 이용할 수 있습니다.\n프리미엄을 구독하시겠습니까?",
         [
           { text: "취소", style: "cancel" },
-          { text: "광고 보기", onPress: onWatchAd },
           { text: "프리미엄 구독", onPress: onUpgradeToPremium },
         ]
       );
@@ -396,15 +403,25 @@ function EntryModal({
             {/* Image section */}
             <View style={styles.inputContainer}>
               <Text style={styles.inputLabel}>사진</Text>
-              {imageUri ? (
-                <View style={styles.modalImageContainer}>
-                  <Image source={{ uri: imageUri }} style={styles.modalImage} contentFit="cover" />
-                  {isEditing && (
-                    <Pressable onPress={removeImage} style={styles.removeModalImageButton}>
-                      <X size={16} color="#fff" />
+              {imageUris.length > 0 ? (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.modalImageList}>
+                  {imageUris.map((uri, index) => (
+                    <View key={`${uri}-${index}`} style={styles.modalImageContainer}>
+                      <Image source={{ uri }} style={styles.modalImage} contentFit="cover" />
+                      {isEditing && (
+                        <Pressable onPress={() => removeImage(index)} style={styles.removeModalImageButton}>
+                          <X size={16} color="#fff" />
+                        </Pressable>
+                      )}
+                    </View>
+                  ))}
+                  {isEditing && (isPremium ? imageUris.length < 5 : imageUris.length < 1) ? (
+                    <Pressable onPress={pickImage} style={styles.addImageButton}>
+                      <ImagePlus size={24} color={COLORS.secondaryText} />
+                      <Text style={styles.addImageText}>사진 추가</Text>
                     </Pressable>
-                  )}
-                </View>
+                  ) : null}
+                </ScrollView>
               ) : isEditing ? (
                 <Pressable onPress={pickImage} style={styles.addImageButton}>
                   <ImagePlus size={24} color={COLORS.secondaryText} />
@@ -413,6 +430,9 @@ function EntryModal({
               ) : (
                 <Text style={styles.noImageText}>등록된 사진이 없습니다</Text>
               )}
+              <Text style={styles.imageLimitText}>
+                {isPremium ? `프리미엄: 최대 5장 (${imageUris.length}/5)` : `일반: 최대 1장 (${imageUris.length}/1)`}
+              </Text>
             </View>
 
             <View style={styles.inputContainer}>
@@ -703,6 +723,7 @@ const styles = StyleSheet.create({
     textShadowRadius: 3,
     zIndex: 1,
   },
+  modalImageList: { gap: 10 },
   modalImageContainer: {
     position: "relative",
     alignSelf: "flex-start",
@@ -740,6 +761,11 @@ const styles = StyleSheet.create({
     color: COLORS.secondaryText,
     fontSize: 15,
     fontWeight: "500",
+  },
+  imageLimitText: {
+    color: COLORS.secondaryText,
+    fontSize: 12,
+    marginTop: 8,
   },
   noImageText: {
     color: COLORS.secondaryText,
