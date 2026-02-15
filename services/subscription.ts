@@ -18,7 +18,8 @@ type PurchaseResponse = {
   results?: Purchase[];
 };
 
-type UnknownModule = Record<string, unknown> & { default?: unknown; InAppPurchases?: unknown };
+type UnknownModule = { default?: unknown; InAppPurchases?: unknown } & Record<string, unknown>;
+
 
 export type Product = {
   productId: string;
@@ -58,21 +59,30 @@ function getModule(): InAppPurchasesModule {
     throw new Error("웹에서는 인앱 결제를 지원하지 않습니다. iOS/Android 빌드에서 테스트해 주세요.");
   }
 
-  let rawModule: UnknownModule;
+  let requiredModule: unknown;
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports, global-require
-    rawModule = require("expo-in-app-purchases") as UnknownModule;
+    requiredModule = require("expo-in-app-purchases") as unknown;
+
   } catch {
     throw new Error(
       "expo-in-app-purchases 패키지를 찾을 수 없습니다. `npx expo install expo-in-app-purchases` 후 다시 시도해 주세요.",
     );
   }
 
+  const rawModule: UnknownModule | null =
+    requiredModule && typeof requiredModule === "object"
+      ? (requiredModule as UnknownModule)
+      : null;
+
   const resolved = [
     rawModule,
-    rawModule.default as unknown,
-    rawModule.InAppPurchases as unknown,
-    (rawModule.default as UnknownModule | undefined)?.InAppPurchases,
+    rawModule?.default,
+    rawModule?.InAppPurchases,
+    rawModule?.default && typeof rawModule.default === "object"
+      ? (rawModule.default as UnknownModule).InAppPurchases
+      : undefined,
+
   ].find(isNativeIapModule);
 
   if (!resolved) {
