@@ -1,13 +1,21 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
+import React from "react";
 import { ActivityIndicator, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useJournalStore } from "../../store/journalStore";
 import { COLORS } from "../../theme/colors";
+import { t, useLocale } from "../../utils/i18n";
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const { isReady } = useJournalStore();
+  const locale = useLocale();
+  const [tabsKey, setTabsKey] = React.useState(0);
+
+  React.useEffect(() => {
+    setTabsKey((value) => value + 1);
+  }, [locale]);
 
   if (!isReady) {
     return (
@@ -19,6 +27,7 @@ export default function TabLayout() {
 
   return (
     <Tabs
+      key={`tabs-${tabsKey}`}
       screenOptions={{
         headerStyle: {
           backgroundColor: COLORS.background,
@@ -49,50 +58,60 @@ export default function TabLayout() {
     >
       <Tabs.Screen
         name="index"
-        options={{
-          title: "오늘",
+        key={`tab-index-${tabsKey}`}
+        options={() => ({
+          title: t("tabToday"),
+          tabBarLabel: t("tabToday"),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="create-outline" size={size} color={color} />
           ),
-        }}
+        })}
       />
       <Tabs.Screen
         name="calendar"
-        options={{
-          title: "캘린더",
+        key={`tab-calendar-${tabsKey}`}
+        options={() => ({
+          title: t("tabCalendar"),
+          tabBarLabel: t("tabCalendar"),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="calendar-outline" size={size} color={color} />
           ),
-        }}
+        })}
       />
       <Tabs.Screen
         name="search"
-        options={{
-          title: "검색",
+        key={`tab-search-${tabsKey}`}
+        options={() => ({
+          title: t("tabSearch"),
+          tabBarLabel: t("tabSearch"),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="search-outline" size={size} color={color} />
           ),
-        }}
+        })}
       />
 
       <Tabs.Screen
         name="stats"
-        options={{
-          title: "통계",
+        key={`tab-stats-${tabsKey}`}
+        options={() => ({
+          title: t("tabStats"),
+          tabBarLabel: t("tabStats"),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="bar-chart-outline" size={size} color={color} />
           ),
-        }}
+        })}
       />
 
       <Tabs.Screen
         name="sync"
-        options={{
-          title: "MY",
+        key={`tab-sync-${tabsKey}`}
+        options={() => ({
+          title: t("tabMy"),
+          tabBarLabel: t("tabMy"),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person-outline" size={size} color={color} />
           ),
-        }}
+        })}
       />
     </Tabs>
   );

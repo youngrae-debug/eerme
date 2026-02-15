@@ -16,7 +16,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useJournalStore } from "../../store/journalStore";
 import { COLORS } from "../../theme/colors";
 import { Entry } from "../../types/journal";
-import { formatDateDisplay, toDateKey } from "../../utils/date";
+import { formatDateDisplay, formatMonthTitle, toDateKey } from "../../utils/date";
+import { t, tList, useLocale } from "../../utils/i18n";
 
 type CalendarDay = {
   date: Date;
@@ -98,6 +99,7 @@ function generateMonthData(year: number, month: number, entryMap: Map<string, En
 
 export default function CalendarScreen() {
   const { entries, isReady, upsertEntry, removeEntry, isPremium } = useJournalStore();
+  const locale = useLocale();
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   const entryMap = useMemo(() => {
@@ -137,13 +139,13 @@ export default function CalendarScreen() {
   if (!isReady) {
     return (
       <View style={styles.container}>
-        <Text style={styles.loading}>저장된 기록을 불러오는 중...</Text>
+        <Text style={styles.loading}>{t("loadingRecords")}</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} key={locale}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         {/* 프리미엄 배지 */}
         {isPremium && (
@@ -153,20 +155,18 @@ export default function CalendarScreen() {
               style={styles.premiumLogo}
               contentFit="contain"
             />
-            <Text style={styles.premiumText}>Premium</Text>
+            <Text style={styles.premiumText}>{t("premiumBadge")}</Text>
           </View>
         )}
 
         {months.map((monthData) => (
           <View key={`${monthData.year}-${monthData.month}`} style={styles.monthContainer}>
             {/* 월 헤더 */}
-            <Text style={styles.monthTitle}>
-              {monthData.year}년 {monthData.month + 1}월
-            </Text>
+            <Text style={styles.monthTitle}>{formatMonthTitle(monthData.year, monthData.month)}</Text>
 
             {/* 요일 헤더 */}
             <View style={styles.weekDays}>
-              {["일", "월", "화", "수", "목", "금", "토"].map((day, index) => (
+              {tList("weekdaysShort").map((day, index) => (
                 <Text
                   key={index}
                   style={[
@@ -285,7 +285,7 @@ function EntryModal({
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert("권한 필요", "사진 라이브러리 접근 권한이 필요합니다.");
+      Alert.alert(t("permissionTitle"), t("permissionPhotoBody"));
       return;
     }
 
@@ -301,7 +301,7 @@ function EntryModal({
       setImageUris((prev) => {
         if (isPremium) {
           if (prev.length >= 5) {
-            Alert.alert("프리미엄", "프리미엄 사용자는 최대 5장까지 등록할 수 있어요.");
+            Alert.alert(t("premiumTitle"), t("premiumLimitBody"));
             return prev;
           }
           return [...prev, nextUri];
@@ -330,10 +330,10 @@ function EntryModal({
 
   const handleDelete = () => {
     setIsMenuOpen(false);
-    Alert.alert("일기 삭제", "정말 삭제하시겠습니까?", [
-      { text: "취소", style: "cancel" },
+    Alert.alert(t("entryDeleteTitle"), t("entryDeleteConfirm"), [
+      { text: t("cancel"), style: "cancel" },
       {
-        text: "삭제",
+        text: t("delete"),
         style: "destructive",
         onPress: async () => {
           if (entry) {
@@ -365,10 +365,10 @@ function EntryModal({
                   {isMenuOpen && (
                     <View style={styles.menuDropdown}>
                       <Pressable onPress={handleEdit} style={styles.menuItem}>
-                        <Text style={styles.menuItemText}>수정</Text>
+                        <Text style={styles.menuItemText}>{t("edit")}</Text>
                       </Pressable>
                       <Pressable onPress={handleDelete} style={[styles.menuItem, styles.menuItemDanger]}>
-                        <Text style={[styles.menuItemText, styles.menuItemDangerText]}>삭제</Text>
+                        <Text style={[styles.menuItemText, styles.menuItemDangerText]}>{t("delete")}</Text>
                       </Pressable>
                     </View>
                   )}
@@ -399,17 +399,17 @@ function EntryModal({
                   {isEditing && (isPremium ? imageUris.length < 5 : imageUris.length < 1) ? (
                     <Pressable onPress={pickImage} style={styles.addImageButton}>
                       <ImagePlus size={24} color={COLORS.secondaryText} />
-                      <Text style={styles.addImageText}>사진 추가</Text>
+                      <Text style={styles.addImageText}>{t("imageAdd")}</Text>
                     </Pressable>
                   ) : null}
                 </ScrollView>
               ) : isEditing ? (
                 <Pressable onPress={pickImage} style={styles.addImageButton}>
                   <ImagePlus size={24} color={COLORS.secondaryText} />
-                  <Text style={styles.addImageText}>사진 추가</Text>
+                  <Text style={styles.addImageText}>{t("imageAdd")}</Text>
                 </Pressable>
               ) : (
-                <Text style={styles.noImageText}>등록된 사진이 없습니다</Text>
+                <Text style={styles.noImageText}>{t("imageNone")}</Text>
               )}
             </View>
 
@@ -419,7 +419,7 @@ function EntryModal({
                   style={styles.input}
                   value={line1}
                   onChangeText={setLine1}
-                  placeholder="무엇을 했나요?"
+                  placeholder={t("line1Placeholder")}
                   placeholderTextColor={COLORS.secondaryText}
                   editable={isEditing}
                   multiline
@@ -435,7 +435,7 @@ function EntryModal({
                   style={styles.input}
                   value={line2}
                   onChangeText={setLine2}
-                  placeholder="어떤 감정이 들었나요?"
+                  placeholder={t("line2Placeholder")}
                   placeholderTextColor={COLORS.secondaryText}
                   editable={isEditing}
                   multiline
@@ -451,7 +451,7 @@ function EntryModal({
                   style={styles.input}
                   value={line3}
                   onChangeText={setLine3}
-                  placeholder="무엇을 배웠나요?"
+                  placeholder={t("line3Placeholder")}
                   placeholderTextColor={COLORS.secondaryText}
                   editable={isEditing}
                   multiline
@@ -466,7 +466,7 @@ function EntryModal({
           <View style={[styles.modalFooter, { paddingBottom: 20 + insets.bottom }]}>
             {canSave && (
               <Pressable onPress={handleSave} style={styles.saveButton}>
-                <Text style={styles.saveButtonText}>저장</Text>
+                <Text style={styles.saveButtonText}>{t("save")}</Text>
               </Pressable>
             )}
           </View>

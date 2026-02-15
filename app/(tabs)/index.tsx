@@ -7,9 +7,11 @@ import { NeumorphicButton, NeumorphicCard } from "../../components/neumorphic";
 import { useJournalStore } from "../../store/journalStore";
 import { COLORS } from "../../theme/colors";
 import { formatDateDisplay, toDateKey } from "../../utils/date";
+import { t, useLocale } from "../../utils/i18n";
 import { validateLines } from "../../utils/validate";
 
 export default function TodayScreen() {
+  const locale = useLocale();
   const todayKey = toDateKey();
   const { entries, isReady, upsertTodayEntry, removeEntry, isPremium } = useJournalStore();
   const [isSaving, setIsSaving] = useState(false);
@@ -28,7 +30,7 @@ export default function TodayScreen() {
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert("권한 필요", "사진 라이브러리 접근 권한이 필요합니다.");
+      Alert.alert(t("permissionTitle"), t("permissionPhotoBody"));
       return;
     }
 
@@ -44,7 +46,7 @@ export default function TodayScreen() {
       setImageUris((prev) => {
         if (isPremium) {
           if (prev.length >= 5) {
-            Alert.alert("프리미엄", "프리미엄 사용자는 최대 5장까지 등록할 수 있어요.");
+            Alert.alert(t("premiumTitle"), t("premiumLimitBody"));
             return prev;
           }
           return [...prev, nextUri];
@@ -62,16 +64,16 @@ export default function TodayScreen() {
   const save = async () => {
     const validation = validateLines(lines);
     if (!validation.ok) {
-      Alert.alert("입력 확인", validation.message);
+      Alert.alert(t("confirmTitle"), validation.message);
       return;
     }
 
     setIsSaving(true);
     try {
       await upsertTodayEntry(validation.value, imageUris[0] ?? null, imageUris);
-      Alert.alert("저장 완료", "오늘의 세 줄이 저장되었어요.");
+      Alert.alert(t("saveDoneTitle"), t("saveDoneBody"));
     } catch (error) {
-      Alert.alert("오류", "저장 중 문제가 발생했어요.");
+      Alert.alert(t("errorTitle"), t("saveErrorBody"));
       console.error(error);
     } finally {
       setIsSaving(false);
@@ -89,7 +91,7 @@ export default function TodayScreen() {
     try {
       await removeEntry(todayEntry.id);
     } catch (error) {
-      Alert.alert("오류", "삭제 중 문제가 발생했어요.");
+      Alert.alert(t("errorTitle"), t("deleteErrorBody"));
       console.error(error);
     } finally {
       setIsSaving(false);
@@ -99,13 +101,13 @@ export default function TodayScreen() {
   if (!isReady) {
     return (
       <View style={styles.loadingWrap}>
-        <Text style={styles.loadingText}>저장된 기록을 불러오는 중...</Text>
+        <Text style={styles.loadingText}>{t("loadingRecords")}</Text>
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView key={locale} style={styles.container} contentContainerStyle={styles.content}>
       {/* 프리미엄 배지 */}
       {isPremium && (
         <View style={styles.premiumBadge}>
@@ -114,17 +116,17 @@ export default function TodayScreen() {
             style={styles.premiumLogo}
             contentFit="contain"
           />
-          <Text style={styles.premiumText}>Premium</Text>
+          <Text style={styles.premiumText}>{t("premiumBadge")}</Text>
         </View>
       )}
 
-      <Text style={styles.subtitle}>{formatDateDisplay(todayKey)}의 세 줄</Text>
+      <Text style={styles.subtitle}>{t("todayLinesTitle", { date: formatDateDisplay(todayKey) })}</Text>
 
       <NeumorphicCard style={styles.editorCard}>
         {/* Image Picker */}
         <View style={styles.imageSection}>
           <View style={styles.imageLabelRow}>
-            <Text style={styles.imageLabel}>오늘의 사진</Text>
+            <Text style={styles.imageLabel}>{t("todayPhotoLabel")}</Text>
             {todayEntry && (
               <View style={styles.menuWrapper}>
                 <Pressable onPress={() => setMenuVisible(!menuVisible)} style={styles.menuButton}>
@@ -137,17 +139,17 @@ export default function TodayScreen() {
                     onPress={() => {
                       setMenuVisible(false);
                       Alert.alert(
-                        "삭제 확인",
-                        "오늘의 기록을 삭제하시겠습니까?",
+                        t("todayDeleteTitle"),
+                        t("todayDeleteConfirm"),
                         [
-                          { text: "취소", style: "cancel" },
-                          { text: "삭제", style: "destructive", onPress: remove },
-                        ]
+                          { text: t("cancel"), style: "cancel" },
+                          { text: t("delete"), style: "destructive", onPress: remove },
+                        ],
                       );
                     }}
                   >
                     <Trash2 size={18} color={COLORS.danger} />
-                    <Text style={styles.menuItemTextDanger}>삭제</Text>
+                    <Text style={styles.menuItemTextDanger}>{t("delete")}</Text>
                   </Pressable>
                 </View>
               )}
@@ -167,18 +169,20 @@ export default function TodayScreen() {
               {(isPremium ? imageUris.length < 5 : imageUris.length < 1) ? (
                 <Pressable onPress={pickImage} style={styles.imagePlaceholder}>
                   <ImagePlus size={24} color={COLORS.secondaryText} />
-                  <Text style={styles.imagePlaceholderText}>사진 추가</Text>
+                  <Text style={styles.imagePlaceholderText}>{t("imageAdd")}</Text>
                 </Pressable>
               ) : null}
             </ScrollView>
           ) : (
             <Pressable onPress={pickImage} style={styles.imagePlaceholder}>
               <ImagePlus size={24} color={COLORS.secondaryText} />
-              <Text style={styles.imagePlaceholderText}>사진 추가</Text>
+              <Text style={styles.imagePlaceholderText}>{t("imageAdd")}</Text>
             </Pressable>
           )}
           <Text style={styles.imageLimitText}>
-            {isPremium ? `프리미엄: 최대 5장 (${imageUris.length}/5)` : `일반: 최대 1장 (${imageUris.length}/1)`}
+            {isPremium
+              ? t("imageLimitPremium", { count: imageUris.length })
+              : t("imageLimitFree", { count: imageUris.length })}
           </Text>
         </View>
 
@@ -191,7 +195,7 @@ export default function TodayScreen() {
               next[index] = text;
               setLines(next);
             }}
-            placeholder={`${index + 1}번째 줄을 적어보세요`}
+            placeholder={t("linePlaceholder", { index: index + 1 })}
             placeholderTextColor={COLORS.secondaryText}
             maxLength={120}
             style={styles.input}
@@ -200,12 +204,16 @@ export default function TodayScreen() {
       </NeumorphicCard>
 
       <View style={styles.actions}>
-        <NeumorphicButton label={isSaving ? "저장 중..." : "저장"} onPress={save} style={styles.buttonFlex} />
+        <NeumorphicButton
+          label={isSaving ? t("saveInProgress") : t("save")}
+          onPress={save}
+          style={styles.buttonFlex}
+        />
       </View>
 
-      <Text style={styles.listTitle}>최근 기록</Text>
+      <Text style={styles.listTitle}>{t("recentEntriesTitle")}</Text>
       {entries.length === 0 ? (
-        <Text style={styles.empty}>아직 기록이 없어요. 오늘 첫 줄을 남겨보세요.</Text>
+        <Text style={styles.empty}>{t("emptyEntries")}</Text>
       ) : (
         entries.slice(0, 7).map((entry) => (
           <NeumorphicCard key={entry.id} style={styles.listCard}>

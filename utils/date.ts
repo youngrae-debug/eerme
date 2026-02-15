@@ -1,3 +1,5 @@
+import { getLocaleTag } from "./i18n";
+
 export const toDateKey = (date: Date = new Date()) => {
   const year = date.getFullYear();
   const month = `${date.getMonth() + 1}`.padStart(2, "0");
@@ -8,9 +10,17 @@ export const toDateKey = (date: Date = new Date()) => {
 export const formatDateDisplay = (dateKey: string) => {
   const [year, month, day] = dateKey.split("-").map(Number);
   const date = new Date(year, month - 1, day);
-  return new Intl.DateTimeFormat("ko-KR", {
+  return new Intl.DateTimeFormat(getLocaleTag(), {
     month: "long",
     day: "numeric",
     weekday: "short",
+  }).format(date);
+};
+
+export const formatMonthTitle = (year: number, month: number) => {
+  const date = new Date(year, month, 1);
+  return new Intl.DateTimeFormat(getLocaleTag(), {
+    year: "numeric",
+    month: "long",
   }).format(date);
 };

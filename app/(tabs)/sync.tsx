@@ -12,6 +12,7 @@ import {
 } from "../../services/subscription";
 import { useJournalStore } from "../../store/journalStore";
 import { COLORS } from "../../theme/colors";
+import { setLocale, t, useLocale } from "../../utils/i18n";
 
 const BACKUP_FILE_PREFIX = "eerme-backup-";
 
@@ -24,6 +25,7 @@ type MyPageTab = "subscription" | "backup";
 
 export default function SyncScreen() {
   const { isReady, exportBackup, importBackup, isPremium, setPremium } = useJournalStore();
+  const locale = useLocale();
 
   const [activeTab, setActiveTab] = React.useState<MyPageTab>("subscription");
   const [backupText, setBackupText] = React.useState("");
@@ -44,11 +46,14 @@ export default function SyncScreen() {
 
         setPremium(true);
         setSubscriptionBusy(false);
-        Alert.alert("구독 완료", `${purchase.productId} 구독이 활성화되었습니다.`);
+        Alert.alert(
+          t("subscriptionDoneTitle"),
+          t("subscriptionDoneBody", { productId: purchase.productId }),
+        );
       });
       setSubscriptionError(null);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "인앱 결제 모듈을 불러오지 못했습니다.";
+      const message = error instanceof Error ? error.message : t("iapLoadFailed");
       setSubscriptionError(message);
     }
 
@@ -63,10 +68,10 @@ export default function SyncScreen() {
 
   const tabItems = React.useMemo(
     () => [
-      { key: "subscription" as const, label: "구독", hint: "플랜 안내", icon: "✦" },
-      { key: "backup" as const, label: "백업", hint: "데이터 보호", icon: "⤴" },
+      { key: "subscription" as const, label: t("tabSubscription"), hint: t("tabSubscriptionHint"), icon: "✦" },
+      { key: "backup" as const, label: t("tabBackup"), hint: t("tabBackupHint"), icon: "⤴" },
     ],
-    [],
+    [t],
   );
 
   React.useEffect(() => {
@@ -112,7 +117,7 @@ export default function SyncScreen() {
       })
       .catch((error) => {
         console.error("Failed to load subscription products", error);
-        const message = error instanceof Error ? error.message : "구독 상품을 불러오지 못했습니다.";
+        const message = error instanceof Error ? error.message : t("subscriptionProductLoadFailed");
         setSubscriptionError(message);
       })
       .finally(() => setSubscriptionBusy(false));
@@ -124,8 +129,8 @@ export default function SyncScreen() {
       try {
         await requestSubscription(productId);
       } catch (error) {
-        const message = error instanceof Error ? error.message : "결제 요청에 실패했습니다.";
-        Alert.alert("구독 오류", message);
+        const message = error instanceof Error ? error.message : t("purchaseRequestFailed");
+        Alert.alert(t("errorTitle"), message);
         setSubscriptionBusy(false);
       }
     },
@@ -137,10 +142,10 @@ export default function SyncScreen() {
     try {
       const restored = await restoreSubscription();
       setPremium(restored);
-      Alert.alert("복원", restored ? "구독 복원을 완료했어요." : "복원 가능한 구독이 없습니다.");
+      Alert.alert(t("restoreTitle"), restored ? t("restoreSuccess") : t("restoreNone"));
     } catch (error) {
-      const message = error instanceof Error ? error.message : "복원 중 오류가 발생했습니다.";
-      Alert.alert("복원 실패", message);
+      const message = error instanceof Error ? error.message : t("restoreFailed");
+      Alert.alert(t("errorTitle"), message);
     } finally {
       setSubscriptionBusy(false);
     }
@@ -151,11 +156,11 @@ export default function SyncScreen() {
     try {
       await task();
       if (successMessage) {
-        Alert.alert("완료", successMessage);
+        Alert.alert(t("doneTitle"), successMessage);
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : "작업에 실패했습니다.";
-      Alert.alert("오류", message);
+      const message = error instanceof Error ? error.message : t("taskFailed");
+      Alert.alert(t("errorTitle"), message);
     } finally {
       setBusy(false);
     }
@@ -175,14 +180,35 @@ export default function SyncScreen() {
   if (!isReady) {
     return (
       <View style={styles.loadingWrap}>
-        <Text style={styles.loadingText}>설정을 불러오는 중...</Text>
+        <Text style={styles.loadingText}>{t("loadingSettings")}</Text>
       </View>
     );
   }
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <Text style={styles.title}>마이페이지</Text>
+      <NeumorphicCard style={styles.card}>
+        <Text style={styles.label}>{t("languageSectionTitle")}</Text>
+        <Text style={styles.helperText}>{t("languageSectionHelper")}</Text>
+        <View style={styles.languageRow}>
+          {([
+            { key: "en", label: t("languageEnglish") },
+            { key: "ko", label: t("languageKorean") },
+            { key: "ja", label: t("languageJapanese") },
+          ] as const).map((item) => {
+            const isActive = locale === item.key;
+            return (
+              <Pressable
+                key={item.key}
+                onPress={() => setLocale(item.key)}
+                style={[styles.languageButton, isActive && styles.languageButtonActive]}
+              >
+                <Text style={[styles.languageText, isActive && styles.languageTextActive]}>{item.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </NeumorphicCard>
 
       <View style={styles.tabRow}>
         {tabItems.map((tab) => (
@@ -204,29 +230,29 @@ export default function SyncScreen() {
       {activeTab === "subscription" ? (
         <>
           <NeumorphicCard style={styles.card}>
-            <Text style={styles.label}>구독 상태</Text>
-            <Text style={styles.value}>{isPremium ? "프리미엄 구독 활성화됨" : "무료 플랜 사용 중"}</Text>
-            <Text style={styles.helperText}>
-              월 구독을 시작하면 사진 5장 첨부 등 프리미엄 기능을 사용할 수 있어요.
+            <Text style={styles.label}>{t("subscriptionStatusLabel")}</Text>
+            <Text style={styles.value}>
+              {isPremium ? t("subscriptionStatusPremium") : t("subscriptionStatusFree")}
             </Text>
+            <Text style={styles.helperText}>{t("subscriptionHelper")}</Text>
           </NeumorphicCard>
 
           <NeumorphicCard style={styles.card}>
-            <Text style={styles.label}>구독 상품</Text>
+            <Text style={styles.label}>{t("subscriptionProductsLabel")}</Text>
             {subscriptionError ? (
               <Text style={styles.emptyText}>{subscriptionError}</Text>
             ) : products.length === 0 ? (
-              <Text style={styles.emptyText}>상품 정보를 불러오지 못했어요. 앱스토어 설정을 확인해 주세요.</Text>
+              <Text style={styles.emptyText}>{t("subscriptionProductsEmpty")}</Text>
             ) : (
               products.map((product) => (
                 <View key={product.productId} style={styles.planItem}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.planTitle}>{product.title ?? product.productId}</Text>
-                    <Text style={styles.planPrice}>{product.price ?? "가격 정보 없음"}</Text>
-                    <Text style={styles.planDescription}>{product.description ?? "프리미엄 기능 전체 이용"}</Text>
+                    <Text style={styles.planPrice}>{product.price ?? t("priceUnavailable")}</Text>
+                    <Text style={styles.planDescription}>{product.description ?? t("premiumAllFeatures")}</Text>
                   </View>
                   <NeumorphicButton
-                    label={subscriptionBusy ? "요청 중..." : "구독"}
+                    label={subscriptionBusy ? t("requestInProgress") : t("subscribeButton")}
                     style={styles.planButton}
                     onPress={() => subscribe(product.productId)}
                   />
@@ -235,7 +261,7 @@ export default function SyncScreen() {
             )}
             <View style={styles.row}>
               <NeumorphicButton
-                label={subscriptionBusy ? "처리 중..." : "구독 복원"}
+                label={subscriptionBusy ? t("processing") : t("restoreSubscriptionButton")}
                 style={styles.buttonFlex}
                 onPress={() => {
                   restorePurchase().catch((error) => {
@@ -251,82 +277,82 @@ export default function SyncScreen() {
       {activeTab === "backup" ? (
         <>
           <NeumorphicCard style={styles.card}>
-            <Text style={styles.label}>파일 백업 / 복원</Text>
-            <Text style={styles.helperText}>백업 파일을 저장해 두면 기기 변경 시 빠르게 복원할 수 있어요.</Text>
+            <Text style={styles.label}>{t("backupSectionTitle")}</Text>
+            <Text style={styles.helperText}>{t("backupSectionHelper")}</Text>
             <TextInput
               value={backupFileUri}
               onChangeText={setBackupFileUri}
-              placeholder="backup file uri (예: file:///.../eerme-backup-123.json)"
+              placeholder={t("backupFilePlaceholder")}
               placeholderTextColor="#6b7280"
               autoCapitalize="none"
               style={styles.input}
             />
             <View style={styles.row}>
               <NeumorphicButton
-                label={busy ? "처리 중..." : "파일로 저장"}
+                label={busy ? t("processing") : t("backupSaveButton")}
                 style={styles.buttonFlex}
                 onPress={() =>
                   run(async () => {
                     const json = await exportBackup();
                     const baseDir = FileSystem.documentDirectory;
                     if (!baseDir) {
-                      throw new Error("파일 시스템 경로를 찾지 못했습니다.");
+                      throw new Error(t("backupFileSystemMissing"));
                     }
                     const uri = `${baseDir}${BACKUP_FILE_PREFIX}${Date.now()}.json`;
                     await FileSystem.writeAsStringAsync(uri, json, { encoding: FileSystem.EncodingType.UTF8 });
                     setBackupFileUri(uri);
                     await loadBackupFiles();
-                  }, "백업 파일을 저장했어요")
+                  }, t("backupSavedSuccess"))
                 }
               />
               <NeumorphicButton
-                label={busy ? "처리 중..." : "파일로 복원"}
+                label={busy ? t("processing") : t("backupRestoreButton")}
                 style={styles.buttonFlex}
-                onPress={() => run(() => restoreFromFile(backupFileUri.trim()), "파일에서 복원을 완료했어요")}
+                onPress={() => run(() => restoreFromFile(backupFileUri.trim()), t("backupRestoredSuccess"))}
               />
             </View>
             <View style={styles.row}>
               <NeumorphicButton
-                label={busy ? "처리 중..." : "파일 URI 공유"}
+                label={busy ? t("processing") : t("backupShareUriButton")}
                 style={styles.buttonFlex}
                 onPress={() =>
                   run(async () => {
                     if (!backupFileUri.trim()) {
-                      throw new Error("공유할 파일 URI가 없습니다. 먼저 파일로 저장해 주세요.");
+                      throw new Error(t("backupShareUriMissing"));
                     }
                     await Share.share({
                       message: `eerme backup file uri\n${backupFileUri.trim()}`,
                     });
-                  }, "공유 시트를 열었어요")
+                  }, t("shareOpenedSuccess"))
                 }
               />
               <NeumorphicButton
-                label={busy ? "처리 중..." : "파일 URI 확인"}
+                label={busy ? t("processing") : t("backupCheckUriButton")}
                 style={styles.buttonFlex}
                 onPress={() =>
                   run(async () => {
                     if (!backupFileUri.trim()) {
-                      throw new Error("확인할 파일 URI를 입력해 주세요.");
+                      throw new Error(t("backupCheckUriMissing"));
                     }
                     const info = await FileSystem.getInfoAsync(backupFileUri.trim());
                     if (!info.exists) {
-                      throw new Error("해당 URI에 파일이 없습니다.");
+                      throw new Error(t("backupUriNotFound"));
                     }
-                  }, "파일 URI가 유효합니다")
+                  }, t("uriValidSuccess"))
                 }
               />
             </View>
 
             <View style={styles.row}>
               <NeumorphicButton
-                label={busy ? "처리 중..." : "목록 새로고침"}
+                label={busy ? t("processing") : t("backupRefreshButton")}
                 style={styles.buttonFlex}
-                onPress={() => run(loadBackupFiles, "백업 파일 목록을 갱신했어요")}
+                onPress={() => run(loadBackupFiles, t("backupListRefreshedSuccess"))}
               />
             </View>
 
             {backupFiles.length === 0 ? (
-              <Text style={styles.emptyText}>저장된 백업 파일이 없습니다.</Text>
+              <Text style={styles.emptyText}>{t("backupNoFiles")}</Text>
             ) : (
               <View style={styles.listWrap}>
                 {backupFiles.map((file) => (
@@ -337,28 +363,28 @@ export default function SyncScreen() {
                     </Text>
                     <View style={styles.row}>
                       <NeumorphicButton
-                        label={busy ? "처리 중..." : "선택"}
+                        label={busy ? t("processing") : t("backupSelectButton")}
                         style={styles.buttonFlex}
                         onPress={() => setBackupFileUri(file.uri)}
                       />
                       <NeumorphicButton
-                        label={busy ? "처리 중..." : "복원"}
+                        label={busy ? t("processing") : t("restoreTitle")}
                         style={styles.buttonFlex}
-                        onPress={() => run(() => restoreFromFile(file.uri), "백업 파일에서 복원을 완료했어요")}
+                        onPress={() => run(() => restoreFromFile(file.uri), t("backupRestoredSuccess"))}
                       />
                     </View>
                     <View style={styles.row}>
                       <NeumorphicButton
-                        label={busy ? "처리 중..." : "공유"}
+                        label={busy ? t("processing") : t("backupShareUriButton")}
                         style={styles.buttonFlex}
                         onPress={() =>
                           run(async () => {
                             await Share.share({ message: file.uri });
-                          }, "공유 시트를 열었어요")
+                          }, t("shareOpenedSuccess"))
                         }
                       />
                       <NeumorphicButton
-                        label={busy ? "처리 중..." : "삭제"}
+                        label={busy ? t("processing") : t("backupDeleteButton")}
                         style={styles.buttonFlex}
                         textStyle={{ color: COLORS.danger }}
                         onPress={() =>
@@ -368,7 +394,7 @@ export default function SyncScreen() {
                               setBackupFileUri("");
                             }
                             await loadBackupFiles();
-                          }, "백업 파일을 삭제했어요")
+                          }, t("backupDeletedSuccess"))
                         }
                       />
                     </View>
@@ -379,44 +405,44 @@ export default function SyncScreen() {
           </NeumorphicCard>
 
           <NeumorphicCard style={styles.card}>
-            <Text style={styles.label}>백업 / 복원 (JSON)</Text>
-            <Text style={styles.helperText}>백업 JSON을 복사해 다른 기기에서 복원할 수 있어요.</Text>
+            <Text style={styles.label}>{t("backupJsonSectionTitle")}</Text>
+            <Text style={styles.helperText}>{t("backupJsonHelper")}</Text>
             <TextInput
               value={backupText}
               onChangeText={setBackupText}
-              placeholder="백업 JSON을 여기에 붙여넣거나 내보낸 내용을 확인하세요"
+              placeholder={t("backupJsonPlaceholder")}
               placeholderTextColor="#6b7280"
               multiline
               style={styles.textArea}
             />
             <View style={styles.row}>
               <NeumorphicButton
-                label={busy ? "처리 중..." : "백업 내보내기"}
+                label={busy ? t("processing") : t("backupJsonExportButton")}
                 style={styles.buttonFlex}
                 onPress={() =>
                   run(async () => {
                     const json = await exportBackup();
                     setBackupText(json);
-                  }, "백업 데이터를 불러왔어요")
+                  }, t("backupJsonExportedSuccess"))
                 }
               />
               <NeumorphicButton
-                label={busy ? "처리 중..." : "백업 가져오기"}
+                label={busy ? t("processing") : t("backupJsonImportButton")}
                 style={styles.buttonFlex}
-                onPress={() => run(() => importBackup(backupText), "복원을 완료했어요")}
+                onPress={() => run(() => importBackup(backupText), t("backupJsonImportedSuccess"))}
               />
             </View>
             <View style={styles.row}>
               <NeumorphicButton
-                label={busy ? "처리 중..." : "JSON 공유"}
+                label={busy ? t("processing") : t("backupJsonShareButton")}
                 style={styles.buttonFlex}
                 onPress={() =>
                   run(async () => {
                     if (!backupText.trim()) {
-                      throw new Error("공유할 JSON이 없습니다. 먼저 백업 내보내기를 실행해 주세요.");
+                      throw new Error(t("backupShareJsonMissing"));
                     }
                     await Share.share({ message: backupText });
-                  }, "공유 시트를 열었어요")
+                  }, t("shareOpenedSuccess"))
                 }
               />
             </View>
@@ -439,6 +465,22 @@ const styles = StyleSheet.create({
   loadingText: { color: COLORS.textOnDark },
   title: { color: COLORS.textOnDark, fontSize: 28, fontWeight: "800" },
   subtitle: { color: "#d1d5db", marginBottom: 2 },
+  languageRow: { flexDirection: "row", gap: 10 },
+  languageButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: COLORS.softBorder,
+    backgroundColor: COLORS.card,
+    alignItems: "center",
+  },
+  languageButtonActive: {
+    borderColor: COLORS.accentPeach,
+    backgroundColor: "#F4E7D7",
+  },
+  languageText: { color: COLORS.secondaryText, fontWeight: "600" },
+  languageTextActive: { color: COLORS.primaryText },
   tabRow: { flexDirection: "row", gap: 10, marginTop: 4, marginBottom: 6 },
   tabButton: {
     flex: 1,

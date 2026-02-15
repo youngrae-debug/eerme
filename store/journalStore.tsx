@@ -3,6 +3,7 @@ import React from "react";
 import { mapRemoteEntriesToLocal, remoteClient } from "../services/remoteSync";
 import { AuthSession, BackupPayload, Entry } from "../types/journal";
 import { toDateKey } from "../utils/date";
+import { t } from "../utils/i18n";
 
 type SyncStatus = "idle" | "syncing" | "error";
 
@@ -443,7 +444,7 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
         setLastSyncedAt(pullResult.serverTime);
         setSyncStatus("idle");
       } catch (error) {
-        const message = error instanceof Error ? error.message : "동기화에 실패했습니다.";
+        const message = error instanceof Error ? error.message : t("syncFailed");
         await markSyncQueueFailed(queuedIds, message);
         setSyncStatus("error");
         setSyncError(message);
@@ -494,7 +495,7 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
         console.error("Failed to bootstrap journal store", error);
         if (mounted) {
           setSyncStatus("error");
-          setSyncError("로컬 데이터를 불러오지 못했습니다.");
+          setSyncError(t("loadLocalFailed"));
           setIsReady(true);
         }
       }
@@ -653,16 +654,16 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
       try {
         parsed = JSON.parse(rawBackup);
       } catch {
-        throw new Error("백업 JSON 형식이 올바르지 않습니다.");
+        throw new Error(t("backupJsonInvalid"));
       }
 
       if (!parsed || typeof parsed !== "object") {
-        throw new Error("백업 데이터가 비어 있습니다.");
+        throw new Error(t("backupDataEmpty"));
       }
 
       const candidate = parsed as Partial<BackupPayload>;
       if (candidate.version !== 1 || !Array.isArray(candidate.entries)) {
-        throw new Error("지원하지 않는 백업 버전입니다.");
+        throw new Error(t("backupVersionUnsupported"));
       }
 
       const importedEntries = normalizeBackupEntries(candidate.entries as Entry[]);

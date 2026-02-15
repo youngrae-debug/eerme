@@ -5,8 +5,10 @@ import { NeumorphicCard } from "../../components/neumorphic";
 import { useJournalStore } from "../../store/journalStore";
 import { COLORS } from "../../theme/colors";
 import { formatDateDisplay } from "../../utils/date";
+import { t, useLocale } from "../../utils/i18n";
 
 export default function SearchScreen() {
+  const locale = useLocale();
   const [keyword, setKeyword] = React.useState("");
   const { searchEntries, isReady, isPremium } = useJournalStore();
 
@@ -16,13 +18,18 @@ export default function SearchScreen() {
   if (!isReady) {
     return (
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        <Text style={styles.empty}>저장된 기록을 불러오는 중...</Text>
+        <Text style={styles.empty}>{t("loadingRecords")}</Text>
       </ScrollView>
     );
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <ScrollView
+      key={locale}
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
+    >
       {/* 프리미엄 배지 */}
       {isPremium && (
         <View style={styles.premiumBadge}>
@@ -31,7 +38,7 @@ export default function SearchScreen() {
             style={styles.premiumLogo}
             contentFit="contain"
           />
-          <Text style={styles.premiumText}>Premium</Text>
+          <Text style={styles.premiumText}>{t("premiumBadge")}</Text>
         </View>
       )}
 
@@ -39,13 +46,13 @@ export default function SearchScreen() {
         <TextInput
           value={keyword}
           onChangeText={setKeyword}
-          placeholder="기록에서 키워드를 찾아보세요"
+          placeholder={t("searchPlaceholder")}
           placeholderTextColor={COLORS.secondaryText}
           style={styles.input}
         />
       </NeumorphicCard>
 
-      <Text style={styles.count}>검색 결과 {results.length}건</Text>
+      <Text style={styles.count}>{t("searchCount", { count: results.length })}</Text>
       {results.map((entry) => (
         <NeumorphicCard key={entry.id} style={styles.resultCard}>
           <Text style={styles.date}>{formatDateDisplay(entry.date)}</Text>

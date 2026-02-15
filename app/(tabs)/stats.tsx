@@ -5,24 +5,26 @@ import { LineChart } from "react-native-chart-kit";
 import { NeumorphicCard } from "../../components/neumorphic";
 import { useJournalStore } from "../../store/journalStore";
 import { COLORS } from "../../theme/colors";
+import { t, useLocale } from "../../utils/i18n";
 import { getJournalStats } from "../../utils/stats";
 
 const screenWidth = Dimensions.get("window").width;
 
 export default function StatsScreen() {
+  const locale = useLocale();
   const { entries, isReady, isPremium } = useJournalStore();
   const stats = React.useMemo(() => getJournalStats(entries), [entries]);
 
   if (!isReady) {
     return (
       <View style={styles.loadingWrap}>
-        <Text style={styles.loadingText}>통계를 계산하는 중...</Text>
+        <Text style={styles.loadingText}>{t("loadingStats")}</Text>
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView key={locale} style={styles.container} contentContainerStyle={styles.content}>
       {/* 프리미엄 배지 */}
       {isPremium && (
         <View style={styles.premiumBadge}>
@@ -31,16 +33,16 @@ export default function StatsScreen() {
             style={styles.premiumLogo}
             contentFit="contain"
           />
-          <Text style={styles.premiumText}>Premium</Text>
+          <Text style={styles.premiumText}>{t("premiumBadge")}</Text>
         </View>
       )}
 
-      <Text style={styles.subtitle}>작성 습관을 빠르게 확인해 보세요.</Text>
+      <Text style={styles.subtitle}>{t("statsSubtitle")}</Text>
 
       {/* 주간 기록 현황 차트 */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>주간 기록 현황</Text>
-        <Text style={styles.cardDesc}>최근 7일간의 기록이에요</Text>
+        <Text style={styles.cardTitle}>{t("statsWeeklyTitle")}</Text>
+        <Text style={styles.cardDesc}>{t("statsWeeklyDesc")}</Text>
         <View style={styles.chartWrapper}>
           <LineChart
             data={{
@@ -57,7 +59,7 @@ export default function StatsScreen() {
                   strokeWidth: 2,
                 },
               ],
-              legend: ["사진", "문장"],
+              legend: [t("statsLegendPhotos"), t("statsLegendLines")],
             }}
             width={screenWidth - 80}
             height={200}
@@ -89,25 +91,25 @@ export default function StatsScreen() {
       {/* 이번 달 문장수 / 총 문장수 카드 */}
       <View style={styles.metricRow}>
         <NeumorphicCard style={[styles.metricCard, styles.metricHalf]}>
-          <Text style={styles.metricLabel}>이번 달 문장 수</Text>
-          <Text style={styles.metricValue}>{stats.monthlyLineCount}줄</Text>
+          <Text style={styles.metricLabel}>{t("statsMonthlyLines")}</Text>
+          <Text style={styles.metricValue}>{t("statsLinesValue", { count: stats.monthlyLineCount })}</Text>
         </NeumorphicCard>
 
         <NeumorphicCard style={[styles.metricCard, styles.metricHalf]}>
-          <Text style={styles.metricLabel}>총 문장 수</Text>
-          <Text style={styles.metricValue}>{stats.totalLineCount}줄</Text>
+          <Text style={styles.metricLabel}>{t("statsTotalLines")}</Text>
+          <Text style={styles.metricValue}>{t("statsLinesValue", { count: stats.totalLineCount })}</Text>
         </NeumorphicCard>
       </View>
 
       <NeumorphicCard style={styles.metricCard}>
-        <Text style={styles.metricLabel}>자주 쓴 키워드</Text>
+        <Text style={styles.metricLabel}>{t("statsTopKeywords")}</Text>
         {stats.topKeywords.length === 0 ? (
-          <Text style={styles.emptyText}>아직 분석할 키워드가 없어요.</Text>
+          <Text style={styles.emptyText}>{t("statsNoKeywords")}</Text>
         ) : (
           stats.topKeywords.map((item, index) => (
             <View style={styles.keywordRow} key={item.keyword}>
               <Text style={styles.keywordText}>{index + 1}. {item.keyword}</Text>
-              <Text style={styles.keywordCount}>{item.count}회</Text>
+              <Text style={styles.keywordCount}>{t("statsKeywordCount", { count: item.count })}</Text>
             </View>
           ))
         )}

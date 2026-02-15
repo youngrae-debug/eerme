@@ -1,4 +1,5 @@
 import { NativeModules, Platform } from "react-native";
+import { t } from "../utils/i18n";
 
 type InAppPurchasesModule = {
   IAPResponseCode: {
@@ -91,9 +92,7 @@ function tryGetModule(): InAppPurchasesModule | null {
 function getModule(): InAppPurchasesModule {
   const resolved = tryGetModule();
   if (!resolved) {
-    throw new Error(
-      "expo-in-app-purchases 네이티브 모듈을 찾지 못했습니다. Expo Go에서는 동작하지 않습니다. 커스텀 개발 빌드 또는 스토어 빌드에서 실행해 주세요.",
-    );
+    throw new Error(t("iapMissingNativeModule"));
   }
 
   return resolved;
@@ -113,7 +112,7 @@ export async function loadSubscriptionProducts() {
 
   const response = await iap.getProductsAsync(getSubscriptionProductIds());
   if (response.responseCode !== iap.IAPResponseCode.OK) {
-    throw new Error("구독 상품 정보를 불러오지 못했습니다.");
+    throw new Error(t("subscriptionProductLoadFailed"));
   }
 
   return response.results;
@@ -125,7 +124,7 @@ export async function restoreSubscription(): Promise<boolean> {
 
   const history = await iap.getPurchaseHistoryAsync();
   if (history.responseCode !== iap.IAPResponseCode.OK) {
-    throw new Error("구매 내역 조회에 실패했습니다.");
+    throw new Error(t("purchaseHistoryFailed"));
   }
 
   return (history.results ?? []).some((item) => getSubscriptionProductIds().includes(item.productId));

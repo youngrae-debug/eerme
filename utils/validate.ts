@@ -1,3 +1,5 @@
+import { t } from "./i18n";
+
 const MAX_LINE_LENGTH = 120;
 
 type ValidationFail = {
@@ -14,12 +16,12 @@ export const validateLines = (lines: string[]): ValidationFail | ValidationSucce
   const trimmed = lines.map((line) => line.trim());
 
   if (!trimmed.some(Boolean)) {
-    return { ok: false, message: "최소 한 줄은 작성해 주세요." };
+    return { ok: false, message: t("validationMinLine") };
   }
 
   const tooLong = trimmed.find((line) => line.length > MAX_LINE_LENGTH);
   if (tooLong) {
-    return { ok: false, message: `한 줄은 ${MAX_LINE_LENGTH}자 이하로 입력해 주세요.` };
+    return { ok: false, message: t("validationLineMax", { max: MAX_LINE_LENGTH }) };
   }
 
   return {
