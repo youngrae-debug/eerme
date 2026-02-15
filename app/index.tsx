@@ -4,7 +4,7 @@ import { useJournalStore } from "../store/journalStore";
 import { COLORS } from "../theme/colors";
 
 export default function Index() {
-  const { isReady, session, isGuest } = useJournalStore();
+  const { isReady } = useJournalStore();
 
   if (!isReady) {
     return (
@@ -12,10 +12,6 @@ export default function Index() {
         <ActivityIndicator color={COLORS.surface} />
       </View>
     );
-  }
-
-  if (!session && !isGuest) {
-    return <Redirect href="/login" />;
   }
 
   return <Redirect href="/(tabs)" />;
