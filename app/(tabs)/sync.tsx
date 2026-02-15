@@ -23,6 +23,18 @@ export default function SyncScreen() {
   const [backupFiles, setBackupFiles] = React.useState<BackupFileItem[]>([]);
   const [busy, setBusy] = React.useState(false);
 
+  const visibleEntryCount = React.useMemo(
+    () => entries.filter((entry) => !entry.deletedAt).length,
+    [entries],
+  );
+
+  const syncStatusLabel = SYNC_STATUS_LABEL[syncStatus] ?? syncStatus;
+  const syncStatusStyle = [
+    styles.statusBadge,
+    syncStatus === "error" && styles.statusBadgeError,
+    syncStatus === "syncing" && styles.statusBadgeSyncing,
+  ];
+
   const tabItems = React.useMemo(
     () => [
       { key: "subscription" as const, label: "구독", hint: "플랜 안내", icon: "✦" },
@@ -355,6 +367,7 @@ const styles = StyleSheet.create({
   label: { color: COLORS.textOnSurface, fontWeight: "700", marginBottom: 6, fontSize: 16 },
   helperText: { color: COLORS.secondaryText, marginBottom: 10, lineHeight: 20 },
   value: { color: COLORS.textOnSurface, marginBottom: 2 },
+
   bulletList: { gap: 6 },
   bulletText: { color: COLORS.textOnSurface, lineHeight: 20 },
   input: {
