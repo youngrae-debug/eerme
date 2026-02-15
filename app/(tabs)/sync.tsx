@@ -14,14 +14,8 @@ type BackupFileItem = {
 
 type MyPageTab = "subscription" | "backup";
 
-const SYNC_STATUS_LABEL: Record<string, string> = {
-  idle: "정상",
-  syncing: "동기화 중",
-  error: "오류",
-};
-
 export default function SyncScreen() {
-  const { isReady, exportBackup, importBackup } = useJournalStore();
+  const { entries, isReady, exportBackup, importBackup } = useJournalStore();
 
   const [activeTab, setActiveTab] = React.useState<MyPageTab>("subscription");
   const [backupText, setBackupText] = React.useState("");
@@ -119,7 +113,7 @@ export default function SyncScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Text style={styles.title}>마이페이지</Text>
-      <Text style={styles.subtitle}>구독 안내와 백업 기능을 관리할 수 있어요.</Text>
+      <Text style={styles.subtitle}>구독 안내와 백업 기능을 관리할 수 있어요. 현재 기록 {entries.length}개</Text>
 
       <View style={styles.tabRow}>
         {tabItems.map((tab) => (
@@ -156,7 +150,6 @@ export default function SyncScreen() {
           </NeumorphicCard>
         </>
       ) : null}
-
 
       {activeTab === "backup" ? (
         <>
