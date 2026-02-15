@@ -18,6 +18,8 @@ type PurchaseResponse = {
   results?: Purchase[];
 };
 
+type UnknownModule = Record<string, unknown> & { default?: unknown; InAppPurchases?: unknown };
+
 export type Product = {
   productId: string;
   title?: string;
@@ -34,16 +36,50 @@ export type Purchase = {
 const IOS_PRODUCT_IDS = ["eerme_premium_monthly"];
 const ANDROID_PRODUCT_IDS = ["eerme_premium_monthly"];
 
+function isNativeIapModule(value: unknown): value is InAppPurchasesModule {
+  if (!value || typeof value !== "object") return false;
+
+  const candidate = value as Partial<InAppPurchasesModule>;
+  return (
+    typeof candidate.connectAsync === "function" &&
+    typeof candidate.disconnectAsync === "function" &&
+    typeof candidate.getProductsAsync === "function" &&
+    typeof candidate.getPurchaseHistoryAsync === "function" &&
+    typeof candidate.purchaseItemAsync === "function" &&
+    typeof candidate.finishTransactionAsync === "function" &&
+    typeof candidate.setPurchaseListener === "function" &&
+    !!candidate.IAPResponseCode &&
+    typeof candidate.IAPResponseCode.OK === "number"
+  );
+}
+
 function getModule(): InAppPurchasesModule {
+  if (Platform.OS === "web") {
+    throw new Error("웹에서는 인앱 결제를 지원하지 않습니다. iOS/Android 빌드에서 테스트해 주세요.");
+  }
+
+  let rawModule: UnknownModule;
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports, global-require
-    const module = require("expo-in-app-purchases") as InAppPurchasesModule;
-    return module;
+    rawModule = require("expo-in-app-purchases") as UnknownModule;
   } catch {
     throw new Error(
       "expo-in-app-purchases 패키지를 찾을 수 없습니다. `npx expo install expo-in-app-purchases` 후 다시 시도해 주세요.",
     );
   }
+
+  const resolved = [
+    rawModule,
+    rawModule.default as unknown,
+    rawModule.InAppPurchases as unknown,
+    (rawModule.default as UnknownModule | undefined)?.InAppPurchases,
+  ].find(isNativeIapModule);
+
+  if (!resolved) {
+    throw new Error("expo-in-app-purchases 모듈을 로드했지만 네이티브 결제 API(connectAsync)를 찾지 못했습니다.");
+  }
+
+  return resolved;
 }
 
 export function getSubscriptionProductIds() {
