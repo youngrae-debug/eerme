@@ -20,6 +20,7 @@ type PurchaseResponse = {
 
 type UnknownModule = { default?: unknown; InAppPurchases?: unknown } & Record<string, unknown>;
 
+
 export type Product = {
   productId: string;
   title?: string;
@@ -62,6 +63,7 @@ function getModule(): InAppPurchasesModule {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports, global-require
     requiredModule = require("expo-in-app-purchases") as unknown;
+
   } catch {
     throw new Error(
       "expo-in-app-purchases 패키지를 찾을 수 없습니다. `npx expo install expo-in-app-purchases` 후 다시 시도해 주세요.",
@@ -80,6 +82,7 @@ function getModule(): InAppPurchasesModule {
     rawModule?.default && typeof rawModule.default === "object"
       ? (rawModule.default as UnknownModule).InAppPurchases
       : undefined,
+
   ].find(isNativeIapModule);
 
   if (!resolved) {
