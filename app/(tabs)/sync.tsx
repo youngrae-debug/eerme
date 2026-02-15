@@ -12,22 +12,12 @@ type BackupFileItem = {
   name: string;
 };
 
-type MyPageTab = "status" | "subscription" | "backup";
+type MyPageTab = "subscription" | "backup";
 
 export default function SyncScreen() {
-  const {
-    entries,
-    isReady,
-    syncStatus,
-    syncError,
-    lastSyncedAt,
-    pendingSyncCount,
-    syncNow,
-    exportBackup,
-    importBackup,
-  } = useJournalStore();
+  const { isReady, exportBackup, importBackup } = useJournalStore();
 
-  const [activeTab, setActiveTab] = React.useState<MyPageTab>("status");
+  const [activeTab, setActiveTab] = React.useState<MyPageTab>("subscription");
   const [backupText, setBackupText] = React.useState("");
   const [backupFileUri, setBackupFileUri] = React.useState("");
   const [backupFiles, setBackupFiles] = React.useState<BackupFileItem[]>([]);
@@ -35,20 +25,17 @@ export default function SyncScreen() {
 
   const tabItems = React.useMemo(
     () => [
-      { key: "status" as const, label: "상태", visible: true },
-      { key: "subscription" as const, label: "구독", visible: true },
-      { key: "backup" as const, label: "백업", visible: true },
+      { key: "subscription" as const, label: "구독", hint: "플랜 안내", icon: "✦" },
+      { key: "backup" as const, label: "백업", hint: "데이터 보호", icon: "⤴" },
     ],
     [],
   );
 
-  const visibleTabs = React.useMemo(() => tabItems.filter((item) => item.visible), [tabItems]);
-
   React.useEffect(() => {
-    if (!visibleTabs.some((item) => item.key === activeTab)) {
-      setActiveTab(visibleTabs[0]?.key ?? "status");
+    if (!tabItems.some((item) => item.key === activeTab)) {
+      setActiveTab("subscription");
     }
-  }, [activeTab, visibleTabs]);
+  }, [activeTab, tabItems]);
 
   const loadBackupFiles = React.useCallback(async () => {
     const baseDir = FileSystem.documentDirectory;
@@ -114,55 +101,49 @@ export default function SyncScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Text style={styles.title}>마이페이지</Text>
-      <Text style={styles.subtitle}>상태, 구독, 백업 정보를 탭으로 관리할 수 있어요.</Text>
+      <Text style={styles.subtitle}>구독 안내와 백업 기능을 관리할 수 있어요.</Text>
 
       <View style={styles.tabRow}>
-        {visibleTabs.map((tab) => (
+        {tabItems.map((tab) => (
           <Pressable
             key={tab.key}
             accessibilityRole="button"
             onPress={() => setActiveTab(tab.key)}
             style={[styles.tabButton, activeTab === tab.key && styles.tabButtonActive]}
           >
-            <Text style={[styles.tabLabel, activeTab === tab.key && styles.tabLabelActive]}>{tab.label}</Text>
+            <View style={styles.tabHeadRow}>
+              <Text style={[styles.tabIcon, activeTab === tab.key && styles.tabIconActive]}>{tab.icon}</Text>
+              <Text style={[styles.tabLabel, activeTab === tab.key && styles.tabLabelActive]}>{tab.label}</Text>
+            </View>
+            <Text style={[styles.tabHint, activeTab === tab.key && styles.tabHintActive]}>{tab.hint}</Text>
           </Pressable>
         ))}
       </View>
 
-      {activeTab === "status" ? (
+      {activeTab === "subscription" ? (
         <>
           <NeumorphicCard style={styles.card}>
-            <Text style={styles.label}>앱 상태</Text>
-            <Text style={styles.value}>로컬 일기 수: {entries.filter((entry) => !entry.deletedAt).length}건</Text>
-            <Text style={styles.value}>sync status: {syncStatus}</Text>
-            <Text style={styles.value}>last synced: {lastSyncedAt ? new Date(lastSyncedAt).toLocaleString("ko-KR") : "-"}</Text>
-            <Text style={styles.value}>pending queue: {pendingSyncCount}건</Text>
-            {syncError ? <Text style={styles.errorText}>최근 오류: {syncError}</Text> : null}
+            <Text style={styles.label}>구독 안내</Text>
+            <Text style={styles.value}>현재는 무료 플랜으로 제공되고 있어요.</Text>
+            <Text style={styles.value}>프리미엄 상품은 준비 중이며, 출시 시 이 화면에서 바로 확인할 수 있어요.</Text>
           </NeumorphicCard>
 
-          <View style={styles.row}>
-            <NeumorphicButton
-              label={busy ? "처리 중..." : "지금 동기화"}
-              style={styles.buttonFlex}
-              onPress={() => run(syncNow, "동기화를 완료했어요")}
-            />
-          </View>
+          <NeumorphicCard style={styles.card}>
+            <Text style={styles.label}>예정 기능</Text>
+            <View style={styles.bulletList}>
+              <Text style={styles.bulletText}>• 요금제별 기능 비교</Text>
+              <Text style={styles.bulletText}>• 결제/갱신 상태 확인</Text>
+              <Text style={styles.bulletText}>• 결제 내역 및 영수증 관리</Text>
+            </View>
+          </NeumorphicCard>
         </>
-      ) : null}
-
-      {activeTab === "subscription" ? (
-        <NeumorphicCard style={styles.card}>
-          <Text style={styles.label}>구독</Text>
-          <Text style={styles.value}>아직 구독 상품이 준비되지 않았어요.</Text>
-          <Text style={styles.value}>추후 이 탭에서 플랜/결제 상태를 확인할 수 있도록 확장할 예정입니다.</Text>
-        </NeumorphicCard>
       ) : null}
 
       {activeTab === "backup" ? (
         <>
           <NeumorphicCard style={styles.card}>
             <Text style={styles.label}>파일 백업 / 복원</Text>
-            <Text style={styles.value}>앱 내부 문서 폴더에 백업 파일을 저장하고 URI로 복원할 수 있어요.</Text>
+            <Text style={styles.helperText}>백업 파일을 저장해 두면 기기 변경 시 빠르게 복원할 수 있어요.</Text>
             <TextInput
               value={backupFileUri}
               onChangeText={setBackupFileUri}
@@ -290,7 +271,7 @@ export default function SyncScreen() {
 
           <NeumorphicCard style={styles.card}>
             <Text style={styles.label}>백업 / 복원 (JSON)</Text>
-            <Text style={styles.value}>백업 JSON을 복사해 다른 기기에서 복원할 수 있어요.</Text>
+            <Text style={styles.helperText}>백업 JSON을 복사해 다른 기기에서 복원할 수 있어요.</Text>
             <TextInput
               value={backupText}
               onChangeText={setBackupText}
@@ -348,26 +329,34 @@ const styles = StyleSheet.create({
   },
   loadingText: { color: COLORS.textOnDark },
   title: { color: COLORS.textOnDark, fontSize: 28, fontWeight: "800" },
-  subtitle: { color: "#d1d5db" },
-  tabRow: { flexDirection: "row", gap: 8, marginTop: 2, marginBottom: 2 },
+  subtitle: { color: "#d1d5db", marginBottom: 2 },
+  tabRow: { flexDirection: "row", gap: 10, marginTop: 4, marginBottom: 6 },
   tabButton: {
-    paddingVertical: 8,
+    flex: 1,
+    paddingVertical: 12,
     paddingHorizontal: 14,
-    borderRadius: 14,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: "#374151",
+    borderColor: "#2b3547",
     backgroundColor: "#111827",
   },
   tabButtonActive: {
-    borderColor: COLORS.surface,
-    backgroundColor: "#1f2937",
+    borderColor: "#cbd5ff",
+    backgroundColor: "#232f46",
   },
-  tabLabel: { color: "#9ca3af", fontWeight: "600" },
-  tabLabelActive: { color: COLORS.surface },
+  tabHeadRow: { flexDirection: "row", alignItems: "center", gap: 7 },
+  tabIcon: { color: "#8b9bb5", fontSize: 14, fontWeight: "700" },
+  tabIconActive: { color: "#f8d06f" },
+  tabLabel: { color: "#b4bfd3", fontWeight: "700", fontSize: 14 },
+  tabLabelActive: { color: "#eef2ff" },
+  tabHint: { color: "#72819a", marginTop: 3, fontSize: 12 },
+  tabHintActive: { color: "#b7c2dd" },
   card: { borderRadius: 20 },
-  label: { color: COLORS.textOnSurface, fontWeight: "700", marginBottom: 6 },
+  label: { color: COLORS.textOnSurface, fontWeight: "700", marginBottom: 6, fontSize: 16 },
+  helperText: { color: COLORS.secondaryText, marginBottom: 10, lineHeight: 20 },
   value: { color: COLORS.textOnSurface, marginBottom: 2 },
-  errorText: { color: COLORS.danger, marginTop: 4 },
+  bulletList: { gap: 6 },
+  bulletText: { color: COLORS.textOnSurface, lineHeight: 20 },
   input: {
     backgroundColor: COLORS.card,
     borderColor: COLORS.softBorder,
