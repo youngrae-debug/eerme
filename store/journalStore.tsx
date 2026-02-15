@@ -57,6 +57,7 @@ const TABLE_AUTH_SESSION = "auth_session";
 const TABLE_SYNC_QUEUE = "sync_queue";
 const SYNC_META_KEY = "lastSyncedAt";
 const AUTH_MODE_KEY = "authMode";
+const PREMIUM_ENABLED_KEY = "premiumEnabled";
 const AUTH_MODE_GUEST = "guest";
 const AUTH_MODE_NONE = "none";
 
@@ -282,6 +283,22 @@ async function loadAuthMode() {
   return row?.value ?? AUTH_MODE_NONE;
 }
 
+async function loadPremiumEnabled() {
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<{ value: string }>(`SELECT value FROM ${TABLE_SYNC_META} WHERE key = ?`, [PREMIUM_ENABLED_KEY]);
+  return row?.value === "true";
+}
+
+async function savePremiumEnabled(value: boolean) {
+  const db = await getDatabase();
+  await db.runAsync(
+    `INSERT INTO ${TABLE_SYNC_META} (key, value)
+     VALUES (?, ?)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    [PREMIUM_ENABLED_KEY, value ? "true" : "false"],
+  );
+}
+
 async function saveAuthMode(value: string) {
   const db = await getDatabase();
   await db.runAsync(
@@ -385,6 +402,9 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
 
   const setPremium = React.useCallback((value: boolean) => {
     setIsPremium(value);
+    savePremiumEnabled(value).catch((error) => {
+      console.error("Failed to persist premium status", error);
+    });
   }, []);
 
   const visibleEntries = React.useMemo(() => entries.filter((entry) => !entry.deletedAt), [entries]);
@@ -445,11 +465,12 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
 
     const bootstrap = async () => {
       try {
-        const [loadedEntries, loadedSession, loadedLastSyncedAt, loadedAuthMode] = await Promise.all([
+        const [loadedEntries, loadedSession, loadedLastSyncedAt, loadedAuthMode, loadedPremiumEnabled] = await Promise.all([
           loadEntriesFromDb(),
           loadSessionFromDb(),
           loadLastSyncedAt(),
           loadAuthMode(),
+          loadPremiumEnabled(),
         ]);
 
         if (!mounted) return;
@@ -458,6 +479,7 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
         setSession(loadedSession);
         setIsGuest(loadedAuthMode === AUTH_MODE_GUEST);
         setLastSyncedAt(loadedLastSyncedAt);
+        setIsPremium(loadedPremiumEnabled);
         await refreshPendingSyncCount();
         setIsReady(true);
 
