@@ -97,7 +97,7 @@ function generateMonthData(year: number, month: number, entryMap: Map<string, En
 }
 
 export default function CalendarScreen() {
-  const { entries, isReady, upsertEntry, removeEntry, isPremium, setPremium } = useJournalStore();
+  const { entries, isReady, upsertEntry, removeEntry, isPremium } = useJournalStore();
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   const entryMap = useMemo(() => {
@@ -234,22 +234,6 @@ export default function CalendarScreen() {
         onClose={handleCloseModal}
         onSave={upsertEntry}
         onDelete={removeEntry}
-        onUpgradeToPremium={() => {
-          Alert.alert(
-            "프리미엄 구독",
-            "프리미엄을 구독하시겠습니까?\n\n• 과거 일기 수정/삭제 무제한",
-            [
-              { text: "취소", style: "cancel" },
-              {
-                text: "구독하기",
-                onPress: () => {
-                  setPremium(true); // TODO: 실제 결제 로직
-                  Alert.alert("프리미엄", "프리미엄 기능이 활성화되었습니다!");
-                },
-              },
-            ]
-          );
-        }}
       />
     </View>
   );
@@ -263,7 +247,6 @@ function EntryModal({
   onClose,
   onSave,
   onDelete,
-  onUpgradeToPremium,
 }: {
   visible: boolean;
   dateKey: string | null;
@@ -272,7 +255,6 @@ function EntryModal({
   onClose: () => void;
   onSave: (date: string, lines: [string, string, string], imageUri?: string | null, imageUris?: string[]) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
-  onUpgradeToPremium: () => void;
 }) {
   const insets = useSafeAreaInsets();
   const [line1, setLine1] = useState("");
@@ -337,36 +319,12 @@ function EntryModal({
     onClose();
   };
 
-  const isToday = dateKey === toDateKey();
 
   const handleEdit = () => {
-    if (!isPremium && !isToday) {
-      Alert.alert(
-        "프리미엄 기능",
-        "과거 일기 수정 기능은 프리미엄 사용자만 이용할 수 있습니다.\n프리미엄을 구독하시겠습니까?",
-        [
-          { text: "취소", style: "cancel" },
-          { text: "프리미엄 구독", onPress: onUpgradeToPremium },
-        ]
-      );
-      return;
-    }
     setIsEditing(true);
   };
 
   const handleDelete = () => {
-    if (!isPremium && !isToday) {
-      Alert.alert(
-        "프리미엄 기능",
-        "과거 일기 삭제 기능은 프리미엄 사용자만 이용할 수 있습니다.\n프리미엄을 구독하시겠습니까?",
-        [
-          { text: "취소", style: "cancel" },
-          { text: "프리미엄 구독", onPress: onUpgradeToPremium },
-        ]
-      );
-      return;
-    }
-
     Alert.alert("일기 삭제", "정말 삭제하시겠습니까?", [
       { text: "취소", style: "cancel" },
       {

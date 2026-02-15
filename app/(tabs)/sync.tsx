@@ -14,6 +14,12 @@ type BackupFileItem = {
 
 type MyPageTab = "status" | "subscription" | "backup";
 
+const SYNC_STATUS_LABEL: Record<string, string> = {
+  idle: "정상",
+  syncing: "동기화 중",
+  error: "오류",
+};
+
 export default function SyncScreen() {
   const {
     entries,
@@ -33,22 +39,32 @@ export default function SyncScreen() {
   const [backupFiles, setBackupFiles] = React.useState<BackupFileItem[]>([]);
   const [busy, setBusy] = React.useState(false);
 
+  const visibleEntryCount = React.useMemo(
+    () => entries.filter((entry) => !entry.deletedAt).length,
+    [entries],
+  );
+
+  const syncStatusLabel = SYNC_STATUS_LABEL[syncStatus] ?? syncStatus;
+  const syncStatusStyle = [
+    styles.statusBadge,
+    syncStatus === "error" && styles.statusBadgeError,
+    syncStatus === "syncing" && styles.statusBadgeSyncing,
+  ];
+
   const tabItems = React.useMemo(
     () => [
-      { key: "status" as const, label: "상태", visible: true },
-      { key: "subscription" as const, label: "구독", visible: true },
-      { key: "backup" as const, label: "백업", visible: true },
+      { key: "status" as const, label: "상태" },
+      { key: "subscription" as const, label: "구독" },
+      { key: "backup" as const, label: "백업" },
     ],
     [],
   );
 
-  const visibleTabs = React.useMemo(() => tabItems.filter((item) => item.visible), [tabItems]);
-
   React.useEffect(() => {
-    if (!visibleTabs.some((item) => item.key === activeTab)) {
-      setActiveTab(visibleTabs[0]?.key ?? "status");
+    if (!tabItems.some((item) => item.key === activeTab)) {
+      setActiveTab("status");
     }
-  }, [activeTab, visibleTabs]);
+  }, [activeTab, tabItems]);
 
   const loadBackupFiles = React.useCallback(async () => {
     const baseDir = FileSystem.documentDirectory;
@@ -114,10 +130,10 @@ export default function SyncScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Text style={styles.title}>마이페이지</Text>
-      <Text style={styles.subtitle}>상태, 구독, 백업 정보를 탭으로 관리할 수 있어요.</Text>
+      <Text style={styles.subtitle}>중요한 설정과 데이터를 한 곳에서 관리할 수 있어요.</Text>
 
       <View style={styles.tabRow}>
-        {visibleTabs.map((tab) => (
+        {tabItems.map((tab) => (
           <Pressable
             key={tab.key}
             accessibilityRole="button"
@@ -132,11 +148,28 @@ export default function SyncScreen() {
       {activeTab === "status" ? (
         <>
           <NeumorphicCard style={styles.card}>
-            <Text style={styles.label}>앱 상태</Text>
-            <Text style={styles.value}>로컬 일기 수: {entries.filter((entry) => !entry.deletedAt).length}건</Text>
-            <Text style={styles.value}>sync status: {syncStatus}</Text>
-            <Text style={styles.value}>last synced: {lastSyncedAt ? new Date(lastSyncedAt).toLocaleString("ko-KR") : "-"}</Text>
-            <Text style={styles.value}>pending queue: {pendingSyncCount}건</Text>
+            <Text style={styles.label}>앱 상태 요약</Text>
+            <Text style={styles.helperText}>현재 데이터 저장/동기화 상태를 확인할 수 있어요.</Text>
+
+            <View style={styles.summaryRow}>
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryLabel}>저장된 일기</Text>
+                <Text style={styles.summaryValue}>{visibleEntryCount}건</Text>
+              </View>
+              <View style={styles.summaryItem}>
+                <Text style={styles.summaryLabel}>대기 작업</Text>
+                <Text style={styles.summaryValue}>{pendingSyncCount}건</Text>
+              </View>
+            </View>
+
+            <View style={styles.statusRow}>
+              <Text style={styles.summaryLabel}>동기화 상태</Text>
+              <View style={syncStatusStyle}>
+                <Text style={styles.statusBadgeText}>{syncStatusLabel}</Text>
+              </View>
+            </View>
+
+            <Text style={styles.value}>최근 동기화: {lastSyncedAt ? new Date(lastSyncedAt).toLocaleString("ko-KR") : "아직 없음"}</Text>
             {syncError ? <Text style={styles.errorText}>최근 오류: {syncError}</Text> : null}
           </NeumorphicCard>
 
@@ -151,18 +184,29 @@ export default function SyncScreen() {
       ) : null}
 
       {activeTab === "subscription" ? (
-        <NeumorphicCard style={styles.card}>
-          <Text style={styles.label}>구독</Text>
-          <Text style={styles.value}>아직 구독 상품이 준비되지 않았어요.</Text>
-          <Text style={styles.value}>추후 이 탭에서 플랜/결제 상태를 확인할 수 있도록 확장할 예정입니다.</Text>
-        </NeumorphicCard>
+        <>
+          <NeumorphicCard style={styles.card}>
+            <Text style={styles.label}>구독 안내</Text>
+            <Text style={styles.value}>현재는 무료 플랜으로 제공되고 있어요.</Text>
+            <Text style={styles.value}>프리미엄 상품은 준비 중이며, 출시 시 이 화면에서 바로 확인할 수 있어요.</Text>
+          </NeumorphicCard>
+
+          <NeumorphicCard style={styles.card}>
+            <Text style={styles.label}>예정 기능</Text>
+            <View style={styles.bulletList}>
+              <Text style={styles.bulletText}>• 요금제별 기능 비교</Text>
+              <Text style={styles.bulletText}>• 결제/갱신 상태 확인</Text>
+              <Text style={styles.bulletText}>• 결제 내역 및 영수증 관리</Text>
+            </View>
+          </NeumorphicCard>
+        </>
       ) : null}
 
       {activeTab === "backup" ? (
         <>
           <NeumorphicCard style={styles.card}>
             <Text style={styles.label}>파일 백업 / 복원</Text>
-            <Text style={styles.value}>앱 내부 문서 폴더에 백업 파일을 저장하고 URI로 복원할 수 있어요.</Text>
+            <Text style={styles.helperText}>백업 파일을 저장해 두면 기기 변경 시 빠르게 복원할 수 있어요.</Text>
             <TextInput
               value={backupFileUri}
               onChangeText={setBackupFileUri}
@@ -290,7 +334,7 @@ export default function SyncScreen() {
 
           <NeumorphicCard style={styles.card}>
             <Text style={styles.label}>백업 / 복원 (JSON)</Text>
-            <Text style={styles.value}>백업 JSON을 복사해 다른 기기에서 복원할 수 있어요.</Text>
+            <Text style={styles.helperText}>백업 JSON을 복사해 다른 기기에서 복원할 수 있어요.</Text>
             <TextInput
               value={backupText}
               onChangeText={setBackupText}
@@ -348,10 +392,10 @@ const styles = StyleSheet.create({
   },
   loadingText: { color: COLORS.textOnDark },
   title: { color: COLORS.textOnDark, fontSize: 28, fontWeight: "800" },
-  subtitle: { color: "#d1d5db" },
+  subtitle: { color: "#d1d5db", marginBottom: 2 },
   tabRow: { flexDirection: "row", gap: 8, marginTop: 2, marginBottom: 2 },
   tabButton: {
-    paddingVertical: 8,
+    paddingVertical: 9,
     paddingHorizontal: 14,
     borderRadius: 14,
     borderWidth: 1,
@@ -365,9 +409,47 @@ const styles = StyleSheet.create({
   tabLabel: { color: "#9ca3af", fontWeight: "600" },
   tabLabelActive: { color: COLORS.surface },
   card: { borderRadius: 20 },
-  label: { color: COLORS.textOnSurface, fontWeight: "700", marginBottom: 6 },
+  label: { color: COLORS.textOnSurface, fontWeight: "700", marginBottom: 6, fontSize: 16 },
+  helperText: { color: COLORS.secondaryText, marginBottom: 10, lineHeight: 20 },
   value: { color: COLORS.textOnSurface, marginBottom: 2 },
-  errorText: { color: COLORS.danger, marginTop: 4 },
+  summaryRow: { flexDirection: "row", gap: 10, marginBottom: 10 },
+  summaryItem: {
+    flex: 1,
+    backgroundColor: "#f8fafc",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  summaryLabel: { color: COLORS.secondaryText, fontSize: 13 },
+  summaryValue: { color: COLORS.primaryText, fontWeight: "700", marginTop: 4, fontSize: 18 },
+  statusRow: {
+    marginBottom: 10,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  statusBadge: {
+    borderRadius: 999,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    backgroundColor: "#dcfce7",
+  },
+  statusBadgeSyncing: {
+    backgroundColor: "#fef3c7",
+  },
+  statusBadgeError: {
+    backgroundColor: "#fee2e2",
+  },
+  statusBadgeText: {
+    color: "#166534",
+    fontWeight: "700",
+    fontSize: 12,
+  },
+  errorText: { color: COLORS.danger, marginTop: 6 },
+  bulletList: { gap: 6 },
+  bulletText: { color: COLORS.textOnSurface, lineHeight: 20 },
   input: {
     backgroundColor: COLORS.card,
     borderColor: COLORS.softBorder,
