@@ -23,6 +23,18 @@ export default function SyncScreen() {
   const [backupFiles, setBackupFiles] = React.useState<BackupFileItem[]>([]);
   const [busy, setBusy] = React.useState(false);
 
+  const visibleEntryCount = React.useMemo(
+    () => entries.filter((entry) => !entry.deletedAt).length,
+    [entries],
+  );
+
+  const syncStatusLabel = SYNC_STATUS_LABEL[syncStatus] ?? syncStatus;
+  const syncStatusStyle = [
+    styles.statusBadge,
+    syncStatus === "error" && styles.statusBadgeError,
+    syncStatus === "syncing" && styles.statusBadgeSyncing,
+  ];
+
   const tabItems = React.useMemo(
     () => [
       { key: "subscription" as const, label: "구독", hint: "플랜 안내", icon: "✦" },
