@@ -1,6 +1,6 @@
 import * as FileSystem from "expo-file-system/legacy";
 import React from "react";
-import { Alert, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
 import { NeumorphicButton, NeumorphicCard } from "../../components/neumorphic";
 import {
   attachPurchaseListener,
@@ -15,6 +15,7 @@ import { COLORS } from "../../theme/colors";
 import { setLocale, t, useLocale } from "../../utils/i18n";
 
 const BACKUP_FILE_PREFIX = "eerme-backup-";
+const BACKUP_FILE_EXTENSION = ".eermebackup";
 
 type BackupFileItem = {
   uri: string;
@@ -24,11 +25,21 @@ type BackupFileItem = {
 type MyPageTab = "subscription" | "backup";
 
 export default function SyncScreen() {
-  const { isReady, exportBackup, importBackup, isPremium, setPremium } = useJournalStore();
+  const {
+    isReady,
+    exportBackup,
+    importBackup,
+    isPremium,
+    setPremium,
+    syncStatus,
+    syncError,
+    lastSyncedAt,
+    pendingSyncCount,
+    syncNow,
+  } = useJournalStore();
   const locale = useLocale();
 
   const [activeTab, setActiveTab] = React.useState<MyPageTab>("subscription");
-  const [backupText, setBackupText] = React.useState("");
   const [backupFileUri, setBackupFileUri] = React.useState("");
   const [backupFiles, setBackupFiles] = React.useState<BackupFileItem[]>([]);
   const [busy, setBusy] = React.useState(false);
@@ -89,7 +100,7 @@ export default function SyncScreen() {
 
     const fileNames = await FileSystem.readDirectoryAsync(baseDir);
     const candidates = fileNames
-      .filter((name) => name.startsWith(BACKUP_FILE_PREFIX) && name.endsWith(".json"))
+      .filter((name) => name.startsWith(BACKUP_FILE_PREFIX) && name.endsWith(BACKUP_FILE_EXTENSION))
       .sort((a, b) => b.localeCompare(a))
       .map((name) => ({
         name,
@@ -165,6 +176,28 @@ export default function SyncScreen() {
       setBusy(false);
     }
   };
+
+  const exportToCloud = async () => {
+    await run(async () => {
+      const json = await exportBackup();
+      const baseDir = FileSystem.documentDirectory;
+      if (!baseDir) {
+        throw new Error(t("backupFileSystemMissing"));
+      }
+      const uri = `${baseDir}${BACKUP_FILE_PREFIX}${Date.now()}${BACKUP_FILE_EXTENSION}`;
+      await FileSystem.writeAsStringAsync(uri, json, { encoding: FileSystem.EncodingType.UTF8 });
+      setBackupFileUri(uri);
+      await loadBackupFiles();
+      await Share.share({
+        title: "eerme backup",
+        url: uri,
+        message: Platform.OS === "ios" ? t("backupCloudIosMessage") : t("backupCloudAndroidMessage"),
+      });
+    });
+  };
+
+  const syncStatusText = syncStatus === "syncing" ? t("syncStatusSyncing") : syncStatus === "error" ? t("syncStatusError") : t("syncStatusIdle");
+  const lastSyncedLabel = lastSyncedAt ? new Date(lastSyncedAt).toLocaleString() : t("syncNever");
 
   const restoreFromFile = React.useCallback(
     async (uri: string) => {
@@ -277,8 +310,24 @@ export default function SyncScreen() {
       {activeTab === "backup" ? (
         <>
           <NeumorphicCard style={styles.card}>
+            <Text style={styles.label}>{t("syncSectionTitle")}</Text>
+            <Text style={styles.value}>{t("syncStatusLabel", { status: syncStatusText })}</Text>
+            <Text style={styles.helperText}>{t("syncPendingLabel", { count: pendingSyncCount })}</Text>
+            <Text style={styles.helperText}>{t("syncLastLabel", { value: lastSyncedLabel })}</Text>
+            {syncError ? <Text style={styles.syncErrorText}>{syncError}</Text> : null}
+            <View style={styles.row}>
+              <NeumorphicButton
+                label={busy || syncStatus === "syncing" ? t("processing") : t("syncNowButton")}
+                style={styles.buttonFlex}
+                onPress={() => run(syncNow, t("syncDone"))}
+              />
+            </View>
+          </NeumorphicCard>
+
+          <NeumorphicCard style={styles.card}>
             <Text style={styles.label}>{t("backupSectionTitle")}</Text>
             <Text style={styles.helperText}>{t("backupSectionHelper")}</Text>
+            <Text style={styles.helperText}>{t("backupCloudHint")}</Text>
             <TextInput
               value={backupFileUri}
               onChangeText={setBackupFileUri}
@@ -298,7 +347,7 @@ export default function SyncScreen() {
                     if (!baseDir) {
                       throw new Error(t("backupFileSystemMissing"));
                     }
-                    const uri = `${baseDir}${BACKUP_FILE_PREFIX}${Date.now()}.json`;
+                    const uri = `${baseDir}${BACKUP_FILE_PREFIX}${Date.now()}${BACKUP_FILE_EXTENSION}`;
                     await FileSystem.writeAsStringAsync(uri, json, { encoding: FileSystem.EncodingType.UTF8 });
                     setBackupFileUri(uri);
                     await loadBackupFiles();
@@ -313,6 +362,18 @@ export default function SyncScreen() {
             </View>
             <View style={styles.row}>
               <NeumorphicButton
+                label={busy ? t("processing") : t("backupCloudExportButton")}
+                style={styles.buttonFlex}
+                onPress={() => {
+                  exportToCloud().catch((error) => {
+                    console.error("exportToCloud failed", error);
+                  });
+                }}
+              />
+            </View>
+
+            <View style={styles.row}>
+              <NeumorphicButton
                 label={busy ? t("processing") : t("backupShareUriButton")}
                 style={styles.buttonFlex}
                 onPress={() =>
@@ -321,7 +382,9 @@ export default function SyncScreen() {
                       throw new Error(t("backupShareUriMissing"));
                     }
                     await Share.share({
-                      message: `eerme backup file uri\n${backupFileUri.trim()}`,
+                      title: "eerme backup",
+                      url: backupFileUri.trim(),
+                      message: backupFileUri.trim(),
                     });
                   }, t("shareOpenedSuccess"))
                 }
@@ -379,7 +442,11 @@ export default function SyncScreen() {
                         style={styles.buttonFlex}
                         onPress={() =>
                           run(async () => {
-                            await Share.share({ message: file.uri });
+                            await Share.share({
+                              title: "eerme backup",
+                              url: file.uri,
+                              message: file.uri,
+                            });
                           }, t("shareOpenedSuccess"))
                         }
                       />
@@ -404,49 +471,6 @@ export default function SyncScreen() {
             )}
           </NeumorphicCard>
 
-          <NeumorphicCard style={styles.card}>
-            <Text style={styles.label}>{t("backupJsonSectionTitle")}</Text>
-            <Text style={styles.helperText}>{t("backupJsonHelper")}</Text>
-            <TextInput
-              value={backupText}
-              onChangeText={setBackupText}
-              placeholder={t("backupJsonPlaceholder")}
-              placeholderTextColor="#6b7280"
-              multiline
-              style={styles.textArea}
-            />
-            <View style={styles.row}>
-              <NeumorphicButton
-                label={busy ? t("processing") : t("backupJsonExportButton")}
-                style={styles.buttonFlex}
-                onPress={() =>
-                  run(async () => {
-                    const json = await exportBackup();
-                    setBackupText(json);
-                  }, t("backupJsonExportedSuccess"))
-                }
-              />
-              <NeumorphicButton
-                label={busy ? t("processing") : t("backupJsonImportButton")}
-                style={styles.buttonFlex}
-                onPress={() => run(() => importBackup(backupText), t("backupJsonImportedSuccess"))}
-              />
-            </View>
-            <View style={styles.row}>
-              <NeumorphicButton
-                label={busy ? t("processing") : t("backupJsonShareButton")}
-                style={styles.buttonFlex}
-                onPress={() =>
-                  run(async () => {
-                    if (!backupText.trim()) {
-                      throw new Error(t("backupShareJsonMissing"));
-                    }
-                    await Share.share({ message: backupText });
-                  }, t("shareOpenedSuccess"))
-                }
-              />
-            </View>
-          </NeumorphicCard>
         </>
       ) : null}
     </ScrollView>
@@ -555,6 +579,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", gap: 12, marginBottom: 8 },
   buttonFlex: { flex: 1 },
   emptyText: { color: COLORS.textOnSurface, marginTop: 6 },
+  syncErrorText: { color: COLORS.danger, marginBottom: 10 },
   listWrap: { marginTop: 6, gap: 8 },
   fileItem: {
     backgroundColor: "#f3f4f6",
