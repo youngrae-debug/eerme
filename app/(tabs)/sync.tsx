@@ -1,6 +1,5 @@
-import * as FileSystem from "expo-file-system/legacy";
 import React from "react";
-import { Alert, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { NeumorphicButton, NeumorphicCard } from "../../components/neumorphic";
 import {
   attachPurchaseListener,
@@ -14,23 +13,22 @@ import { useJournalStore } from "../../store/journalStore";
 import { COLORS } from "../../theme/colors";
 import { setLocale, t, useLocale } from "../../utils/i18n";
 
-const BACKUP_FILE_PREFIX = "eerme-backup-";
-
-type BackupFileItem = {
-  uri: string;
-  name: string;
-};
-
 type MyPageTab = "subscription" | "backup";
 
 export default function SyncScreen() {
-  const { isReady, exportBackup, importBackup, isPremium, setPremium } = useJournalStore();
+  const {
+    isReady,
+    isPremium,
+    setPremium,
+    syncStatus,
+    syncError,
+    lastSyncedAt,
+    pendingSyncCount,
+    syncNow,
+  } = useJournalStore();
   const locale = useLocale();
 
   const [activeTab, setActiveTab] = React.useState<MyPageTab>("subscription");
-  const [backupText, setBackupText] = React.useState("");
-  const [backupFileUri, setBackupFileUri] = React.useState("");
-  const [backupFiles, setBackupFiles] = React.useState<BackupFileItem[]>([]);
   const [busy, setBusy] = React.useState(false);
   const [products, setProducts] = React.useState<Product[]>([]);
   const [subscriptionBusy, setSubscriptionBusy] = React.useState(false);
@@ -79,33 +77,6 @@ export default function SyncScreen() {
       setActiveTab("subscription");
     }
   }, [activeTab, tabItems]);
-
-  const loadBackupFiles = React.useCallback(async () => {
-    const baseDir = FileSystem.documentDirectory;
-    if (!baseDir) {
-      setBackupFiles([]);
-      return;
-    }
-
-    const fileNames = await FileSystem.readDirectoryAsync(baseDir);
-    const candidates = fileNames
-      .filter((name) => name.startsWith(BACKUP_FILE_PREFIX) && name.endsWith(".json"))
-      .sort((a, b) => b.localeCompare(a))
-      .map((name) => ({
-        name,
-        uri: `${baseDir}${name}`,
-      }));
-
-    setBackupFiles(candidates);
-  }, []);
-
-  React.useEffect(() => {
-    if (!isReady) return;
-
-    loadBackupFiles().catch((error) => {
-      console.error("Failed to load backup files", error);
-    });
-  }, [isReady, loadBackupFiles]);
 
   React.useEffect(() => {
     if (!isReady) return;
@@ -166,16 +137,9 @@ export default function SyncScreen() {
     }
   };
 
-  const restoreFromFile = React.useCallback(
-    async (uri: string) => {
-      const raw = await FileSystem.readAsStringAsync(uri, {
-        encoding: FileSystem.EncodingType.UTF8,
-      });
-      await importBackup(raw);
-      setBackupFileUri(uri);
-    },
-    [importBackup],
-  );
+  const syncStatusText =
+    syncStatus === "syncing" ? t("syncStatusSyncing") : syncStatus === "error" ? t("syncStatusError") : t("syncStatusIdle");
+  const lastSyncedLabel = lastSyncedAt ? new Date(lastSyncedAt).toLocaleString() : t("syncNever");
 
   if (!isReady) {
     return (
@@ -275,179 +239,21 @@ export default function SyncScreen() {
       ) : null}
 
       {activeTab === "backup" ? (
-        <>
-          <NeumorphicCard style={styles.card}>
-            <Text style={styles.label}>{t("backupSectionTitle")}</Text>
-            <Text style={styles.helperText}>{t("backupSectionHelper")}</Text>
-            <TextInput
-              value={backupFileUri}
-              onChangeText={setBackupFileUri}
-              placeholder={t("backupFilePlaceholder")}
-              placeholderTextColor="#6b7280"
-              autoCapitalize="none"
-              style={styles.input}
+        <NeumorphicCard style={styles.card}>
+          <Text style={styles.label}>{t("syncSectionTitle")}</Text>
+          <Text style={styles.value}>{t("syncStatusLabel", { status: syncStatusText })}</Text>
+          <Text style={styles.helperText}>{t("syncPendingLabel", { count: pendingSyncCount })}</Text>
+          <Text style={styles.helperText}>{t("syncLastLabel", { value: lastSyncedLabel })}</Text>
+          <Text style={styles.helperText}>{t("syncAutoHint")}</Text>
+          {syncError ? <Text style={styles.syncErrorText}>{syncError}</Text> : null}
+          <View style={styles.row}>
+            <NeumorphicButton
+              label={busy || syncStatus === "syncing" ? t("processing") : t("syncNowButton")}
+              style={styles.buttonFlex}
+              onPress={() => run(syncNow, t("syncDone"))}
             />
-            <View style={styles.row}>
-              <NeumorphicButton
-                label={busy ? t("processing") : t("backupSaveButton")}
-                style={styles.buttonFlex}
-                onPress={() =>
-                  run(async () => {
-                    const json = await exportBackup();
-                    const baseDir = FileSystem.documentDirectory;
-                    if (!baseDir) {
-                      throw new Error(t("backupFileSystemMissing"));
-                    }
-                    const uri = `${baseDir}${BACKUP_FILE_PREFIX}${Date.now()}.json`;
-                    await FileSystem.writeAsStringAsync(uri, json, { encoding: FileSystem.EncodingType.UTF8 });
-                    setBackupFileUri(uri);
-                    await loadBackupFiles();
-                  }, t("backupSavedSuccess"))
-                }
-              />
-              <NeumorphicButton
-                label={busy ? t("processing") : t("backupRestoreButton")}
-                style={styles.buttonFlex}
-                onPress={() => run(() => restoreFromFile(backupFileUri.trim()), t("backupRestoredSuccess"))}
-              />
-            </View>
-            <View style={styles.row}>
-              <NeumorphicButton
-                label={busy ? t("processing") : t("backupShareUriButton")}
-                style={styles.buttonFlex}
-                onPress={() =>
-                  run(async () => {
-                    if (!backupFileUri.trim()) {
-                      throw new Error(t("backupShareUriMissing"));
-                    }
-                    await Share.share({
-                      message: `eerme backup file uri\n${backupFileUri.trim()}`,
-                    });
-                  }, t("shareOpenedSuccess"))
-                }
-              />
-              <NeumorphicButton
-                label={busy ? t("processing") : t("backupCheckUriButton")}
-                style={styles.buttonFlex}
-                onPress={() =>
-                  run(async () => {
-                    if (!backupFileUri.trim()) {
-                      throw new Error(t("backupCheckUriMissing"));
-                    }
-                    const info = await FileSystem.getInfoAsync(backupFileUri.trim());
-                    if (!info.exists) {
-                      throw new Error(t("backupUriNotFound"));
-                    }
-                  }, t("uriValidSuccess"))
-                }
-              />
-            </View>
-
-            <View style={styles.row}>
-              <NeumorphicButton
-                label={busy ? t("processing") : t("backupRefreshButton")}
-                style={styles.buttonFlex}
-                onPress={() => run(loadBackupFiles, t("backupListRefreshedSuccess"))}
-              />
-            </View>
-
-            {backupFiles.length === 0 ? (
-              <Text style={styles.emptyText}>{t("backupNoFiles")}</Text>
-            ) : (
-              <View style={styles.listWrap}>
-                {backupFiles.map((file) => (
-                  <View key={file.uri} style={styles.fileItem}>
-                    <Text style={styles.fileName}>{file.name}</Text>
-                    <Text style={styles.fileUri} numberOfLines={1}>
-                      {file.uri}
-                    </Text>
-                    <View style={styles.row}>
-                      <NeumorphicButton
-                        label={busy ? t("processing") : t("backupSelectButton")}
-                        style={styles.buttonFlex}
-                        onPress={() => setBackupFileUri(file.uri)}
-                      />
-                      <NeumorphicButton
-                        label={busy ? t("processing") : t("restoreTitle")}
-                        style={styles.buttonFlex}
-                        onPress={() => run(() => restoreFromFile(file.uri), t("backupRestoredSuccess"))}
-                      />
-                    </View>
-                    <View style={styles.row}>
-                      <NeumorphicButton
-                        label={busy ? t("processing") : t("backupShareUriButton")}
-                        style={styles.buttonFlex}
-                        onPress={() =>
-                          run(async () => {
-                            await Share.share({ message: file.uri });
-                          }, t("shareOpenedSuccess"))
-                        }
-                      />
-                      <NeumorphicButton
-                        label={busy ? t("processing") : t("backupDeleteButton")}
-                        style={styles.buttonFlex}
-                        textStyle={{ color: COLORS.danger }}
-                        onPress={() =>
-                          run(async () => {
-                            await FileSystem.deleteAsync(file.uri, { idempotent: true });
-                            if (backupFileUri === file.uri) {
-                              setBackupFileUri("");
-                            }
-                            await loadBackupFiles();
-                          }, t("backupDeletedSuccess"))
-                        }
-                      />
-                    </View>
-                  </View>
-                ))}
-              </View>
-            )}
-          </NeumorphicCard>
-
-          <NeumorphicCard style={styles.card}>
-            <Text style={styles.label}>{t("backupJsonSectionTitle")}</Text>
-            <Text style={styles.helperText}>{t("backupJsonHelper")}</Text>
-            <TextInput
-              value={backupText}
-              onChangeText={setBackupText}
-              placeholder={t("backupJsonPlaceholder")}
-              placeholderTextColor="#6b7280"
-              multiline
-              style={styles.textArea}
-            />
-            <View style={styles.row}>
-              <NeumorphicButton
-                label={busy ? t("processing") : t("backupJsonExportButton")}
-                style={styles.buttonFlex}
-                onPress={() =>
-                  run(async () => {
-                    const json = await exportBackup();
-                    setBackupText(json);
-                  }, t("backupJsonExportedSuccess"))
-                }
-              />
-              <NeumorphicButton
-                label={busy ? t("processing") : t("backupJsonImportButton")}
-                style={styles.buttonFlex}
-                onPress={() => run(() => importBackup(backupText), t("backupJsonImportedSuccess"))}
-              />
-            </View>
-            <View style={styles.row}>
-              <NeumorphicButton
-                label={busy ? t("processing") : t("backupJsonShareButton")}
-                style={styles.buttonFlex}
-                onPress={() =>
-                  run(async () => {
-                    if (!backupText.trim()) {
-                      throw new Error(t("backupShareJsonMissing"));
-                    }
-                    await Share.share({ message: backupText });
-                  }, t("shareOpenedSuccess"))
-                }
-              />
-            </View>
-          </NeumorphicCard>
-        </>
+          </View>
+        </NeumorphicCard>
       ) : null}
     </ScrollView>
   );
@@ -463,8 +269,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   loadingText: { color: COLORS.textOnDark },
-  title: { color: COLORS.textOnDark, fontSize: 28, fontWeight: "800" },
-  subtitle: { color: "#d1d5db", marginBottom: 2 },
   languageRow: { flexDirection: "row", gap: 10 },
   languageButton: {
     flex: 1,
@@ -511,8 +315,6 @@ const styles = StyleSheet.create({
   label: { color: COLORS.textOnSurface, fontWeight: "700", marginBottom: 6, fontSize: 16 },
   helperText: { color: COLORS.secondaryText, marginBottom: 10, lineHeight: 20 },
   value: { color: COLORS.textOnSurface, marginBottom: 2 },
-  bulletList: { gap: 6 },
-  bulletText: { color: COLORS.textOnSurface, lineHeight: 20 },
   planItem: {
     flexDirection: "row",
     alignItems: "center",
@@ -528,49 +330,8 @@ const styles = StyleSheet.create({
   planPrice: { color: COLORS.textOnSurface, fontWeight: "600", marginBottom: 2 },
   planDescription: { color: COLORS.secondaryText, fontSize: 12 },
   planButton: { minWidth: 92 },
-  input: {
-    backgroundColor: COLORS.card,
-    borderColor: COLORS.softBorder,
-    borderWidth: 1,
-    borderRadius: 16,
-    color: COLORS.primaryText,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    marginBottom: 10,
-    fontSize: 15,
-  },
-  textArea: {
-    backgroundColor: COLORS.card,
-    borderColor: COLORS.softBorder,
-    borderWidth: 1,
-    borderRadius: 16,
-    color: COLORS.primaryText,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    marginBottom: 10,
-    minHeight: 130,
-    textAlignVertical: "top",
-    fontSize: 15,
-  },
   row: { flexDirection: "row", gap: 12, marginBottom: 8 },
   buttonFlex: { flex: 1 },
   emptyText: { color: COLORS.textOnSurface, marginTop: 6 },
-  listWrap: { marginTop: 6, gap: 8 },
-  fileItem: {
-    backgroundColor: "#f3f4f6",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    padding: 10,
-  },
-  fileName: {
-    color: COLORS.primaryText,
-    fontWeight: "600",
-    fontSize: 14,
-    marginBottom: 4,
-  },
-  fileUri: {
-    color: COLORS.secondaryText,
-    fontSize: 12,
-  },
+  syncErrorText: { color: COLORS.danger, marginBottom: 10 },
 });
