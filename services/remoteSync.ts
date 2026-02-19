@@ -172,6 +172,9 @@ const customClient: RemoteClient = {
       user: data.user,
     };
   },
+  async signInAnonymously() {
+    throw new Error("Anonymous sync is not supported by the custom provider.");
+  },
   async pull(session, since) {
     ensureApiBaseUrl();
     const response = await fetch(`${apiBaseUrl}/entries/pull?since=${since}`, {
@@ -380,6 +383,9 @@ const supabaseClient: RemoteClient = {
       id_token: identityToken,
     });
     return toSupabaseSession(auth);
+  },
+  async signInAnonymously() {
+    throw new Error("Anonymous sync is not supported by Supabase provider.");
   },
   async pull(session, since) {
     ensureSupabaseConfig();
