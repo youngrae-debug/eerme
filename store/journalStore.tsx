@@ -477,16 +477,28 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
         if (!mounted) return;
 
         setEntries(loadedEntries);
-        setSession(loadedSession);
-        setIsGuest(loadedAuthMode === AUTH_MODE_GUEST);
         setLastSyncedAt(loadedLastSyncedAt);
         setIsPremium(loadedPremiumEnabled);
+
+        let nextSession = loadedSession;
+        if (!nextSession && remoteClient.signInAnonymously) {
+          try {
+            nextSession = await remoteClient.signInAnonymously();
+            await saveSessionToDb(nextSession);
+            await saveAuthMode(AUTH_MODE_NONE);
+          } catch (error) {
+            console.error("Anonymous sign-in failed", error);
+          }
+        }
+
+        setSession(nextSession);
+        setIsGuest(nextSession ? false : loadedAuthMode === AUTH_MODE_GUEST);
         await refreshPendingSyncCount();
         setIsReady(true);
 
-        if (loadedSession) {
+        if (nextSession) {
           try {
-            await performSync(loadedSession, loadedEntries, loadedLastSyncedAt);
+            await performSync(nextSession, loadedEntries, loadedLastSyncedAt);
           } catch {
             // displayed via syncError state
           }
