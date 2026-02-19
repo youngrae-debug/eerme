@@ -1,6 +1,6 @@
 import * as SQLite from "expo-sqlite";
 import React from "react";
-import { mapRemoteEntriesToLocal, remoteClient } from "../services/remoteSync";
+import { activeSyncProvider, mapRemoteEntriesToLocal, remoteClient } from "../services/remoteSync";
 import { AuthSession, BackupPayload, Entry } from "../types/journal";
 import { toDateKey } from "../utils/date";
 import { t } from "../utils/i18n";
@@ -477,16 +477,28 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
         if (!mounted) return;
 
         setEntries(loadedEntries);
-        setSession(loadedSession);
-        setIsGuest(loadedAuthMode === AUTH_MODE_GUEST);
         setLastSyncedAt(loadedLastSyncedAt);
         setIsPremium(loadedPremiumEnabled);
+
+        let nextSession = loadedSession;
+        if (!nextSession && activeSyncProvider === "firebase" && remoteClient.signInAnonymously) {
+          try {
+            nextSession = await remoteClient.signInAnonymously();
+            await saveSessionToDb(nextSession);
+            await saveAuthMode(AUTH_MODE_NONE);
+          } catch (error) {
+            console.error("Anonymous sign-in failed", error);
+          }
+        }
+
+        setSession(nextSession);
+        setIsGuest(nextSession ? false : loadedAuthMode === AUTH_MODE_GUEST);
         await refreshPendingSyncCount();
         setIsReady(true);
 
-        if (loadedSession) {
+        if (nextSession) {
           try {
-            await performSync(loadedSession, loadedEntries, loadedLastSyncedAt);
+            await performSync(nextSession, loadedEntries, loadedLastSyncedAt);
           } catch {
             // displayed via syncError state
           }

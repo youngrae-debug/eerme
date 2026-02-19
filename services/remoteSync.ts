@@ -58,6 +58,7 @@ type RemoteClient = {
   signInWithEmail: (email: string, password: string) => Promise<AuthSession>;
   signInWithApple: (identityToken: string) => Promise<AuthSession>;
   signInWithGoogle: (identityToken: string) => Promise<AuthSession>;
+  signInAnonymously?: () => Promise<AuthSession>;
   pull: (session: AuthSession, since: number) => Promise<SyncPullResponse>;
   push: (session: AuthSession, entries: Entry[]) => Promise<void>;
 };
@@ -258,6 +259,16 @@ const firebaseClient: RemoteClient = {
 
     return toFirebaseSession(auth);
   },
+  async signInAnonymously() {
+    const auth = await firebaseAuth("accounts:signUp", {
+      returnSecureToken: true,
+    });
+
+    return toFirebaseSession({
+      ...auth,
+      email: auth.email ?? `${auth.localId}@anonymous.firebase.local`,
+    });
+  },
   async pull(session, since) {
     ensureFirebaseConfig();
     const response = await fetch(`${firebaseDatabaseUrl}/entries/${session.user.id}.json?auth=${session.accessToken}`);
@@ -424,5 +435,6 @@ const clients: Record<SyncProvider, RemoteClient> = {
   firebase: firebaseClient,
 };
 
+export const activeSyncProvider = provider;
 export const remoteClient = clients[provider];
 export const mapRemoteEntriesToLocal = (entries: RemoteEntry[]): Entry[] => entries.map(toLocalEntry);
