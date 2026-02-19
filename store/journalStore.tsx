@@ -1,6 +1,6 @@
 import * as SQLite from "expo-sqlite";
 import React from "react";
-import { mapRemoteEntriesToLocal, remoteClient } from "../services/remoteSync";
+import { activeSyncProvider, mapRemoteEntriesToLocal, remoteClient } from "../services/remoteSync";
 import { AuthSession, BackupPayload, Entry } from "../types/journal";
 import { toDateKey } from "../utils/date";
 import { t } from "../utils/i18n";
@@ -481,7 +481,7 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
         setIsPremium(loadedPremiumEnabled);
 
         let nextSession = loadedSession;
-        if (!nextSession && remoteClient.signInAnonymously) {
+        if (!nextSession && activeSyncProvider === "firebase" && remoteClient.signInAnonymously) {
           try {
             nextSession = await remoteClient.signInAnonymously();
             await saveSessionToDb(nextSession);

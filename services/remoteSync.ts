@@ -441,5 +441,6 @@ const clients: Record<SyncProvider, RemoteClient> = {
   firebase: firebaseClient,
 };
 
+export const activeSyncProvider = provider;
 export const remoteClient = clients[provider];
 export const mapRemoteEntriesToLocal = (entries: RemoteEntry[]): Entry[] => entries.map(toLocalEntry);
