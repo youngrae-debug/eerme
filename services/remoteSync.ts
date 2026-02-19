@@ -58,6 +58,7 @@ type RemoteClient = {
   signInWithEmail: (email: string, password: string) => Promise<AuthSession>;
   signInWithApple: (identityToken: string) => Promise<AuthSession>;
   signInWithGoogle: (identityToken: string) => Promise<AuthSession>;
+  signInAnonymously?: () => Promise<AuthSession>;
   pull: (session: AuthSession, since: number) => Promise<SyncPullResponse>;
   push: (session: AuthSession, entries: Entry[]) => Promise<void>;
 };
@@ -171,6 +172,9 @@ const customClient: RemoteClient = {
       user: data.user,
     };
   },
+  async signInAnonymously() {
+    throw new Error("Anonymous sync is not supported by the custom provider.");
+  },
   async pull(session, since) {
     ensureApiBaseUrl();
     const response = await fetch(`${apiBaseUrl}/entries/pull?since=${since}`, {
@@ -257,6 +261,16 @@ const firebaseClient: RemoteClient = {
     });
 
     return toFirebaseSession(auth);
+  },
+  async signInAnonymously() {
+    const auth = await firebaseAuth("accounts:signUp", {
+      returnSecureToken: true,
+    });
+
+    return toFirebaseSession({
+      ...auth,
+      email: auth.email ?? `${auth.localId}@anonymous.firebase.local`,
+    });
   },
   async pull(session, since) {
     ensureFirebaseConfig();
@@ -369,6 +383,9 @@ const supabaseClient: RemoteClient = {
       id_token: identityToken,
     });
     return toSupabaseSession(auth);
+  },
+  async signInAnonymously() {
+    throw new Error("Anonymous sync is not supported by Supabase provider.");
   },
   async pull(session, since) {
     ensureSupabaseConfig();
