@@ -4,7 +4,9 @@ import { ImagePlus, MoreVertical, X } from "lucide-react-native";
 import React, { useMemo, useState } from "react";
 import {
   Alert,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -351,7 +353,11 @@ function EntryModal({
 
   return (
     <Modal visible={visible} transparent animationType="slide">
-      <View style={styles.modalOverlay}>
+      <KeyboardAvoidingView
+        style={styles.modalOverlay}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={insets.bottom}
+      >
         <View style={styles.modalContent}>
           {/* 헤더 */}
           <View style={styles.modalHeader}>
@@ -359,7 +365,11 @@ function EntryModal({
             <View style={styles.headerActions}>
               {entry && !isEditing && (
                 <View style={styles.menuWrapper}>
-                  <Pressable onPress={() => setIsMenuOpen((prev) => !prev)} style={styles.menuButton}>
+                  <Pressable
+                    onPress={() => setIsMenuOpen((prev) => !prev)}
+                    style={styles.menuButton}
+                    hitSlop={10}
+                  >
                     <MoreVertical size={22} color={COLORS.primaryText} />
                   </Pressable>
                   {isMenuOpen && (
@@ -374,14 +384,18 @@ function EntryModal({
                   )}
                 </View>
               )}
-              <Pressable onPress={onClose} style={styles.closeButton}>
+              <Pressable onPress={onClose} style={styles.closeButton} hitSlop={10}>
                 <X size={24} color={COLORS.primaryText} />
               </Pressable>
             </View>
           </View>
 
           {/* 내용 */}
-          <ScrollView style={styles.modalBody}>
+          <ScrollView
+            style={styles.modalBody}
+            contentContainerStyle={styles.modalBodyContent}
+            keyboardShouldPersistTaps="handled"
+          >
             {/* Image section */}
             <View style={styles.inputContainer}>
               {imageUris.length > 0 ? (
@@ -471,7 +485,7 @@ function EntryModal({
             )}
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -589,7 +603,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    maxHeight: "80%",
+    maxHeight: "88%",
   },
   modalHeader: {
     flexDirection: "row",
@@ -598,6 +612,9 @@ const styles = StyleSheet.create({
     padding: 20,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.softBorder,
+    backgroundColor: COLORS.background,
+    zIndex: 20,
+    elevation: 20,
   },
   headerActions: {
     flexDirection: "row",
@@ -608,7 +625,11 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   menuButton: {
-    padding: 6,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
   },
   menuDropdown: {
     position: "absolute",
@@ -649,10 +670,18 @@ const styles = StyleSheet.create({
     color: COLORS.primaryText,
   },
   closeButton: {
-    padding: 4,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
   },
   modalBody: {
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  modalBodyContent: {
+    paddingBottom: 20,
   },
   inputContainer: {
     marginBottom: 20,
