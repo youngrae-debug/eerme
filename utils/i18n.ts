@@ -151,6 +151,7 @@ const translations: Translations = {
     syncNever: "Never",
     syncNowButton: "Sync now",
     syncDone: "Sync completed.",
+    syncAutoHint: "Your journal syncs automatically when you log in. Use Sync now when you want to force it.",
     syncFailed: "Sync failed.",
     loadLocalFailed: "Failed to load local data.",
     iapMissingNativeModule:
@@ -296,6 +297,7 @@ const translations: Translations = {
     syncNever: "없음",
     syncNowButton: "지금 동기화",
     syncDone: "동기화를 완료했어요",
+    syncAutoHint: "로그인 상태에서는 자동으로 동기화돼요. 즉시 반영하려면 지금 동기화를 눌러주세요.",
     syncFailed: "동기화에 실패했습니다.",
     loadLocalFailed: "로컬 데이터를 불러오지 못했습니다.",
     iapMissingNativeModule:
@@ -441,6 +443,7 @@ const translations: Translations = {
     syncNever: "未実行",
     syncNowButton: "今すぐ同期",
     syncDone: "同期が完了しました。",
+    syncAutoHint: "ログイン時は自動同期されます。すぐ反映したい場合は今すぐ同期を使ってください。",
     syncFailed: "同期に失敗しました。",
     loadLocalFailed: "ローカルデータを読み込めませんでした。",
     iapMissingNativeModule:
