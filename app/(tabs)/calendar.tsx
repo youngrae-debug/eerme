@@ -365,7 +365,11 @@ function EntryModal({
             <View style={styles.headerActions}>
               {entry && !isEditing && (
                 <View style={styles.menuWrapper}>
-                  <Pressable onPress={() => setIsMenuOpen((prev) => !prev)} style={styles.menuButton}>
+                  <Pressable
+                    onPress={() => setIsMenuOpen((prev) => !prev)}
+                    style={styles.menuButton}
+                    hitSlop={10}
+                  >
                     <MoreVertical size={22} color={COLORS.primaryText} />
                   </Pressable>
                   {isMenuOpen && (
@@ -380,7 +384,7 @@ function EntryModal({
                   )}
                 </View>
               )}
-              <Pressable onPress={onClose} style={styles.closeButton}>
+              <Pressable onPress={onClose} style={styles.closeButton} hitSlop={10}>
                 <X size={24} color={COLORS.primaryText} />
               </Pressable>
             </View>
@@ -608,6 +612,9 @@ const styles = StyleSheet.create({
     padding: 20,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.softBorder,
+    backgroundColor: COLORS.background,
+    zIndex: 20,
+    elevation: 20,
   },
   headerActions: {
     flexDirection: "row",
@@ -618,7 +625,11 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   menuButton: {
-    padding: 6,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
   },
   menuDropdown: {
     position: "absolute",
@@ -659,7 +670,11 @@ const styles = StyleSheet.create({
     color: COLORS.primaryText,
   },
   closeButton: {
-    padding: 4,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
   },
   modalBody: {
     paddingHorizontal: 20,
