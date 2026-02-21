@@ -11,7 +11,7 @@ import {
 } from "../../services/subscription";
 import { useJournalStore } from "../../store/journalStore";
 import { COLORS } from "../../theme/colors";
-import { setLocale, t, useLocale } from "../../utils/i18n";
+import { setLocale, t } from "../../utils/i18n";
 
 type MyPageTab = "subscription" | "backup";
 
@@ -26,8 +26,6 @@ export default function SyncScreen() {
     pendingSyncCount,
     syncNow,
   } = useJournalStore();
-  const locale = useLocale();
-
   const [activeTab, setActiveTab] = React.useState<MyPageTab>("subscription");
   const [busy, setBusy] = React.useState(false);
   const [products, setProducts] = React.useState<Product[]>([]);
@@ -64,19 +62,16 @@ export default function SyncScreen() {
     };
   }, [setPremium]);
 
-  const tabItems = React.useMemo(
-    () => [
-      { key: "subscription" as const, label: t("tabSubscription"), hint: t("tabSubscriptionHint"), icon: "✦" },
-      { key: "backup" as const, label: t("tabBackup"), hint: t("tabBackupHint"), icon: "⤴" },
-    ],
-    [t],
-  );
+  const tabItems = [
+    { key: "subscription" as const, label: t("tabSubscription"), hint: t("tabSubscriptionHint"), icon: "✦" },
+    { key: "backup" as const, label: t("tabBackup"), hint: t("tabBackupHint"), icon: "⤴" },
+  ];
 
   React.useEffect(() => {
-    if (!tabItems.some((item) => item.key === activeTab)) {
+    if (activeTab !== "subscription" && activeTab !== "backup") {
       setActiveTab("subscription");
     }
-  }, [activeTab, tabItems]);
+  }, [activeTab]);
 
   React.useEffect(() => {
     if (!isReady) return;
