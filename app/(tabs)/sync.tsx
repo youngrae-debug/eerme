@@ -4,6 +4,7 @@ import { NeumorphicButton, NeumorphicCard } from "../../components/neumorphic";
 import {
   attachPurchaseListener,
   closeSubscriptionConnection,
+  getFallbackSubscriptionProducts,
   loadSubscriptionProducts,
   requestSubscription,
   restoreSubscription,
@@ -11,7 +12,7 @@ import {
 } from "../../services/subscription";
 import { useJournalStore } from "../../store/journalStore";
 import { COLORS } from "../../theme/colors";
-import { setLocale, t } from "../../utils/i18n";
+import { setLocale, t, useLocale } from "../../utils/i18n";
 
 type MyPageTab = "subscription" | "backup";
 
@@ -87,6 +88,7 @@ export default function SyncScreen() {
         console.error("Failed to load subscription products", error);
         const message = error instanceof Error ? error.message : t("subscriptionProductLoadFailed");
         setSubscriptionError(message);
+        setProducts(getFallbackSubscriptionProducts());
       })
       .finally(() => setSubscriptionBusy(false));
   }, [isReady]);
@@ -217,9 +219,8 @@ export default function SyncScreen() {
 
           <NeumorphicCard style={styles.card}>
             <Text style={styles.label}>{t("subscriptionProductsLabel")}</Text>
-            {subscriptionError ? (
-              <Text style={styles.emptyText}>{subscriptionError}</Text>
-            ) : products.length === 0 ? (
+            {subscriptionError ? <Text style={styles.emptyText}>{subscriptionError}</Text> : null}
+            {products.length === 0 ? (
               <Text style={styles.emptyText}>{t("subscriptionProductsEmpty")}</Text>
             ) : (
               products.map((product) => (

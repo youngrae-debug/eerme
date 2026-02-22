@@ -38,6 +38,21 @@ export type Purchase = {
 const IOS_PRODUCT_IDS = ["eerme_premium_monthly"];
 const ANDROID_PRODUCT_IDS = ["eerme_premium_monthly"];
 
+const FALLBACK_PRODUCTS: Product[] = [
+  {
+    productId: "eerme_premium_monthly",
+    title: "Premium Monthly",
+    description: "월 구독 · 사진 5장 첨부 및 프리미엄 기능",
+    price: "₩4,400 / month",
+  },
+  {
+    productId: "eerme_premium_yearly",
+    title: "Premium Yearly",
+    description: "연 구독 · 월간 대비 할인",
+    price: "₩39,000 / year",
+  },
+];
+
 function isNativeIapModule(value: unknown): value is InAppPurchasesModule {
   if (!value || typeof value !== "object") return false;
 
@@ -100,6 +115,10 @@ function getModule(): InAppPurchasesModule {
 
 export function getSubscriptionProductIds() {
   return Platform.OS === "ios" ? IOS_PRODUCT_IDS : ANDROID_PRODUCT_IDS;
+}
+
+export function getFallbackSubscriptionProducts() {
+  return FALLBACK_PRODUCTS;
 }
 
 export async function loadSubscriptionProducts() {
