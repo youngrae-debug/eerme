@@ -14,6 +14,32 @@ export default function StatsScreen() {
   const locale = useLocale();
   const { entries, isReady, isPremium } = useJournalStore();
   const stats = React.useMemo(() => getJournalStats(entries), [entries]);
+  const [chartWidth, setChartWidth] = React.useState(screenWidth - 80);
+
+  const chartData = React.useMemo(() => {
+    const labels = stats.dailyStats.map((d) => d.label);
+    const photoSeries = stats.dailyStats.map((d) => Number.isFinite(d.photoCount) ? d.photoCount : 0);
+    const lineSeries = stats.dailyStats.map((d) => Number.isFinite(d.lineCount) ? d.lineCount : 0);
+
+    const hasAnyValue = [...photoSeries, ...lineSeries].some((value) => value > 0);
+
+    return {
+      labels,
+      datasets: [
+        {
+          data: hasAnyValue ? photoSeries : [0, 0, 0, 0, 0, 0, 0],
+          color: () => COLORS.accentPeach,
+          strokeWidth: 2,
+        },
+        {
+          data: hasAnyValue ? lineSeries : [0, 0, 0, 0, 0, 0, 0],
+          color: () => COLORS.accentGreen,
+          strokeWidth: 2,
+        },
+      ],
+      legend: [t("statsLegendPhotos"), t("statsLegendLines")],
+    };
+  }, [stats.dailyStats]);
 
   if (!isReady) {
     return (
@@ -40,28 +66,18 @@ export default function StatsScreen() {
       <Text style={styles.subtitle}>{t("statsSubtitle")}</Text>
 
       {/* 주간 기록 현황 차트 */}
-      <View style={styles.card}>
+      <View style={styles.card} onLayout={(event) => {
+        const nextWidth = event.nativeEvent.layout.width - 24;
+        if (nextWidth > 240 && Math.abs(nextWidth - chartWidth) > 1) {
+          setChartWidth(nextWidth);
+        }
+      }}>
         <Text style={styles.cardTitle}>{t("statsWeeklyTitle")}</Text>
         <Text style={styles.cardDesc}>{t("statsWeeklyDesc")}</Text>
         <View style={styles.chartWrapper}>
           <LineChart
-            data={{
-              labels: stats.dailyStats.map((d) => d.label),
-              datasets: [
-                {
-                  data: stats.dailyStats.map((d) => d.photoCount),
-                  color: () => COLORS.accentPeach,
-                  strokeWidth: 2,
-                },
-                {
-                  data: stats.dailyStats.map((d) => d.lineCount),
-                  color: () => COLORS.accentGreen,
-                  strokeWidth: 2,
-                },
-              ],
-              legend: [t("statsLegendPhotos"), t("statsLegendLines")],
-            }}
-            width={screenWidth - 80}
+            data={chartData}
+            width={chartWidth}
             height={200}
             chartConfig={{
               backgroundColor: COLORS.card,
@@ -78,7 +94,6 @@ export default function StatsScreen() {
                 fontSize: 11,
               },
             }}
-            bezier
             style={styles.chart}
             fromZero
             yAxisLabel=""
@@ -159,7 +174,7 @@ const styles = StyleSheet.create({
   },
   cardTitle: { fontWeight: "700", marginBottom: 4, color: COLORS.primaryText, fontSize: 16 },
   cardDesc: { color: COLORS.secondaryText, fontSize: 13, marginBottom: 12 },
-  chartWrapper: { alignItems: "center", justifyContent: "center", marginLeft: -20 },
+  chartWrapper: { alignItems: "center", justifyContent: "center" },
   chart: { borderRadius: 20, marginTop: 8 },
   legendContainer: { marginTop: 12, gap: 8 },
   legendRow: {
