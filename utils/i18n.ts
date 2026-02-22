@@ -101,6 +101,9 @@ const translations: Translations = {
     premiumAllFeatures: "All premium features included",
     subscribeButton: "Subscribe",
     restoreSubscriptionButton: "Restore subscription",
+    selectPlanButton: "Select",
+    selectedPlanLabel: "Selected",
+    selectPlanFirst: "Please select a plan first.",
     backupSectionTitle: "File backup / restore",
     backupSectionHelper: "Save a backup file to quickly restore on a new device.",
     backupCloudHint: "On iPhone, use Share to save to iCloud Drive. On Android, use Share to save to Google Drive or another cloud app.",
@@ -249,6 +252,9 @@ const translations: Translations = {
     restoreSubscriptionButton: "구독 복원",
     backupSectionTitle: "파일 백업 / 복원",
     backupSectionHelper: "백업 파일을 저장해 두면 기기 변경 시 빠르게 복원할 수 있어요.",
+    selectPlanButton: "선택",
+    selectedPlanLabel: "선택됨",
+    selectPlanFirst: "먼저 플랜을 선택하세요.",
     backupCloudHint: "아이폰은 공유하기로 iCloud Drive에 저장하고, 안드로이드는 공유하기로 Google Drive 등 클라우드 앱에 저장하세요.",
     backupCloudExportButton: "클라우드로 내보내기",
     backupCloudIosMessage: "이 백업 파일을 iCloud Drive에 저장하세요.",
@@ -395,6 +401,9 @@ const translations: Translations = {
     restoreSubscriptionButton: "購読を復元",
     backupSectionTitle: "ファイルバックアップ / 復元",
     backupSectionHelper: "バックアップファイルを保存しておくと、機種変更時にすぐ復元できます。",
+    selectPlanButton: "選択",
+    selectedPlanLabel: "選択済み",
+    selectPlanFirst: "先にプランを選択してください。",
     backupCloudHint: "iPhoneは共有からiCloud Driveへ、Androidは共有からGoogle Driveなどのクラウドアプリへ保存してください。",
     backupCloudExportButton: "クラウドに書き出す",
     backupCloudIosMessage: "このバックアップをiCloud Driveに保存してください。",
@@ -465,7 +474,7 @@ const normalizeLocale = (locale?: string): SupportedLocale => {
 };
 
 let currentLocale: SupportedLocale = normalizeLocale(
-  Localization.getLocales()?.[0]?.languageTag ?? Localization.locale,
+  Localization.getLocales()?.[0]?.languageTag,
 );
 
 const listeners = new Set<(locale: SupportedLocale) => void>();

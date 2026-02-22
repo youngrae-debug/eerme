@@ -105,7 +105,7 @@ export function getSubscriptionProductIds() {
 export async function loadSubscriptionProducts() {
   const iap = tryGetModule();
   if (!iap) {
-    return [] as Product[];
+    throw new Error(t("iapMissingNativeModule"));
   }
 
   await iap.connectAsync();

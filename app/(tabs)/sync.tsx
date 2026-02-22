@@ -11,11 +11,12 @@ import {
 } from "../../services/subscription";
 import { useJournalStore } from "../../store/journalStore";
 import { COLORS } from "../../theme/colors";
-import { setLocale, t } from "../../utils/i18n";
+import { setLocale, t, useLocale } from "../../utils/i18n";
 
 type MyPageTab = "subscription" | "backup";
 
 export default function SyncScreen() {
+  const locale = useLocale();
   const {
     isReady,
     isPremium,
@@ -31,6 +32,7 @@ export default function SyncScreen() {
   const [products, setProducts] = React.useState<Product[]>([]);
   const [subscriptionBusy, setSubscriptionBusy] = React.useState(false);
   const [subscriptionError, setSubscriptionError] = React.useState<string | null>(null);
+  const [selectedProductId, setSelectedProductId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     let mounted = true;
@@ -89,6 +91,13 @@ export default function SyncScreen() {
       .finally(() => setSubscriptionBusy(false));
   }, [isReady]);
 
+  React.useEffect(() => {
+    if (products.length === 0) return;
+    if (!selectedProductId) {
+      setSelectedProductId(products[0].productId);
+    }
+  }, [products, selectedProductId]);
+
   const subscribe = React.useCallback(
     async (productId: string) => {
       setSubscriptionBusy(true);
@@ -116,6 +125,16 @@ export default function SyncScreen() {
       setSubscriptionBusy(false);
     }
   }, [setPremium]);
+
+  const handleSubscribe = React.useCallback(() => {
+    if (!selectedProductId) {
+      Alert.alert(t("errorTitle"), t("selectPlanFirst"));
+      return;
+    }
+    subscribe(selectedProductId).catch((error) => {
+      console.error("subscribe failed", error);
+    });
+  }, [selectedProductId, subscribe]);
 
   const run = async (task: () => Promise<void>, successMessage?: string) => {
     setBusy(true);
@@ -204,20 +223,45 @@ export default function SyncScreen() {
               <Text style={styles.emptyText}>{t("subscriptionProductsEmpty")}</Text>
             ) : (
               products.map((product) => (
-                <View key={product.productId} style={styles.planItem}>
+                <Pressable
+                  key={product.productId}
+                  accessibilityRole="button"
+                  onPress={() => setSelectedProductId(product.productId)}
+                  style={[
+                    styles.planItem,
+                    selectedProductId === product.productId && styles.planItemSelected,
+                  ]}
+                >
+                  <View style={styles.planIndicatorOuter}>
+                    {selectedProductId === product.productId ? (
+                      <View style={styles.planIndicatorInner} />
+                    ) : null}
+                  </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.planTitle}>{product.title ?? product.productId}</Text>
                     <Text style={styles.planPrice}>{product.price ?? t("priceUnavailable")}</Text>
                     <Text style={styles.planDescription}>{product.description ?? t("premiumAllFeatures")}</Text>
                   </View>
-                  <NeumorphicButton
-                    label={subscriptionBusy ? t("requestInProgress") : t("subscribeButton")}
-                    style={styles.planButton}
-                    onPress={() => subscribe(product.productId)}
-                  />
-                </View>
+                  <Text
+                    style={[
+                      styles.planSelectText,
+                      selectedProductId === product.productId && styles.planSelectTextActive,
+                    ]}
+                  >
+                    {selectedProductId === product.productId
+                      ? t("selectedPlanLabel")
+                      : t("selectPlanButton")}
+                  </Text>
+                </Pressable>
               ))
             )}
+            <View style={styles.row}>
+              <NeumorphicButton
+                label={subscriptionBusy ? t("requestInProgress") : t("subscribeButton")}
+                style={styles.buttonFlex}
+                onPress={handleSubscribe}
+              />
+            </View>
             <View style={styles.row}>
               <NeumorphicButton
                 label={subscriptionBusy ? t("processing") : t("restoreSubscriptionButton")}
@@ -321,10 +365,31 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#d8dee9",
   },
+  planIndicatorOuter: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: COLORS.accentPeach,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#fff",
+  },
+  planIndicatorInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: COLORS.accentPeach,
+  },
+  planItemSelected: {
+    borderColor: COLORS.accentPeach,
+    backgroundColor: "#F4E7D7",
+  },
   planTitle: { color: COLORS.primaryText, fontWeight: "700", marginBottom: 2 },
   planPrice: { color: COLORS.textOnSurface, fontWeight: "600", marginBottom: 2 },
   planDescription: { color: COLORS.secondaryText, fontSize: 12 },
-  planButton: { minWidth: 92 },
+  planSelectText: { color: COLORS.secondaryText, fontWeight: "700" },
+  planSelectTextActive: { color: COLORS.primaryText },
   row: { flexDirection: "row", gap: 12, marginBottom: 8 },
   buttonFlex: { flex: 1 },
   emptyText: { color: COLORS.textOnSurface, marginTop: 6 },
