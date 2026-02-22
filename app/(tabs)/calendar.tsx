@@ -355,8 +355,8 @@ function EntryModal({
     <Modal visible={visible} transparent animationType="slide">
       <KeyboardAvoidingView
         style={styles.modalOverlay}
-        behavior={Platform.OS === "android" ? "height" : undefined}
-        keyboardVerticalOffset={0}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? insets.top + 8 : 0}
       >
         <View style={styles.modalContent}>
           {/* 헤더 */}
@@ -367,8 +367,7 @@ function EntryModal({
                 <View style={styles.menuWrapper}>
                   <Pressable
                     onPress={() => setIsMenuOpen((prev) => !prev)}
-                    style={styles.menuButton}
-                    hitSlop={16}
+                    style={styles.iconButton}
                   >
                     <MoreVertical size={22} color={COLORS.primaryText} />
                   </Pressable>
@@ -384,7 +383,7 @@ function EntryModal({
                   )}
                 </View>
               )}
-              <Pressable onPress={onClose} style={styles.closeButton} hitSlop={16}>
+              <Pressable onPress={onClose} style={styles.iconButton}>
                 <X size={24} color={COLORS.primaryText} />
               </Pressable>
             </View>
@@ -395,6 +394,9 @@ function EntryModal({
             style={styles.modalBody}
             contentContainerStyle={styles.modalBodyContent}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
+            contentInsetAdjustmentBehavior="always"
+            automaticallyAdjustKeyboardInsets
           >
             {/* Image section */}
             <View style={styles.inputContainer}>
@@ -477,7 +479,7 @@ function EntryModal({
           </ScrollView>
 
           {/* 버튼 */}
-          <View style={[styles.modalFooter, { paddingBottom: 20 + insets.bottom }]}>
+          <View style={[styles.modalFooter, { paddingBottom: insets.bottom + 16 }]}>
             {canSave && (
               <Pressable onPress={handleSave} style={styles.saveButton}>
                 <Text style={styles.saveButtonText}>{t("save")}</Text>
@@ -619,12 +621,13 @@ const styles = StyleSheet.create({
   headerActions: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    justifyContent: "flex-end",
+    gap: 4,
   },
   menuWrapper: {
     position: "relative",
   },
-  menuButton: {
+  iconButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
@@ -669,13 +672,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: COLORS.primaryText,
   },
-  closeButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+
   modalBody: {
     paddingHorizontal: 20,
     paddingTop: 20,
