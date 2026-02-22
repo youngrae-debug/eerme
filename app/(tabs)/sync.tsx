@@ -11,7 +11,7 @@ import {
 } from "../../services/subscription";
 import { useJournalStore } from "../../store/journalStore";
 import { COLORS } from "../../theme/colors";
-import { setLocale, t, useLocale } from "../../utils/i18n";
+import { setLocale, t } from "../../utils/i18n";
 
 type MyPageTab = "subscription" | "backup";
 

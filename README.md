@@ -119,6 +119,11 @@ Realtime Database Rules 예시:
 5. **완료**: 로컬 우선 + 원격 동기화 구조(인증 포함)
 6. **다음 단계**: 네이티브 파일 picker 연동, 테마 토글, 통계 확장(월별 비교)
 
+
+## App Store 심사 문서
+
+- 심사용 설명서(국문): `docs/app-store-review-notes.ko.md`
+
 ## 실행
 
 1. 의존성 설치: `npm install`
