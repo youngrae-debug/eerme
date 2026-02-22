@@ -2,7 +2,7 @@
   "expo": {
     "name": "eerme",
     "slug": "eerme",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "eerme",
@@ -11,7 +11,10 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.eerme.app",
-      "buildNumber": "2"
+      "buildNumber": "3",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -24,7 +27,7 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.eerme.app",
       "allowBackup": true,
-      "versionCode": 2
+      "versionCode": 3
     },
     "web": {
       "output": "static",
@@ -52,8 +55,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "7e872294-5c2d-4d9e-ae7b-3be39abf0202"
+        "projectId": "58323cc1-bf17-40c7-baaa-f95cda402f31"
       }
-    }
+    },
+    "owner": "gamjabaht"
   }
 }

@@ -104,13 +104,8 @@ function tryGetModule(): InAppPurchasesModule | null {
   return resolved ?? null;
 }
 
-function getModule(): InAppPurchasesModule {
-  const resolved = tryGetModule();
-  if (!resolved) {
-    throw new Error(t("iapMissingNativeModule"));
-  }
-
-  return resolved;
+function getModule(): InAppPurchasesModule | null {
+  return tryGetModule();
 }
 
 export function getSubscriptionProductIds() {
@@ -124,7 +119,7 @@ export function getFallbackSubscriptionProducts() {
 export async function loadSubscriptionProducts() {
   const iap = tryGetModule();
   if (!iap) {
-    throw new Error(t("iapMissingNativeModule"));
+    return FALLBACK_PRODUCTS;
   }
 
   await iap.connectAsync();
@@ -139,6 +134,7 @@ export async function loadSubscriptionProducts() {
 
 export async function restoreSubscription(): Promise<boolean> {
   const iap = getModule();
+  if (!iap) return false;
   await iap.connectAsync();
 
   const history = await iap.getPurchaseHistoryAsync();
@@ -151,6 +147,7 @@ export async function restoreSubscription(): Promise<boolean> {
 
 export async function requestSubscription(productId: string) {
   const iap = getModule();
+  if (!iap) return;
   await iap.connectAsync();
   await iap.purchaseItemAsync(productId);
 }
