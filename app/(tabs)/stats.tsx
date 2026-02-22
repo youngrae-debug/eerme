@@ -21,23 +21,33 @@ export default function StatsScreen() {
     const photoSeries = stats.dailyStats.map((d) => Number.isFinite(d.photoCount) ? d.photoCount : 0);
     const lineSeries = stats.dailyStats.map((d) => Number.isFinite(d.lineCount) ? d.lineCount : 0);
 
-    const hasAnyValue = [...photoSeries, ...lineSeries].some((value) => value > 0);
+    const hasPhotoValue = photoSeries.some((value) => value > 0);
+    const hasLineValue = lineSeries.some((value) => value > 0);
+    const hasAnyValue = hasPhotoValue || hasLineValue;
+
+    const datasets = [
+      {
+        data: hasAnyValue ? lineSeries : [0, 0, 0, 0, 0, 0, 0],
+        color: () => COLORS.accentGreen,
+        strokeWidth: 2,
+      },
+    ];
+
+    const legend = [t("statsLegendLines")];
+
+    if (hasPhotoValue) {
+      datasets.push({
+        data: photoSeries,
+        color: () => COLORS.accentPeach,
+        strokeWidth: 2,
+      });
+      legend.push(t("statsLegendPhotos"));
+    }
 
     return {
       labels,
-      datasets: [
-        {
-          data: hasAnyValue ? photoSeries : [0, 0, 0, 0, 0, 0, 0],
-          color: () => COLORS.accentPeach,
-          strokeWidth: 2,
-        },
-        {
-          data: hasAnyValue ? lineSeries : [0, 0, 0, 0, 0, 0, 0],
-          color: () => COLORS.accentGreen,
-          strokeWidth: 2,
-        },
-      ],
-      legend: [t("statsLegendPhotos"), t("statsLegendLines")],
+      datasets,
+      legend,
     };
   }, [stats.dailyStats]);
 
@@ -67,7 +77,7 @@ export default function StatsScreen() {
 
       {/* 주간 기록 현황 차트 */}
       <View style={styles.card} onLayout={(event) => {
-        const nextWidth = event.nativeEvent.layout.width - 24;
+        const nextWidth = event.nativeEvent.layout.width - 40;
         if (nextWidth > 240 && Math.abs(nextWidth - chartWidth) > 1) {
           setChartWidth(nextWidth);
         }
