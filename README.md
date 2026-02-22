@@ -1,149 +1,69 @@
-# Welcome to your Expo app 👋
-
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
-
-## Get started
-
-1. Install dependencies
-
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
-
 # eerme
 
-하루를 세 줄의 문장으로 남기는 Expo Router 기반 모바일 앱입니다.
-`sample_ui.tsx`의 뉴모피즘 색감(다크 배경 + 라이트 서피스)을 공통 테마로 사용합니다.
+하루를 **세 줄의 문장과 사진**으로 기록하는 Expo Router 기반 모바일 저널 앱입니다.
+뉴모피즘 스타일 UI를 공통 테마로 사용하며, 로컬 우선 저장과 선택적 원격 동기화를 지원합니다.
 
-## 현재 구현 상태
+## 주요 기능
 
-- 탭 네비게이션: 오늘 / 캘린더 / 검색 / 통계 / 동기화
-- 오늘 탭: 3줄 입력, 저장/삭제, 최근 기록 7개 표시
-- 캘린더 탭: 날짜별 기록 줄 수 요약
-- 검색 탭: 키워드 기반 문장 필터
-- 입력 검증: 공백 방지 + 120자 제한
-- 로컬 영속화: expo-sqlite 기반 저장/복원
-- 원격 동기화: 로컬 write + 백그라운드 push, 앱 시작 시 pull
-- 동기화 안정성: sqlite 기반 retry queue로 실패 건 재시도
-- 충돌 해결: 최신 수정 시간(updatedAt) 우선(LWW)
-- 백업/복원: JSON 내보내기/가져오기 + 파일 URI 기반 저장/복원 + 저장된 파일 목록 관리 + 네이티브 공유시트 지원
-- 통계 탭: 이번 달 기록일/문장 수, 연속 기록(streak), 상위 키워드
+### 1) 오늘 기록 (Today)
+- 오늘 날짜 기준으로 3줄 텍스트 입력/수정/저장
+- 줄당 최대 120자 입력 제한 및 기본 유효성 검사
+- 사진 첨부 지원 (무료: 1장, 프리미엄: 최대 5장)
+- 최근 기록 7개 빠른 보기
 
-## 인증/동기화 정책
+### 2) 캘린더 기록
+- 최근 12개월 + 현재 월 기록을 달력에서 확인
+- 기록이 있는 날짜를 이미지/점 표시로 구분
+- 과거 날짜를 눌러 일기 상세를 확인하고 수정/삭제 가능
 
-- Email 로그인: `/auth/email/login`
-- Apple 로그인: `/auth/apple/login` (identity token 전달)
-- Google 로그인: `/auth/google/login` (identity token 전달)
-- Pull: `/entries/pull?since=<timestamp>`
-- Push: `/entries/push`
+### 3) 검색
+- 키워드 기반 기록 검색
+- 검색어가 포함된 문장만 추려서 표시
 
-> 현재 빌드에서는 `custom` / `firebase` / `supabase` provider 경로가 구현되어 있습니다.
+### 4) 통계
+- 최근 7일 사진 수/문장 수 라인 차트
+- 이번 달 문장 수, 전체 문장 수 집계
+- 자주 사용한 키워드 Top 목록 제공
+
+### 5) 마이(My)
+- 앱 언어 전환: 한국어 / 영어 / 일본어
+- 구독(프리미엄) 상품 조회, 구매 요청, 복원
+- 동기화 상태(진행 상태, 대기 건수, 마지막 동기화 시각) 확인 및 수동 동기화
+
+### 6) 데이터 저장/동기화
+- `expo-sqlite` 기반 로컬 영속화
+- 동기화 큐를 통한 로컬 변경사항 관리
+- 원격 동기화 provider(`custom` / `firebase` / `supabase`) 구조 지원
+
+## 기술 스택
+- Expo + React Native + TypeScript
+- Expo Router (file-based routing)
+- expo-sqlite
+- react-native-chart-kit
+- lucide-react-native
+
+## 실행 방법
+
+```bash
+npm install
+npm start
+```
+
+Expo 개발 서버가 실행되면 Android/iOS 시뮬레이터 또는 Expo Go에서 앱을 열어 확인할 수 있습니다.
 
 ## 환경 변수
 
 ```bash
 EXPO_PUBLIC_SYNC_PROVIDER=firebase
+
 # custom provider 사용 시
 EXPO_PUBLIC_SYNC_API_BASE_URL=https://your-api.example.com
+
 # firebase provider 사용 시
 EXPO_PUBLIC_FIREBASE_API_KEY=your-firebase-web-api-key
 EXPO_PUBLIC_FIREBASE_DATABASE_URL=https://your-project-id-default-rtdb.firebaseio.com
+
 # supabase provider 사용 시
 EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
 ```
-
-
-## Firebase 보안 규칙(권장)
-
-Realtime Database Rules 예시:
-
-```json
-{
-  "rules": {
-    "entries": {
-      "$uid": {
-        ".read": "auth != null && auth.uid === $uid",
-        ".write": "auth != null && auth.uid === $uid"
-      }
-    }
-  }
-}
-```
-
-## 개발 단계 (Step-by-step)
-
-1. **완료**: 공통 테마/뉴모피즘 컴포넌트 정리
-2. **완료**: 홈(오늘 기록) + 검증 + 기본 기록 리스트
-3. **완료**: 캘린더 요약 / 검색
-4. **완료**: expo-sqlite 영속화
-5. **완료**: 로컬 우선 + 원격 동기화 구조(인증 포함)
-6. **다음 단계**: 네이티브 파일 picker 연동, 테마 토글, 통계 확장(월별 비교)
-
-
-## App Store 심사 문서
-
-- 심사용 설명서(국문): `docs/app-store-review-notes.ko.md`
-
-## 실행
-
-1. 의존성 설치: `npm install`
-2. 개발 서버: `npm start`
-3. 기기/에뮬레이터에서 Expo Go로 접속
-
-## 라이선스
-
-1️⃣ 가장 안전한 방법 (로컬에서 해결 후 Push)
-1. 최신 main 가져오기
-git checkout main
-git pull origin main
-
-2. 작업 브랜치로 이동
-git checkout work
-
-3. main을 병합
-git merge main
-
-4. 충돌 해결 후
-git add .
-git commit -m "resolve merge conflicts"
-git push origin work
