@@ -355,8 +355,8 @@ function EntryModal({
     <Modal visible={visible} transparent animationType="slide">
       <KeyboardAvoidingView
         style={styles.modalOverlay}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={insets.bottom}
+        behavior={Platform.OS === "android" ? "height" : undefined}
+        keyboardVerticalOffset={0}
       >
         <View style={styles.modalContent}>
           {/* 헤더 */}
@@ -368,7 +368,7 @@ function EntryModal({
                   <Pressable
                     onPress={() => setIsMenuOpen((prev) => !prev)}
                     style={styles.menuButton}
-                    hitSlop={10}
+                    hitSlop={16}
                   >
                     <MoreVertical size={22} color={COLORS.primaryText} />
                   </Pressable>
@@ -384,7 +384,7 @@ function EntryModal({
                   )}
                 </View>
               )}
-              <Pressable onPress={onClose} style={styles.closeButton} hitSlop={10}>
+              <Pressable onPress={onClose} style={styles.closeButton} hitSlop={16}>
                 <X size={24} color={COLORS.primaryText} />
               </Pressable>
             </View>
@@ -625,9 +625,9 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   menuButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -670,9 +670,9 @@ const styles = StyleSheet.create({
     color: COLORS.primaryText,
   },
   closeButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
   },
