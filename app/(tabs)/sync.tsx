@@ -91,7 +91,7 @@ export default function SyncScreen() {
         setProducts(getFallbackSubscriptionProducts());
       })
       .finally(() => setSubscriptionBusy(false));
-  }, [isReady]);
+  }, [isReady, locale]);
 
   React.useEffect(() => {
     if (products.length === 0) return;
@@ -262,8 +262,6 @@ export default function SyncScreen() {
                 style={styles.buttonFlex}
                 onPress={handleSubscribe}
               />
-            </View>
-            <View style={styles.row}>
               <NeumorphicButton
                 label={subscriptionBusy ? t("processing") : t("restoreSubscriptionButton")}
                 style={styles.buttonFlex}

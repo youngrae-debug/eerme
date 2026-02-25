@@ -359,12 +359,14 @@ function EntryModal({
         keyboardVerticalOffset={Platform.OS === "ios" ? insets.top + 8 : 0}
       >
         <View style={styles.modalContent}>
+          {isMenuOpen && <Pressable style={styles.menuBackdrop} onPress={() => setIsMenuOpen(false)} />}
+
           {/* 헤더 */}
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>{formatDateDisplay(dateKey)}</Text>
             <View style={styles.headerActions}>
               {entry && !isEditing && (
-                <View style={styles.menuWrapper}>
+                <View style={[styles.menuWrapper, isMenuOpen && styles.menuWrapperOpen]}>
                   <Pressable
                     onPress={() => setIsMenuOpen((prev) => !prev)}
                     style={styles.iconButton}
@@ -383,7 +385,7 @@ function EntryModal({
                   )}
                 </View>
               )}
-              <Pressable onPress={onClose} style={styles.iconButton}>
+              <Pressable onPress={onClose} style={styles.iconButton} hitSlop={8}>
                 <X size={24} color={COLORS.primaryText} />
               </Pressable>
             </View>
@@ -406,7 +408,7 @@ function EntryModal({
                     <View key={`${uri}-${index}`} style={styles.modalImageContainer}>
                       <Image source={{ uri }} style={styles.modalImage} contentFit="cover" />
                       {isEditing && (
-                        <Pressable onPress={() => removeImage(index)} style={styles.removeModalImageButton}>
+                        <Pressable onPress={() => removeImage(index)} style={styles.removeModalImageButton} hitSlop={10}>
                           <X size={16} color="#fff" />
                         </Pressable>
                       )}
@@ -602,6 +604,7 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   modalContent: {
+    position: "relative",
     backgroundColor: COLORS.background,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
@@ -622,21 +625,28 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "flex-end",
-    gap: 4,
+    gap: 8,
+  },
+  menuBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 15,
   },
   menuWrapper: {
     position: "relative",
   },
+  menuWrapperOpen: {
+    zIndex: 40,
+  },
   iconButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
   },
   menuDropdown: {
     position: "absolute",
-    top: 34,
+    top: 40,
     right: 0,
     backgroundColor: COLORS.card,
     borderRadius: 12,
@@ -652,8 +662,10 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   menuItem: {
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    minHeight: 48,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    justifyContent: "center",
   },
   menuItemText: {
     fontSize: 14,
@@ -789,11 +801,11 @@ const styles = StyleSheet.create({
   },
   removeModalImageButton: {
     position: "absolute",
-    top: -8,
-    right: -8,
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    top: -10,
+    right: -10,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: COLORS.danger,
     alignItems: "center",
     justifyContent: "center",
