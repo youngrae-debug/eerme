@@ -161,7 +161,7 @@ export default function TodayScreen() {
               {imageUris.map((uri, index) => (
                 <View key={`${uri}-${index}`} style={styles.imagePreviewContainer}>
                   <Image source={{ uri }} style={styles.imagePreview} contentFit="cover" />
-                  <Pressable onPress={() => removeImage(index)} style={styles.removeImageButton}>
+                  <Pressable onPress={() => removeImage(index)} style={styles.removeImageButton} hitSlop={10}>
                     <X size={16} color="#fff" />
                   </Pressable>
                 </View>
@@ -300,11 +300,11 @@ const styles = StyleSheet.create({
   },
   removeImageButton: {
     position: "absolute",
-    top: -8,
-    right: -8,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    top: -10,
+    right: -10,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: COLORS.danger,
     alignItems: "center",
     justifyContent: "center",

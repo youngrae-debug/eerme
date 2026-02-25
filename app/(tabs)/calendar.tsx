@@ -386,10 +386,10 @@ function EntryModal({
                   </Pressable>
                   {isMenuOpen && (
                     <View style={styles.menuDropdown}>
-                      <Pressable onPress={handleEdit} style={styles.menuItem}>
+                      <Pressable onPress={handleEdit} style={styles.menuItem} hitSlop={6}>
                         <Text style={styles.menuItemText}>{t("edit")}</Text>
                       </Pressable>
-                      <Pressable onPress={handleDelete} style={[styles.menuItem, styles.menuItemDanger]}>
+                      <Pressable onPress={handleDelete} style={[styles.menuItem, styles.menuItemDanger]} hitSlop={6}>
                         <Text style={[styles.menuItemText, styles.menuItemDangerText]}>{t("delete")}</Text>
                       </Pressable>
                     </View>
