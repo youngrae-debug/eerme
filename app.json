@@ -2,7 +2,7 @@
   "expo": {
     "name": "eerme",
     "slug": "eerme",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "eerme",
@@ -11,7 +11,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.eerme.app",
-      "buildNumber": "3",
+      "buildNumber": "4",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -27,7 +27,7 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.eerme.app",
       "allowBackup": true,
-      "versionCode": 3
+      "versionCode": 4
     },
     "web": {
       "output": "static",
