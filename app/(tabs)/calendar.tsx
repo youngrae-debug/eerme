@@ -273,6 +273,9 @@ function EntryModal({
   const [line1, setLine1] = useState("");
   const [line2, setLine2] = useState("");
   const [line3, setLine3] = useState("");
+  const line1InputRef = React.useRef<TextInput>(null);
+  const line2InputRef = React.useRef<TextInput>(null);
+  const line3InputRef = React.useRef<TextInput>(null);
   const [imageUris, setImageUris] = useState<string[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -445,9 +448,11 @@ function EntryModal({
             <View style={styles.inputContainer}>
               {isEditing ? (
                 <TextInput
+                  ref={line1InputRef}
                   style={styles.input}
                   value={line1}
                   onChangeText={setLine1}
+                  onPressIn={() => line1InputRef.current?.focus()}
                   placeholder={t("line1Placeholder")}
                   placeholderTextColor={COLORS.secondaryText}
                   editable={isEditing}
@@ -461,9 +466,11 @@ function EntryModal({
             <View style={styles.inputContainer}>
               {isEditing ? (
                 <TextInput
+                  ref={line2InputRef}
                   style={styles.input}
                   value={line2}
                   onChangeText={setLine2}
+                  onPressIn={() => line2InputRef.current?.focus()}
                   placeholder={t("line2Placeholder")}
                   placeholderTextColor={COLORS.secondaryText}
                   editable={isEditing}
@@ -477,9 +484,11 @@ function EntryModal({
             <View style={styles.inputContainer}>
               {isEditing ? (
                 <TextInput
+                  ref={line3InputRef}
                   style={styles.input}
                   value={line3}
                   onChangeText={setLine3}
+                  onPressIn={() => line3InputRef.current?.focus()}
                   placeholder={t("line3Placeholder")}
                   placeholderTextColor={COLORS.secondaryText}
                   editable={isEditing}
