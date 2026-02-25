@@ -1,5 +1,6 @@
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
+import { useLocalSearchParams } from "expo-router";
 import { ImagePlus, MoreVertical, X } from "lucide-react-native";
 import React, { useMemo, useState } from "react";
 import {
@@ -102,6 +103,7 @@ function generateMonthData(year: number, month: number, entryMap: Map<string, En
 export default function CalendarScreen() {
   const { entries, isReady, upsertEntry, removeEntry, isPremium } = useJournalStore();
   const locale = useLocale();
+  const { date } = useLocalSearchParams<{ date?: string }>();
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   const entryMap = useMemo(() => {
@@ -128,6 +130,15 @@ export default function CalendarScreen() {
   }, [entryMap]);
 
   const selectedEntry = selectedDate ? entryMap.get(selectedDate) : null;
+
+  React.useEffect(() => {
+    if (typeof date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return;
+    }
+    if (entryMap.has(date)) {
+      setSelectedDate(date);
+    }
+  }, [date, entryMap]);
 
   const handleDayPress = (day: CalendarDay) => {
     if (day.isFuture) return;

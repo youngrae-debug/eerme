@@ -1,6 +1,7 @@
 import { Image } from "expo-image";
+import { router } from "expo-router";
 import React from "react";
-import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { NeumorphicCard } from "../../components/neumorphic";
 import { useJournalStore } from "../../store/journalStore";
 import { COLORS } from "../../theme/colors";
@@ -54,16 +55,26 @@ export default function SearchScreen() {
 
       <Text style={styles.count}>{t("searchCount", { count: results.length })}</Text>
       {results.map((entry) => (
-        <NeumorphicCard key={entry.id} style={styles.resultCard}>
-          <Text style={styles.date}>{formatDateDisplay(entry.date)}</Text>
-          {(entry.lines ?? [])
-            .filter((line) => line && line.toLowerCase().includes(keyword.toLowerCase()))
-            .map((line, idx) => (
-              <Text key={`${entry.id}-${idx}`} style={styles.line}>
-                • {line}
-              </Text>
-            ))}
-        </NeumorphicCard>
+        <Pressable
+          key={entry.id}
+          onPress={() =>
+            router.push({
+              pathname: "/(tabs)/calendar",
+              params: { date: entry.date },
+            })
+          }
+        >
+          <NeumorphicCard style={styles.resultCard}>
+            <Text style={styles.date}>{formatDateDisplay(entry.date)}</Text>
+            {(entry.lines ?? [])
+              .filter((line) => line && line.toLowerCase().includes(keyword.toLowerCase()))
+              .map((line, idx) => (
+                <Text key={`${entry.id}-${idx}`} style={styles.line}>
+                  • {line}
+                </Text>
+              ))}
+          </NeumorphicCard>
+        </Pressable>
       ))}
     </ScrollView>
   );
