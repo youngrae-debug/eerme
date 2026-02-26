@@ -35,15 +35,23 @@ type EmailAuthResponse = {
 
 type FirebaseAuthResponse = {
   idToken: string;
+  refreshToken?: string;
   localId: string;
   email?: string;
   displayName?: string;
+};
+
+type FirebaseRefreshResponse = {
+  id_token: string;
+  refresh_token: string;
+  user_id: string;
 };
 
 type FirebaseEntriesMap = Record<string, RemoteEntry>;
 
 type SupabaseAuthResponse = {
   access_token: string;
+  refresh_token?: string;
   user: {
     id: string;
     email?: string;
@@ -63,6 +71,8 @@ type RemoteClient = {
   pull: (session: AuthSession, since: number) => Promise<SyncPullResponse>;
   push: (session: AuthSession, entries: Entry[]) => Promise<void>;
   deleteAccount?: (session: AuthSession) => Promise<void>;
+  restoreSession?: (session: AuthSession) => Promise<AuthSession | null>;
+  updatePassword?: (session: AuthSession, nextPassword: string) => Promise<AuthSession>;
 };
 
 const provider = (process.env.EXPO_PUBLIC_SYNC_PROVIDER as SyncProvider | undefined) ?? "custom";
@@ -233,6 +243,7 @@ const firebaseAuth = async (path: string, payload: Record<string, unknown>) => {
 const toFirebaseSession = (data: FirebaseAuthResponse): AuthSession => ({
   provider: "firebase",
   accessToken: data.idToken,
+  refreshToken: data.refreshToken,
   user: {
     id: data.localId,
     email: data.email ?? "unknown@firebase.local",
@@ -348,6 +359,62 @@ const firebaseClient: RemoteClient = {
       throw new Error("Failed to delete Firebase account.");
     }
   },
+  async restoreSession(session) {
+    if (!session.refreshToken) {
+      return session;
+    }
+
+    ensureFirebaseConfig();
+    const response = await fetch(`https://securetoken.googleapis.com/v1/token?key=${firebaseApiKey}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: `grant_type=refresh_token&refresh_token=${encodeURIComponent(session.refreshToken)}`,
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const refreshed = (await response.json()) as FirebaseRefreshResponse;
+    return {
+      ...session,
+      accessToken: refreshed.id_token,
+      refreshToken: refreshed.refresh_token,
+      user: {
+        ...session.user,
+        id: refreshed.user_id || session.user.id,
+      },
+    };
+  },
+  async updatePassword(session, nextPassword) {
+    ensureFirebaseConfig();
+    const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:update?key=${firebaseApiKey}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        idToken: session.accessToken,
+        password: nextPassword,
+        returnSecureToken: true,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to change Firebase password.");
+    }
+
+    const updated = (await response.json()) as FirebaseAuthResponse;
+    return {
+      ...session,
+      accessToken: updated.idToken,
+      refreshToken: updated.refreshToken ?? session.refreshToken,
+      user: {
+        ...session.user,
+        id: updated.localId || session.user.id,
+        email: updated.email ?? session.user.email,
+        displayName: updated.displayName ?? session.user.displayName,
+      },
+    };
+  },
 };
 
 const supabaseAuth = async (
@@ -374,6 +441,7 @@ const supabaseAuth = async (
 const toSupabaseSession = (auth: SupabaseAuthResponse): AuthSession => ({
   provider: "supabase",
   accessToken: auth.access_token,
+  refreshToken: auth.refresh_token,
   user: {
     id: auth.user.id,
     email: auth.user.email ?? "unknown@supabase.local",
@@ -484,6 +552,46 @@ const supabaseClient: RemoteClient = {
   },
   async deleteAccount() {
     throw new Error("Account deletion is not supported by Supabase provider.");
+  },
+  async restoreSession(session) {
+    if (!session.refreshToken) {
+      return session;
+    }
+
+    ensureSupabaseConfig();
+    const response = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=refresh_token`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: supabaseAnonKey,
+      },
+      body: JSON.stringify({ refresh_token: session.refreshToken }),
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const refreshed = (await response.json()) as SupabaseAuthResponse;
+    return toSupabaseSession(refreshed);
+  },
+  async updatePassword(session, nextPassword) {
+    ensureSupabaseConfig();
+    const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: supabaseAnonKey,
+        Authorization: `Bearer ${session.accessToken}`,
+      },
+      body: JSON.stringify({ password: nextPassword }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to change Supabase password.");
+    }
+
+    return session;
   },
 };
 

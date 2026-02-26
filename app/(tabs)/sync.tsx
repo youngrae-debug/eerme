@@ -1,5 +1,5 @@
 import React from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { NeumorphicButton, NeumorphicCard } from "../../components/neumorphic";
 import {
   attachPurchaseListener,
@@ -29,6 +29,7 @@ export default function SyncScreen() {
     session,
     signOut,
     deleteAccount,
+    updatePassword,
     syncNow,
   } = useJournalStore();
   const [activeTab, setActiveTab] = React.useState<MyPageTab>("subscription");
@@ -37,6 +38,7 @@ export default function SyncScreen() {
   const [subscriptionBusy, setSubscriptionBusy] = React.useState(false);
   const [subscriptionError, setSubscriptionError] = React.useState<string | null>(null);
   const [selectedProductId, setSelectedProductId] = React.useState<string | null>(null);
+  const [nextPassword, setNextPassword] = React.useState("");
 
   React.useEffect(() => {
     let mounted = true;
@@ -176,6 +178,21 @@ export default function SyncScreen() {
     );
   }, [deleteAccount, run]);
 
+  const handleChangePassword = React.useCallback(() => {
+    const trimmedPassword = nextPassword.trim();
+    if (trimmedPassword.length < 6) {
+      Alert.alert(t("errorTitle"), t("authValidation"));
+      return;
+    }
+
+    run(async () => {
+      await updatePassword(trimmedPassword);
+      setNextPassword("");
+    }, t("authPasswordUpdated")).catch((error) => {
+      console.error("updatePassword failed", error);
+    });
+  }, [nextPassword, run, updatePassword]);
+
   const syncStatusText =
     syncStatus === "syncing" ? t("syncStatusSyncing") : syncStatus === "error" ? t("syncStatusError") : t("syncStatusIdle");
   const lastSyncedLabel = lastSyncedAt ? new Date(lastSyncedAt).toLocaleString() : t("syncNever");
@@ -306,7 +323,22 @@ export default function SyncScreen() {
           <Text style={styles.helperText}>{t("syncPendingLabel", { count: pendingSyncCount })}</Text>
           <Text style={styles.helperText}>{t("syncLastLabel", { value: lastSyncedLabel })}</Text>
           <Text style={styles.helperText}>{t("syncAutoHint")}</Text>
+          <Text style={styles.label}>{t("authAccountSectionTitle")}</Text>
           <Text style={styles.helperText}>{t("authSignedInAs", { email: session?.user.email ?? "-" })}</Text>
+          <Text style={styles.value}>{session?.user.email ?? "-"}</Text>
+          <Text style={styles.label}>{t("authPasswordNewLabel")}</Text>
+          <TextInput
+            secureTextEntry
+            placeholder={t("authPasswordPlaceholder")}
+            placeholderTextColor={COLORS.secondaryText}
+            style={styles.input}
+            value={nextPassword}
+            onChangeText={setNextPassword}
+          />
+          <NeumorphicButton
+            label={busy ? t("processing") : t("authPasswordUpdateButton")}
+            onPress={handleChangePassword}
+          />
           {syncError ? <Text style={styles.syncErrorText}>{syncError}</Text> : null}
           <View style={styles.row}>
             <NeumorphicButton
@@ -388,7 +420,17 @@ const styles = StyleSheet.create({
   card: { borderRadius: 20 },
   label: { color: COLORS.textOnSurface, fontWeight: "700", marginBottom: 6, fontSize: 16 },
   helperText: { color: COLORS.secondaryText, marginBottom: 10, lineHeight: 20 },
-  value: { color: COLORS.textOnSurface, marginBottom: 2 },
+  value: { color: COLORS.textOnSurface, marginBottom: 8 },
+  input: {
+    borderWidth: 1,
+    borderColor: COLORS.softBorder,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: COLORS.card,
+    color: COLORS.primaryText,
+    marginBottom: 10,
+  },
   planItem: {
     flexDirection: "row",
     alignItems: "center",
