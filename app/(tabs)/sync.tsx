@@ -162,7 +162,7 @@ export default function SyncScreen() {
   const pickProfileImage = React.useCallback(async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert(t("errorTitle"), "사진 접근 권한이 필요해요.");
+      Alert.alert(t("errorTitle"), t("profilePhotoPermissionDenied"));
       return;
     }
 
@@ -182,7 +182,7 @@ export default function SyncScreen() {
   const saveProfile = React.useCallback(() => {
     const trimmed = profileName.trim();
     if (!trimmed) {
-      Alert.alert(t("errorTitle"), "이름을 입력해 주세요.");
+      Alert.alert(t("errorTitle"), t("profileNameRequired"));
       return;
     }
 
@@ -190,10 +190,10 @@ export default function SyncScreen() {
     AsyncStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(draft))
       .then(() => {
         setProfileName(trimmed);
-        Alert.alert(t("doneTitle"), "프로필이 저장됐어요.");
+        Alert.alert(t("doneTitle"), t("profileSaveSuccess"));
       })
       .catch(() => {
-        Alert.alert(t("errorTitle"), "프로필 저장에 실패했어요.");
+        Alert.alert(t("errorTitle"), t("profileSaveFailed"));
       });
   }, [profileImageUri, profileName]);
 
@@ -371,7 +371,7 @@ export default function SyncScreen() {
         <Pressable style={styles.modalBackdrop} onPress={() => setProfileModalVisible(false)} />
         <View style={styles.modalSheet}>
           <View style={styles.modalHeader}>
-            <Text style={styles.sectionTitle}>프로필 수정</Text>
+            <Text style={styles.sectionTitle}>{t("profileEditTitle")}</Text>
             <View style={styles.modalHeaderRight}>
               <View style={styles.menuWrap}>
                 <Pressable style={styles.iconButtonWhite} onPress={() => setProfileMenuOpen((prev) => !prev)}>
@@ -397,7 +397,7 @@ export default function SyncScreen() {
 
           <Pressable style={styles.modalAvatarWrap} onPress={() => {
             pickProfileImage().catch(() => {
-              Alert.alert(t("errorTitle"), "사진 선택에 실패했어요.");
+              Alert.alert(t("errorTitle"), t("profilePhotoPickFailed"));
             });
           }}>
             {profileImageUri ? (
@@ -408,12 +408,12 @@ export default function SyncScreen() {
               </View>
             )}
             <View style={styles.modalAvatarEditBadge}>
-              <Text style={styles.modalAvatarEditText}>edit</Text>
+              <Text style={styles.modalAvatarEditText}>{t("edit")}</Text>
             </View>
           </Pressable>
 
           <TextInput
-            placeholder="이름"
+            placeholder={t("profileNamePlaceholder")}
             placeholderTextColor={COLORS.secondaryText}
             style={styles.input}
             value={profileName}
@@ -421,10 +421,10 @@ export default function SyncScreen() {
           />
 
           <Pressable style={styles.softButton} onPress={saveProfile}>
-            <Text style={styles.softButtonLabel}>{busy ? t("processing") : "프로필 저장"}</Text>
+            <Text style={styles.softButtonLabel}>{busy ? t("processing") : t("profileSaveButton")}</Text>
           </Pressable>
 
-          <Text style={[styles.sectionTitle, { marginTop: 18 }]}>비밀번호 변경</Text>
+          <Text style={[styles.sectionTitle, { marginTop: 18 }]}>{t("profilePasswordSectionTitle")}</Text>
           <TextInput
             secureTextEntry
             placeholder={t("authPasswordPlaceholder")}
