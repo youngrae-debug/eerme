@@ -65,6 +65,19 @@ const PREMIUM_ENABLED_KEY = "premiumEnabled";
 const AUTH_MODE_GUEST = "guest";
 const AUTH_MODE_NONE = "none";
 
+const resolveSyncErrorMessage = (error: unknown) => {
+  if (!(error instanceof Error)) return t("syncFailed");
+
+  const message = error.message;
+  const normalized = message.toLowerCase();
+
+  if (normalized.includes("authentication failed")) return t("syncAuthFailed");
+  if (normalized.includes("push sync failed")) return t("syncPushFailed");
+  if (normalized.includes("pull sync failed")) return t("syncPullFailed");
+
+  return message || t("syncFailed");
+};
+
 const JournalContext = React.createContext<JournalContextValue | null>(null);
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
@@ -468,11 +481,11 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
         setLastSyncedAt(pullResult.serverTime);
         setSyncStatus("idle");
       } catch (error) {
-        const message = error instanceof Error ? error.message : t("syncFailed");
+        const message = resolveSyncErrorMessage(error);
         await markSyncQueueFailed(queuedIds, message);
         setSyncStatus("error");
         setSyncError(message);
-        throw error;
+        throw new Error(message);
       } finally {
         await refreshPendingSyncCount();
       }

@@ -162,6 +162,9 @@ const translations: Translations = {
     syncDone: "Sync completed.",
     syncAutoHint: "Your journal syncs automatically. Use Sync now when you want to force it.",
     syncFailed: "Sync failed.",
+    syncPullFailed: "Failed to download synced data.",
+    syncPushFailed: "Failed to upload local changes.",
+    syncAuthFailed: "Authentication failed. Please sign in again.",
     loadLocalFailed: "Failed to load local data.",
     iapMissingNativeModule:
       "expo-in-app-purchases native module not found. It doesn't work in Expo Go. Please run in a custom dev build or store build.",
@@ -359,6 +362,9 @@ const translations: Translations = {
     syncDone: "동기화를 완료했어요",
     syncAutoHint: "일지는 자동으로 동기화돼요. 즉시 반영하려면 지금 동기화를 눌러주세요.",
     syncFailed: "동기화에 실패했습니다.",
+    syncPullFailed: "동기화 데이터를 내려받지 못했어요.",
+    syncPushFailed: "로컬 변경사항을 업로드하지 못했어요.",
+    syncAuthFailed: "인증에 실패했어요. 다시 로그인해 주세요.",
     loadLocalFailed: "로컬 데이터를 불러오지 못했습니다.",
     iapMissingNativeModule:
       "expo-in-app-purchases 네이티브 모듈을 찾지 못했습니다. Expo Go에서는 동작하지 않습니다. 커스텀 개발 빌드 또는 스토어 빌드에서 실행해 주세요.",
@@ -556,6 +562,9 @@ const translations: Translations = {
     syncDone: "同期が完了しました。",
     syncAutoHint: "日記は自動で同期されます。すぐ反映したい場合は今すぐ同期を使ってください。",
     syncFailed: "同期に失敗しました。",
+    syncPullFailed: "同期データのダウンロードに失敗しました。",
+    syncPushFailed: "ローカル変更のアップロードに失敗しました。",
+    syncAuthFailed: "認証に失敗しました。もう一度ログインしてください。",
     loadLocalFailed: "ローカルデータを読み込めませんでした。",
     iapMissingNativeModule:
       "expo-in-app-purchases のネイティブモジュールが見つかりません。Expo Goでは動作しません。カスタム開発ビルドまたはストアビルドで実行してください。",
