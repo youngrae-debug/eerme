@@ -3,7 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import React from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { NeumorphicCard } from "../../components/neumorphic";
 import {
   attachPurchaseListener,
@@ -50,7 +50,7 @@ export default function SyncScreen() {
   const [subscriptionError, setSubscriptionError] = React.useState<string | null>(null);
   const [selectedProductId, setSelectedProductId] = React.useState<string | null>(null);
   const [nextPassword, setNextPassword] = React.useState("");
-  const [profileEditOpen, setProfileEditOpen] = React.useState(false);
+  const [profileModalVisible, setProfileModalVisible] = React.useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = React.useState(false);
   const [profileName, setProfileName] = React.useState("");
   const [profileImageUri, setProfileImageUri] = React.useState<string | null>(null);
@@ -262,205 +262,205 @@ export default function SyncScreen() {
   const initial = displayName[0]?.toUpperCase() ?? "M";
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <NeumorphicCard style={styles.profileCard}>
-        <View style={styles.profileRow}>
-          <View style={styles.avatarWrap}>
-            {profileImageUri ? (
-              <Image source={{ uri: profileImageUri }} style={styles.avatarImage} contentFit="cover" />
-            ) : (
-              <Text style={styles.avatarText}>{initial}</Text>
-            )}
-          </View>
+    <>
+      <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <NeumorphicCard style={styles.profileCard}>
+          <View style={styles.profileRow}>
+            <Pressable style={styles.avatarWrap} onPress={() => setProfileModalVisible(true)}>
+              {profileImageUri ? (
+                <Image source={{ uri: profileImageUri }} style={styles.avatarImage} contentFit="cover" />
+              ) : (
+                <Text style={styles.avatarText}>{initial}</Text>
+              )}
+            </Pressable>
 
-          <View style={{ flex: 1 }}>
-            <View style={styles.nameRow}>
-              <Text style={styles.profileName}>{displayName}</Text>
-              <Pressable
-                style={styles.smallTextButton}
-                onPress={() =>
-                  run(async () => {
-                    await signOut();
-                  }, t("authSignedOut"))
-                }
-              >
-                <Text style={styles.smallTextButtonLabel}>{busy ? t("processing") : t("authSignOut")}</Text>
-              </Pressable>
-            </View>
-            <Text style={styles.profileMeta}>{email}</Text>
-          </View>
-        </View>
-
-        <View style={styles.profileInfoList}>
-          <View style={styles.profileInfoRow}>
-            <Ionicons name="calendar-outline" size={18} color={COLORS.secondaryText} />
-            <Text style={styles.profileInfoText}>{lastSyncedLabel}</Text>
-          </View>
-          <View style={styles.profileInfoRow}>
-            <Ionicons name="shield-checkmark-outline" size={18} color={COLORS.secondaryText} />
-            <Text style={styles.profileInfoText}>{isPremium ? t("subscriptionStatusPremium") : t("subscriptionStatusFree")}</Text>
-          </View>
-        </View>
-
-        <Pressable style={styles.flatButton} onPress={() => setProfileEditOpen((prev) => !prev)}>
-          <Text style={styles.flatButtonLabel}>프로필 수정</Text>
-        </Pressable>
-      </NeumorphicCard>
-
-      {profileEditOpen ? (
-        <>
-          <NeumorphicCard style={styles.card}>
-            <Text style={styles.sectionTitle}>프로필 저장</Text>
-            <View style={styles.profileEditAvatarWrap}>
-              <Pressable
-                style={styles.flatButton}
-                onPress={() => {
-                  pickProfileImage().catch(() => {
-                    Alert.alert(t("errorTitle"), "사진 선택에 실패했어요.");
-                  });
-                }}
-              >
-                <Text style={styles.flatButtonLabel}>프로필 사진 변경</Text>
-              </Pressable>
-            </View>
-            <TextInput
-              placeholder="이름"
-              placeholderTextColor={COLORS.secondaryText}
-              style={styles.input}
-              value={profileName}
-              onChangeText={setProfileName}
-            />
-            <View style={styles.saveRow}>
-              <Pressable style={[styles.flatButton, styles.buttonFlex]} onPress={saveProfile}>
-                <Text style={styles.flatButtonLabel}>{busy ? t("processing") : "프로필 저장"}</Text>
-              </Pressable>
-              <View style={styles.menuWrap}>
-                <Pressable style={styles.menuButtonWhite} onPress={() => setProfileMenuOpen((prev) => !prev)}>
-                  <Ionicons name="ellipsis-vertical" size={16} color={COLORS.primaryText} />
+            <View style={{ flex: 1 }}>
+              <View style={styles.nameRow}>
+                <Pressable onPress={() => setProfileModalVisible(true)}>
+                  <Text style={styles.profileName}>{displayName}</Text>
                 </Pressable>
-                {profileMenuOpen ? (
-                  <Pressable
-                    style={styles.dropdownItem}
-                    onPress={() => {
-                      setProfileMenuOpen(false);
-                      handleDeleteAccount();
-                    }}
-                  >
-                    <Text style={styles.dropdownItemText}>{t("authDeleteAction")}</Text>
-                  </Pressable>
-                ) : null}
+                <Pressable
+                  style={styles.smallTextButton}
+                  onPress={() =>
+                    run(async () => {
+                      await signOut();
+                    }, t("authSignedOut"))
+                  }
+                >
+                  <Text style={styles.smallTextButtonLabel}>{busy ? t("processing") : t("authSignOut")}</Text>
+                </Pressable>
               </View>
+              <Text style={styles.profileMeta}>{email}</Text>
             </View>
-          </NeumorphicCard>
+          </View>
 
-          <NeumorphicCard style={styles.card}>
-            <Text style={styles.sectionTitle}>비밀번호 변경</Text>
-            <TextInput
-              secureTextEntry
-              placeholder={t("authPasswordPlaceholder")}
-              placeholderTextColor={COLORS.secondaryText}
-              style={styles.input}
-              value={nextPassword}
-              onChangeText={setNextPassword}
-            />
-            <Pressable style={styles.flatButton} onPress={handleChangePassword}>
-              <Text style={styles.flatButtonLabel}>{busy ? t("processing") : t("authPasswordUpdateButton")}</Text>
-            </Pressable>
-          </NeumorphicCard>
-        </>
-      ) : null}
-
-      <NeumorphicCard style={styles.card}>
-        <Text style={styles.sectionTitle}>{t("languageSectionTitle")}</Text>
-        <View style={styles.languageRow}>
-          {([
-            { key: "en", label: t("languageEnglish") },
-            { key: "ko", label: t("languageKorean") },
-            { key: "ja", label: t("languageJapanese") },
-          ] as const).map((item) => {
-            const isActive = locale === item.key;
-            return (
-              <Pressable
-                key={item.key}
-                onPress={() => setLocale(item.key)}
-                style={[styles.flatButton, styles.languageItem, isActive && styles.languageItemActive]}
-              >
-                <Text style={styles.flatButtonLabel}>{item.label}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      </NeumorphicCard>
-
-      <View style={styles.tabContainer}>
-        <Pressable
-          accessibilityRole="tab"
-          onPress={() => setActiveTab("subscription")}
-          style={styles.tabItem}
-        >
-          <Text style={[styles.tabText, activeTab === "subscription" && styles.tabTextActive]}>{t("tabSubscription")}</Text>
-          <View style={[styles.tabIndicator, activeTab === "subscription" && styles.tabIndicatorActive]} />
-        </Pressable>
-        <Pressable
-          accessibilityRole="tab"
-          onPress={() => setActiveTab("backup")}
-          style={styles.tabItem}
-        >
-          <Text style={[styles.tabText, activeTab === "backup" && styles.tabTextActive]}>{t("tabBackup")}</Text>
-          <View style={[styles.tabIndicator, activeTab === "backup" && styles.tabIndicatorActive]} />
-        </Pressable>
-      </View>
-
-      {activeTab === "subscription" ? (
-        <NeumorphicCard style={styles.card}>
-          <Text style={styles.sectionTitle}>{t("subscriptionProductsLabel")}</Text>
-          {subscriptionError ? <Text style={styles.emptyText}>{subscriptionError}</Text> : null}
-          {products.length === 0 ? (
-            <Text style={styles.emptyText}>{t("subscriptionProductsEmpty")}</Text>
-          ) : (
-            products.map((product) => (
-              <Pressable
-                key={product.productId}
-                accessibilityRole="button"
-                onPress={() => setSelectedProductId(product.productId)}
-                style={[
-                  styles.planItem,
-                  selectedProductId === product.productId && styles.planItemSelected,
-                ]}
-              >
-                <View style={styles.planIndicatorOuter}>
-                  {selectedProductId === product.productId ? <View style={styles.planIndicatorInner} /> : null}
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.planTitle}>{product.title ?? product.productId}</Text>
-                  <Text style={styles.planPrice}>{product.price ?? t("priceUnavailable")}</Text>
-                  <Text style={styles.planDescription}>{product.description ?? t("premiumAllFeatures")}</Text>
-                </View>
-              </Pressable>
-            ))
-          )}
-          <View style={styles.row}>
-            <Pressable style={[styles.flatButton, styles.buttonFlex]} onPress={handleSubscribe}>
-              <Text style={styles.flatButtonLabel}>{subscriptionBusy ? t("requestInProgress") : t("subscribeButton")}</Text>
-            </Pressable>
-            <Pressable style={[styles.flatButton, styles.buttonFlex]} onPress={handleRestorePurchase}>
-              <Text style={styles.flatButtonLabel}>{subscriptionBusy ? t("processing") : t("restoreSubscriptionButton")}</Text>
-            </Pressable>
+          <View style={styles.profileInfoList}>
+            <View style={styles.profileInfoRow}>
+              <Ionicons name="calendar-outline" size={18} color={COLORS.secondaryText} />
+              <Text style={styles.profileInfoText}>{lastSyncedLabel}</Text>
+            </View>
+            <View style={styles.profileInfoRow}>
+              <Ionicons name="shield-checkmark-outline" size={18} color={COLORS.secondaryText} />
+              <Text style={styles.profileInfoText}>{isPremium ? t("subscriptionStatusPremium") : t("subscriptionStatusFree")}</Text>
+            </View>
           </View>
         </NeumorphicCard>
-      ) : (
+
         <NeumorphicCard style={styles.card}>
-          <Text style={styles.sectionTitle}>{t("syncSectionTitle")}</Text>
-          <Text style={styles.helperText}>{t("syncStatusLabel", { status: syncStatusText })}</Text>
-          <Text style={styles.helperText}>{t("syncPendingLabel", { count: pendingSyncCount })}</Text>
-          <Text style={styles.helperText}>{t("syncLastLabel", { value: lastSyncedLabel })}</Text>
-          {syncError ? <Text style={styles.syncErrorText}>{syncError}</Text> : null}
-          <Pressable style={styles.flatButton} onPress={() => run(syncNow, t("syncDone"))}>
-            <Text style={styles.flatButtonLabel}>{busy || syncStatus === "syncing" ? t("processing") : t("syncNowButton")}</Text>
-          </Pressable>
+          <Text style={styles.sectionTitle}>{t("languageSectionTitle")}</Text>
+          <View style={styles.languageRow}>
+            {([
+              { key: "en", label: t("languageEnglish") },
+              { key: "ko", label: t("languageKorean") },
+              { key: "ja", label: t("languageJapanese") },
+            ] as const).map((item) => {
+              const isActive = locale === item.key;
+              return (
+                <Pressable
+                  key={item.key}
+                  onPress={() => setLocale(item.key)}
+                  style={[styles.softButton, styles.languageItem, isActive && styles.languageItemActive]}
+                >
+                  <Text style={styles.softButtonLabel}>{item.label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
         </NeumorphicCard>
-      )}
-    </ScrollView>
+
+        <View style={styles.tabContainer}>
+          <Pressable
+            accessibilityRole="tab"
+            onPress={() => setActiveTab("subscription")}
+            style={styles.tabItem}
+          >
+            <Text style={[styles.tabText, activeTab === "subscription" && styles.tabTextActive]}>{t("tabSubscription")}</Text>
+            <View style={[styles.tabIndicator, activeTab === "subscription" && styles.tabIndicatorActive]} />
+          </Pressable>
+          <Pressable
+            accessibilityRole="tab"
+            onPress={() => setActiveTab("backup")}
+            style={styles.tabItem}
+          >
+            <Text style={[styles.tabText, activeTab === "backup" && styles.tabTextActive]}>{t("tabBackup")}</Text>
+            <View style={[styles.tabIndicator, activeTab === "backup" && styles.tabIndicatorActive]} />
+          </Pressable>
+        </View>
+
+        {activeTab === "subscription" ? (
+          <NeumorphicCard style={styles.card}>
+            <Text style={styles.sectionTitle}>{t("subscriptionProductsLabel")}</Text>
+            {subscriptionError ? <Text style={styles.emptyText}>{subscriptionError}</Text> : null}
+            {products.length === 0 ? (
+              <Text style={styles.emptyText}>{t("subscriptionProductsEmpty")}</Text>
+            ) : (
+              products.map((product) => (
+                <Pressable
+                  key={product.productId}
+                  accessibilityRole="button"
+                  onPress={() => setSelectedProductId(product.productId)}
+                  style={[
+                    styles.planItem,
+                    selectedProductId === product.productId && styles.planItemSelected,
+                  ]}
+                >
+                  <View style={styles.planIndicatorOuter}>
+                    {selectedProductId === product.productId ? <View style={styles.planIndicatorInner} /> : null}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.planTitle}>{product.title ?? product.productId}</Text>
+                    <Text style={styles.planPrice}>{product.price ?? t("priceUnavailable")}</Text>
+                    <Text style={styles.planDescription}>{product.description ?? t("premiumAllFeatures")}</Text>
+                  </View>
+                </Pressable>
+              ))
+            )}
+            <View style={styles.row}>
+              <Pressable style={[styles.accentButton, styles.buttonFlex]} onPress={handleSubscribe}>
+                <Text style={styles.accentButtonLabel}>{subscriptionBusy ? t("requestInProgress") : t("subscribeButton")}</Text>
+              </Pressable>
+              <Pressable style={[styles.accentButton, styles.buttonFlex]} onPress={handleRestorePurchase}>
+                <Text style={styles.accentButtonLabel}>{subscriptionBusy ? t("processing") : t("restoreSubscriptionButton")}</Text>
+              </Pressable>
+            </View>
+          </NeumorphicCard>
+        ) : (
+          <NeumorphicCard style={styles.card}>
+            <Text style={styles.sectionTitle}>{t("syncSectionTitle")}</Text>
+            <Text style={styles.helperText}>{t("syncStatusLabel", { status: syncStatusText })}</Text>
+            <Text style={styles.helperText}>{t("syncPendingLabel", { count: pendingSyncCount })}</Text>
+            <Text style={styles.helperText}>{t("syncLastLabel", { value: lastSyncedLabel })}</Text>
+            {syncError ? <Text style={styles.syncErrorText}>{syncError}</Text> : null}
+            <Pressable style={styles.accentButton} onPress={() => run(syncNow, t("syncDone"))}>
+              <Text style={styles.accentButtonLabel}>{busy || syncStatus === "syncing" ? t("processing") : t("syncNowButton")}</Text>
+            </Pressable>
+          </NeumorphicCard>
+        )}
+      </ScrollView>
+
+      <Modal visible={profileModalVisible} animationType="slide" transparent onRequestClose={() => setProfileModalVisible(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setProfileModalVisible(false)} />
+        <View style={styles.modalSheet}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.sectionTitle}>프로필 수정</Text>
+            <Pressable style={styles.closeButton} onPress={() => setProfileModalVisible(false)}>
+              <Ionicons name="close" size={20} color={COLORS.primaryText} />
+            </Pressable>
+          </View>
+
+          <Pressable style={styles.softButton} onPress={() => {
+            pickProfileImage().catch(() => {
+              Alert.alert(t("errorTitle"), "사진 선택에 실패했어요.");
+            });
+          }}>
+            <Text style={styles.softButtonLabel}>프로필 사진 변경</Text>
+          </Pressable>
+
+          <TextInput
+            placeholder="이름"
+            placeholderTextColor={COLORS.secondaryText}
+            style={styles.input}
+            value={profileName}
+            onChangeText={setProfileName}
+          />
+
+          <View style={styles.saveRow}>
+            <Pressable style={[styles.softButton, styles.buttonFlex]} onPress={saveProfile}>
+              <Text style={styles.softButtonLabel}>{busy ? t("processing") : "프로필 저장"}</Text>
+            </Pressable>
+            <View style={styles.menuWrap}>
+              <Pressable style={styles.menuButtonWhite} onPress={() => setProfileMenuOpen((prev) => !prev)}>
+                <Ionicons name="ellipsis-vertical" size={16} color={COLORS.primaryText} />
+              </Pressable>
+              {profileMenuOpen ? (
+                <Pressable
+                  style={styles.dropdownItem}
+                  onPress={() => {
+                    setProfileMenuOpen(false);
+                    handleDeleteAccount();
+                  }}
+                >
+                  <Text style={styles.dropdownItemText}>{t("authDeleteAction")}</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          </View>
+
+          <Text style={[styles.sectionTitle, { marginTop: 18 }]}>비밀번호 변경</Text>
+          <TextInput
+            secureTextEntry
+            placeholder={t("authPasswordPlaceholder")}
+            placeholderTextColor={COLORS.secondaryText}
+            style={styles.input}
+            value={nextPassword}
+            onChangeText={setNextPassword}
+          />
+          <Pressable style={styles.softButton} onPress={handleChangePassword}>
+            <Text style={styles.softButtonLabel}>{busy ? t("processing") : t("authPasswordUpdateButton")}</Text>
+          </Pressable>
+        </View>
+      </Modal>
+    </>
   );
 }
 
@@ -491,21 +491,29 @@ const styles = StyleSheet.create({
   smallTextButtonLabel: { color: COLORS.danger, fontSize: 12, fontWeight: "700" },
   profileName: { color: COLORS.primaryText, fontSize: 28, fontWeight: "800" },
   profileMeta: { color: COLORS.secondaryText, fontSize: 14 },
-  profileInfoList: { gap: 10, marginBottom: 16 },
+  profileInfoList: { gap: 10 },
   profileInfoRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   profileInfoText: { color: COLORS.primaryText, fontSize: 15 },
   card: { borderRadius: 22, padding: 16 },
   sectionTitle: { color: COLORS.textOnSurface, fontWeight: "800", marginBottom: 10, fontSize: 18 },
-  profileEditAvatarWrap: { gap: 8, marginBottom: 10 },
-  flatButton: {
-    backgroundColor: COLORS.background,
+  softButton: {
+    backgroundColor: "#E7E3DD",
     borderRadius: 14,
     paddingVertical: 12,
     paddingHorizontal: 12,
     alignItems: "center",
     justifyContent: "center",
   },
-  flatButtonLabel: { color: COLORS.primaryText, fontWeight: "700", fontSize: 15 },
+  softButtonLabel: { color: COLORS.primaryText, fontWeight: "700", fontSize: 15 },
+  accentButton: {
+    backgroundColor: "#C6B193",
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  accentButtonLabel: { color: "#5A4E42", fontWeight: "700", fontSize: 15 },
   saveRow: { flexDirection: "row", gap: 8 },
   menuWrap: { position: "relative" },
   menuButtonWhite: {
@@ -535,7 +543,7 @@ const styles = StyleSheet.create({
   helperText: { color: COLORS.primaryText, marginBottom: 6, lineHeight: 20 },
   languageRow: { flexDirection: "row", gap: 10 },
   languageItem: { flex: 1 },
-  languageItemActive: { backgroundColor: "#F4E7D7" },
+  languageItemActive: { backgroundColor: "#C6B193" },
   tabContainer: {
     flexDirection: "row",
     paddingHorizontal: 6,
@@ -605,4 +613,33 @@ const styles = StyleSheet.create({
   buttonFlex: { flex: 1 },
   emptyText: { color: COLORS.textOnSurface, marginTop: 6 },
   syncErrorText: { color: COLORS.danger, marginBottom: 10 },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.25)",
+  },
+  modalSheet: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 16,
+    paddingBottom: 24,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 6,
+  },
+  closeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F5F5F5",
+  },
 });

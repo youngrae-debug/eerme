@@ -755,14 +755,14 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     flex: 1,
-    backgroundColor: "#E7E3DD",
+    backgroundColor: "#C6B193",
     borderRadius: 14,
     paddingVertical: 12,
     alignItems: "center",
     justifyContent: "center",
   },
   saveButtonText: {
-    color: COLORS.primaryText,
+    color: "#5A4E42",
     fontSize: 15,
     fontWeight: "700",
   },
