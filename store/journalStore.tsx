@@ -28,6 +28,7 @@ type JournalContextValue = {
   signInWithGoogle: (identityToken: string) => Promise<void>;
   signInAsGuest: () => Promise<void>;
   signOut: () => Promise<void>;
+  updatePassword: (nextPassword: string) => Promise<void>;
   deleteAccount: () => Promise<void>;
   syncNow: () => Promise<void>;
   exportBackup: () => Promise<string>;
@@ -697,6 +698,20 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
     await saveAuthMode(AUTH_MODE_NONE);
   }, []);
 
+  const updatePassword = React.useCallback(async (nextPassword: string) => {
+    if (!session) {
+      throw new Error(t("authSessionMissing"));
+    }
+
+    if (!remoteClient.updatePassword) {
+      throw new Error(t("authPasswordUpdateUnsupported"));
+    }
+
+    const updatedSession = await remoteClient.updatePassword(session, nextPassword);
+    setSession(updatedSession);
+    await saveSessionToDb(updatedSession);
+  }, [session]);
+
   const deleteAccount = React.useCallback(async () => {
     if (!session) {
       throw new Error(t("authSessionMissing"));
@@ -786,6 +801,7 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
       signInWithGoogle,
       signInAsGuest,
       signOut,
+      updatePassword,
       deleteAccount,
       syncNow,
       exportBackup,
@@ -809,6 +825,7 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
       signInWithGoogle,
       signInAsGuest,
       signOut,
+      updatePassword,
       deleteAccount,
       syncError,
       syncNow,

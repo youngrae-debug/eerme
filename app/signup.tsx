@@ -6,8 +6,8 @@ import { useJournalStore } from "../store/journalStore";
 import { COLORS } from "../theme/colors";
 import { t } from "../utils/i18n";
 
-export default function LoginScreen() {
-  const { isReady, session, signInWithEmail } = useJournalStore();
+export default function SignUpScreen() {
+  const { isReady, session, signUpWithEmail } = useJournalStore();
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [busy, setBusy] = React.useState(false);
@@ -16,7 +16,7 @@ export default function LoginScreen() {
   const passwordTrimmed = password.trim();
   const canSubmit = emailTrimmed.length > 0 && passwordTrimmed.length >= 6;
 
-  const runSignIn = React.useCallback(async () => {
+  const runSignUp = React.useCallback(async () => {
     if (!canSubmit) {
       Alert.alert(t("errorTitle"), t("authValidation"));
       return;
@@ -24,7 +24,7 @@ export default function LoginScreen() {
 
     setBusy(true);
     try {
-      await signInWithEmail(emailTrimmed, passwordTrimmed);
+      await signUpWithEmail(emailTrimmed, passwordTrimmed);
       router.replace("/(tabs)");
     } catch (error) {
       const message = error instanceof Error ? error.message : t("authFailed");
@@ -32,7 +32,7 @@ export default function LoginScreen() {
     } finally {
       setBusy(false);
     }
-  }, [canSubmit, emailTrimmed, passwordTrimmed, signInWithEmail]);
+  }, [canSubmit, emailTrimmed, passwordTrimmed, signUpWithEmail]);
 
   if (!isReady) {
     return (
@@ -52,8 +52,8 @@ export default function LoginScreen() {
       style={styles.container}
     >
       <NeumorphicCard style={styles.card}>
-        <Text style={styles.title}>{t("authSignInTitle")}</Text>
-        <Text style={styles.helper}>{t("authSignInSubtitle")}</Text>
+        <Text style={styles.title}>{t("authSignUpTitle")}</Text>
+        <Text style={styles.helper}>{t("authSignUpSubtitle")}</Text>
 
         <Text style={styles.label}>{t("authEmailLabel")}</Text>
         <TextInput
@@ -79,14 +79,14 @@ export default function LoginScreen() {
         <Text style={styles.helper}>{t("authPasswordHint")}</Text>
 
         <NeumorphicButton
-          label={busy ? t("processing") : t("authSignIn")}
+          label={busy ? t("processing") : t("authSignUp")}
           style={styles.fullButton}
-          onPress={runSignIn}
+          onPress={runSignUp}
         />
         <NeumorphicButton
-          label={t("authSwitchToSignUp")}
+          label={t("authSwitchToSignIn")}
           style={styles.fullButton}
-          onPress={() => router.push("/signup")}
+          onPress={() => router.replace("/login")}
         />
       </NeumorphicCard>
     </KeyboardAvoidingView>

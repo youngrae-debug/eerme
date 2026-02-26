@@ -72,6 +72,7 @@ type RemoteClient = {
   push: (session: AuthSession, entries: Entry[]) => Promise<void>;
   deleteAccount?: (session: AuthSession) => Promise<void>;
   restoreSession?: (session: AuthSession) => Promise<AuthSession | null>;
+  updatePassword?: (session: AuthSession, nextPassword: string) => Promise<AuthSession>;
 };
 
 const provider = (process.env.EXPO_PUBLIC_SYNC_PROVIDER as SyncProvider | undefined) ?? "custom";
@@ -385,6 +386,35 @@ const firebaseClient: RemoteClient = {
       },
     };
   },
+  async updatePassword(session, nextPassword) {
+    ensureFirebaseConfig();
+    const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:update?key=${firebaseApiKey}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        idToken: session.accessToken,
+        password: nextPassword,
+        returnSecureToken: true,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to change Firebase password.");
+    }
+
+    const updated = (await response.json()) as FirebaseAuthResponse;
+    return {
+      ...session,
+      accessToken: updated.idToken,
+      refreshToken: updated.refreshToken ?? session.refreshToken,
+      user: {
+        ...session.user,
+        id: updated.localId || session.user.id,
+        email: updated.email ?? session.user.email,
+        displayName: updated.displayName ?? session.user.displayName,
+      },
+    };
+  },
 };
 
 const supabaseAuth = async (
@@ -544,6 +574,24 @@ const supabaseClient: RemoteClient = {
 
     const refreshed = (await response.json()) as SupabaseAuthResponse;
     return toSupabaseSession(refreshed);
+  },
+  async updatePassword(session, nextPassword) {
+    ensureSupabaseConfig();
+    const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: supabaseAnonKey,
+        Authorization: `Bearer ${session.accessToken}`,
+      },
+      body: JSON.stringify({ password: nextPassword }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to change Supabase password.");
+    }
+
+    return session;
   },
 };
 
