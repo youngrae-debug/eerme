@@ -76,7 +76,7 @@ type RemoteClient = {
   updatePassword?: (session: AuthSession, nextPassword: string) => Promise<AuthSession>;
 };
 
-const provider = (process.env.EXPO_PUBLIC_SYNC_PROVIDER as SyncProvider | undefined) ?? "custom";
+const provider = (process.env.EXPO_PUBLIC_SYNC_PROVIDER as SyncProvider | undefined) ?? "firebase";
 const apiBaseUrl = process.env.EXPO_PUBLIC_SYNC_API_BASE_URL ?? "";
 const firebaseApiKey = firebaseConfig.apiKey;
 const firebaseDatabaseUrl = firebaseConfig.databaseURL;
