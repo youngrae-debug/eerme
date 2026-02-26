@@ -672,7 +672,6 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: COLORS.softBorder,
   },
