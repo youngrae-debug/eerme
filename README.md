@@ -62,8 +62,12 @@ EXPO_PUBLIC_SYNC_API_BASE_URL=https://your-api.example.com
 # firebase provider 사용 시
 EXPO_PUBLIC_FIREBASE_API_KEY=your-firebase-web-api-key
 EXPO_PUBLIC_FIREBASE_DATABASE_URL=https://your-project-id-default-rtdb.firebaseio.com
+EXPO_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
+EXPO_PUBLIC_FIREBASE_APP_ID=1:xxxx:ios:xxxx
 
 # supabase provider 사용 시
 EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
 ```
+
+> 참고: 현재 프로젝트는 Firebase REST API 기반 동기화를 사용합니다. `EXPO_PUBLIC_FIREBASE_PROJECT_ID`, `EXPO_PUBLIC_FIREBASE_APP_ID`는 Firebase JS SDK 초기화 전환 시 바로 사용할 수 있도록 함께 관리합니다.
