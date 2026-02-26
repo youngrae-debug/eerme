@@ -494,8 +494,8 @@ const styles = StyleSheet.create({
   accentButtonLabel: { color: "#5A4E42", fontWeight: "700", fontSize: 15 },
   helperText: { color: COLORS.primaryText, marginBottom: 6, lineHeight: 20 },
   languageRow: { flexDirection: "row", gap: 10 },
-  languageItem: { flex: 1 },
-  languageItemActive: { backgroundColor: "#C6B193" },
+  languageItem: { flex: 1, backgroundColor: "#EFE6DA", borderWidth: 1, borderColor: COLORS.softBorder },
+  languageItemActive: { backgroundColor: "#C6B193", borderColor: "#C6B193" },
   tabContainer: {
     flexDirection: "row",
     paddingHorizontal: 6,
