@@ -230,6 +230,45 @@ export default function SyncScreen() {
         </View>
       </NeumorphicCard>
 
+      <NeumorphicCard style={styles.card}>
+        <Text style={styles.label}>{t("authAccountSectionTitle")}</Text>
+        <Text style={styles.helperText}>{t("authSignedInAs", { email: session?.user.email ?? "-" })}</Text>
+        <Text style={styles.value}>{session?.user.email ?? "-"}</Text>
+        <View style={styles.rowSingle}>
+          <NeumorphicButton
+            label={busy ? t("processing") : t("authSignOut")}
+            style={styles.buttonFlex}
+            onPress={() =>
+              run(async () => {
+                await signOut();
+              }, t("authSignedOut"))
+            }
+          />
+        </View>
+        <Text style={styles.helperText}>{t("authDeleteHint")}</Text>
+        <NeumorphicButton
+          label={busy ? t("processing") : t("authDeleteAction")}
+          onPress={handleDeleteAccount}
+        />
+      </NeumorphicCard>
+
+      <NeumorphicCard style={styles.card}>
+        <Text style={styles.label}>{t("authPasswordNewLabel")}</Text>
+        <Text style={styles.helperText}>{t("authPasswordPlaceholder")}</Text>
+        <TextInput
+          secureTextEntry
+          placeholder={t("authPasswordPlaceholder")}
+          placeholderTextColor={COLORS.secondaryText}
+          style={styles.input}
+          value={nextPassword}
+          onChangeText={setNextPassword}
+        />
+        <NeumorphicButton
+          label={busy ? t("processing") : t("authPasswordUpdateButton")}
+          onPress={handleChangePassword}
+        />
+      </NeumorphicCard>
+
       <View style={styles.tabRow}>
         {tabItems.map((tab) => (
           <Pressable
@@ -317,49 +356,20 @@ export default function SyncScreen() {
       ) : null}
 
       {activeTab === "backup" ? (
-        <NeumorphicCard style={styles.card}>
-          <Text style={styles.label}>{t("syncSectionTitle")}</Text>
-          <Text style={styles.value}>{t("syncStatusLabel", { status: syncStatusText })}</Text>
-          <Text style={styles.helperText}>{t("syncPendingLabel", { count: pendingSyncCount })}</Text>
-          <Text style={styles.helperText}>{t("syncLastLabel", { value: lastSyncedLabel })}</Text>
-          <Text style={styles.helperText}>{t("syncAutoHint")}</Text>
-          <Text style={styles.label}>{t("authAccountSectionTitle")}</Text>
-          <Text style={styles.helperText}>{t("authSignedInAs", { email: session?.user.email ?? "-" })}</Text>
-          <Text style={styles.value}>{session?.user.email ?? "-"}</Text>
-          <Text style={styles.label}>{t("authPasswordNewLabel")}</Text>
-          <TextInput
-            secureTextEntry
-            placeholder={t("authPasswordPlaceholder")}
-            placeholderTextColor={COLORS.secondaryText}
-            style={styles.input}
-            value={nextPassword}
-            onChangeText={setNextPassword}
-          />
-          <NeumorphicButton
-            label={busy ? t("processing") : t("authPasswordUpdateButton")}
-            onPress={handleChangePassword}
-          />
-          {syncError ? <Text style={styles.syncErrorText}>{syncError}</Text> : null}
-          <View style={styles.row}>
+        <>
+          <NeumorphicCard style={styles.card}>
+            <Text style={styles.label}>{t("syncSectionTitle")}</Text>
+            <Text style={styles.value}>{t("syncStatusLabel", { status: syncStatusText })}</Text>
+            <Text style={styles.helperText}>{t("syncPendingLabel", { count: pendingSyncCount })}</Text>
+            <Text style={styles.helperText}>{t("syncLastLabel", { value: lastSyncedLabel })}</Text>
+            <Text style={styles.helperText}>{t("syncAutoHint")}</Text>
+            {syncError ? <Text style={styles.syncErrorText}>{syncError}</Text> : null}
             <NeumorphicButton
               label={busy || syncStatus === "syncing" ? t("processing") : t("syncNowButton")}
-              style={styles.buttonFlex}
               onPress={() => run(syncNow, t("syncDone"))}
             />
-            <NeumorphicButton
-              label={busy ? t("processing") : t("authSignOut")}
-              style={styles.buttonFlex}
-              onPress={() => run(async () => {
-                await signOut();
-              }, t("authSignedOut"))}
-            />
-          </View>
-          <Text style={styles.helperText}>{t("authDeleteHint")}</Text>
-          <NeumorphicButton
-            label={busy ? t("processing") : t("authDeleteAction")}
-            onPress={handleDeleteAccount}
-          />
-        </NeumorphicCard>
+          </NeumorphicCard>
+        </>
       ) : null}
     </ScrollView>
   );
@@ -468,6 +478,7 @@ const styles = StyleSheet.create({
   planSelectText: { color: COLORS.secondaryText, fontWeight: "700" },
   planSelectTextActive: { color: COLORS.primaryText },
   row: { flexDirection: "row", gap: 12, marginBottom: 8 },
+  rowSingle: { marginBottom: 8 },
   buttonFlex: { flex: 1 },
   emptyText: { color: COLORS.textOnSurface, marginTop: 6 },
   syncErrorText: { color: COLORS.danger, marginBottom: 10 },
