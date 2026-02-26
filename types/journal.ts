@@ -20,6 +20,7 @@ export type AuthUser = {
 export type AuthSession = {
   provider: SyncProvider;
   accessToken: string;
+  refreshToken?: string;
   user: AuthUser;
 };
 

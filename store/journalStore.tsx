@@ -154,6 +154,7 @@ async function getDatabase() {
       id INTEGER PRIMARY KEY NOT NULL,
       provider TEXT NOT NULL,
       accessToken TEXT NOT NULL,
+      refreshToken TEXT,
       userId TEXT NOT NULL,
       email TEXT NOT NULL,
       displayName TEXT
@@ -167,6 +168,11 @@ async function getDatabase() {
       lastError TEXT
     );`,
   );
+  try {
+    await db.execAsync(`ALTER TABLE ${TABLE_AUTH_SESSION} ADD COLUMN refreshToken TEXT;`);
+  } catch {
+    // Column already exists, ignore
+  }
 
   return db;
 }
@@ -226,15 +232,17 @@ async function loadSessionFromDb(): Promise<AuthSession | null> {
   const row = await db.getFirstAsync<{
     provider: AuthSession["provider"];
     accessToken: string;
+    refreshToken: string | null;
     userId: string;
     email: string;
     displayName: string | null;
-  }>(`SELECT provider, accessToken, userId, email, displayName FROM ${TABLE_AUTH_SESSION} WHERE id = 1`);
+  }>(`SELECT provider, accessToken, refreshToken, userId, email, displayName FROM ${TABLE_AUTH_SESSION} WHERE id = 1`);
 
   if (!row) return null;
   return {
     provider: row.provider,
     accessToken: row.accessToken,
+    refreshToken: row.refreshToken ?? undefined,
     user: {
       id: row.userId,
       email: row.email,
@@ -251,15 +259,23 @@ async function saveSessionToDb(session: AuthSession | null) {
   }
 
   await db.runAsync(
-    `INSERT INTO ${TABLE_AUTH_SESSION} (id, provider, accessToken, userId, email, displayName)
-     VALUES (1, ?, ?, ?, ?, ?)
+    `INSERT INTO ${TABLE_AUTH_SESSION} (id, provider, accessToken, refreshToken, userId, email, displayName)
+     VALUES (1, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET
       provider = excluded.provider,
       accessToken = excluded.accessToken,
+      refreshToken = excluded.refreshToken,
       userId = excluded.userId,
       email = excluded.email,
       displayName = excluded.displayName`,
-    [session.provider, session.accessToken, session.user.id, session.user.email, session.user.displayName ?? null],
+    [
+      session.provider,
+      session.accessToken,
+      session.refreshToken ?? null,
+      session.user.id,
+      session.user.email,
+      session.user.displayName ?? null,
+    ],
   );
 }
 
@@ -487,7 +503,25 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
         setLastSyncedAt(loadedLastSyncedAt);
         setIsPremium(loadedPremiumEnabled);
 
-        const nextSession = loadedSession;
+        let nextSession = loadedSession;
+        if (loadedSession && remoteClient.restoreSession) {
+          try {
+            nextSession = await remoteClient.restoreSession(loadedSession);
+          } catch {
+            nextSession = null;
+          }
+        }
+
+        if (loadedSession && !nextSession) {
+          await saveSessionToDb(null);
+        } else if (
+          loadedSession
+          && nextSession
+          && (nextSession.accessToken !== loadedSession.accessToken
+            || nextSession.refreshToken !== loadedSession.refreshToken)
+        ) {
+          await saveSessionToDb(nextSession);
+        }
 
         setSession(nextSession);
         setIsGuest(nextSession ? false : loadedAuthMode === AUTH_MODE_GUEST);
