@@ -284,10 +284,6 @@ export default function SyncScreen() {
               <Text style={styles.profileInfoText}>{isPremium ? t("subscriptionStatusPremium") : t("subscriptionStatusFree")}</Text>
             </View>
           </View>
-
-          <Pressable style={styles.accentButton} onPress={() => setProfileModalVisible(true)}>
-            <Text style={styles.accentButtonLabel}>프로필 수정</Text>
-          </Pressable>
         </NeumorphicCard>
 
         <NeumorphicCard style={styles.card}>
@@ -479,7 +475,7 @@ const styles = StyleSheet.create({
   card: { borderRadius: 22, padding: 16 },
   sectionTitle: { color: COLORS.textOnSurface, fontWeight: "800", marginBottom: 10, fontSize: 18 },
   softButton: {
-    backgroundColor: "#E7E3DD",
+    backgroundColor: "#C6B193",
     borderRadius: 14,
     paddingVertical: 12,
     paddingHorizontal: 12,
