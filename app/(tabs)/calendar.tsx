@@ -667,11 +667,14 @@ const styles = StyleSheet.create({
     zIndex: 40,
   },
   iconButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: COLORS.softBorder,
   },
   menuDropdown: {
     position: "absolute",
