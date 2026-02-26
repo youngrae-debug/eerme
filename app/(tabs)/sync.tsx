@@ -1,4 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Image } from "expo-image";
+import * as ImagePicker from "expo-image-picker";
 import React from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { NeumorphicButton, NeumorphicCard } from "../../components/neumorphic";
@@ -16,6 +19,12 @@ import { COLORS } from "../../theme/colors";
 import { setLocale, t, useLocale } from "../../utils/i18n";
 
 type MyPageTab = "subscription" | "backup";
+const PROFILE_STORAGE_KEY = "@eerme/my-profile";
+
+type ProfileDraft = {
+  name: string;
+  imageUri: string | null;
+};
 
 export default function SyncScreen() {
   const locale = useLocale();
@@ -40,6 +49,9 @@ export default function SyncScreen() {
   const [subscriptionError, setSubscriptionError] = React.useState<string | null>(null);
   const [selectedProductId, setSelectedProductId] = React.useState<string | null>(null);
   const [nextPassword, setNextPassword] = React.useState("");
+  const [profileEditOpen, setProfileEditOpen] = React.useState(false);
+  const [profileName, setProfileName] = React.useState("");
+  const [profileImageUri, setProfileImageUri] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     let mounted = true;
@@ -100,6 +112,26 @@ export default function SyncScreen() {
       setSelectedProductId(products[0].productId);
     }
   }, [products, selectedProductId]);
+
+  React.useEffect(() => {
+    const defaultName = session?.user.displayName ?? (session?.user.email?.includes("@") ? session.user.email.split("@")[0] : "Me");
+    setProfileName(defaultName);
+
+    AsyncStorage.getItem(PROFILE_STORAGE_KEY)
+      .then((raw) => {
+        if (!raw) return;
+        const saved = JSON.parse(raw) as ProfileDraft;
+        if (saved.name?.trim()) {
+          setProfileName(saved.name);
+        }
+        if (saved.imageUri) {
+          setProfileImageUri(saved.imageUri);
+        }
+      })
+      .catch(() => {
+        // noop
+      });
+  }, [session?.user.displayName, session?.user.email]);
 
   const subscribe = React.useCallback(
     async (productId: string) => {
@@ -188,6 +220,47 @@ export default function SyncScreen() {
     });
   }, [nextPassword, run, updatePassword]);
 
+  const pickProfileImage = React.useCallback(async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert(t("errorTitle"), "사진 접근 권한이 필요해요.");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: [ImagePicker.MediaTypeOptions.Images],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      const uri = result.assets[0]?.uri;
+      if (uri) {
+        setProfileImageUri(uri);
+      }
+    }
+  }, []);
+
+  const saveProfile = React.useCallback(() => {
+    const trimmed = profileName.trim();
+    if (!trimmed) {
+      Alert.alert(t("errorTitle"), "이름을 입력해 주세요.");
+      return;
+    }
+
+    const draft: ProfileDraft = { name: trimmed, imageUri: profileImageUri };
+    AsyncStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(draft))
+      .then(() => {
+        setProfileName(trimmed);
+        setProfileEditOpen(false);
+        Alert.alert(t("doneTitle"), "프로필이 저장됐어요.");
+      })
+      .catch(() => {
+        Alert.alert(t("errorTitle"), "프로필 저장에 실패했어요.");
+      });
+  }, [profileImageUri, profileName]);
+
   const syncStatusText =
     syncStatus === "syncing" ? t("syncStatusSyncing") : syncStatus === "error" ? t("syncStatusError") : t("syncStatusIdle");
   const lastSyncedLabel = lastSyncedAt ? new Date(lastSyncedAt).toLocaleString() : t("syncNever");
@@ -201,7 +274,7 @@ export default function SyncScreen() {
   }
 
   const email = session?.user.email ?? "-";
-  const displayName = email.includes("@") ? email.split("@")[0] : email;
+  const displayName = profileName.trim() || (email.includes("@") ? email.split("@")[0] : email);
   const initial = displayName[0]?.toUpperCase() ?? "M";
 
   return (
@@ -209,7 +282,11 @@ export default function SyncScreen() {
       <NeumorphicCard style={styles.profileCard}>
         <View style={styles.profileRow}>
           <View style={styles.avatarWrap}>
-            <Text style={styles.avatarText}>{initial}</Text>
+            {profileImageUri ? (
+              <Image source={{ uri: profileImageUri }} style={styles.avatarImage} contentFit="cover" />
+            ) : (
+              <Text style={styles.avatarText}>{initial}</Text>
+            )}
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.profileName}>{displayName}</Text>
@@ -228,22 +305,94 @@ export default function SyncScreen() {
           </View>
         </View>
 
-        <Pressable style={styles.profileEditButton}>
+        <Pressable style={styles.profileEditButton} onPress={() => setProfileEditOpen((prev) => !prev)}>
           <Text style={styles.profileEditText}>프로필 수정</Text>
         </Pressable>
       </NeumorphicCard>
 
+      {profileEditOpen ? (
+        <NeumorphicCard style={styles.card}>
+          <Text style={styles.sectionTitle}>프로필 수정</Text>
+          <View style={styles.profileEditAvatarWrap}>
+            <Pressable style={styles.photoButton} onPress={() => {
+              pickProfileImage().catch(() => {
+                Alert.alert(t("errorTitle"), "사진 선택에 실패했어요.");
+              });
+            }}>
+              <Text style={styles.photoButtonText}>프로필 사진 변경</Text>
+            </Pressable>
+            {profileImageUri ? (
+              <Pressable style={styles.photoSecondaryButton} onPress={() => setProfileImageUri(null)}>
+                <Text style={styles.photoSecondaryButtonText}>기본 이미지 사용</Text>
+              </Pressable>
+            ) : null}
+          </View>
+          <TextInput
+            placeholder="이름"
+            placeholderTextColor={COLORS.secondaryText}
+            style={styles.input}
+            value={profileName}
+            onChangeText={setProfileName}
+          />
+          <TextInput
+            secureTextEntry
+            placeholder={t("authPasswordPlaceholder")}
+            placeholderTextColor={COLORS.secondaryText}
+            style={styles.input}
+            value={nextPassword}
+            onChangeText={setNextPassword}
+          />
+          <View style={styles.row}>
+            <NeumorphicButton
+              label={busy ? t("processing") : t("authPasswordUpdateButton")}
+              style={styles.buttonFlex}
+              onPress={handleChangePassword}
+            />
+            <NeumorphicButton
+              label={busy ? t("processing") : "프로필 저장"}
+              style={styles.buttonFlex}
+              onPress={saveProfile}
+            />
+          </View>
+          <View style={styles.row}>
+            <NeumorphicButton
+              label={busy ? t("processing") : t("authSignOut")}
+              style={styles.buttonFlex}
+              onPress={() =>
+                run(async () => {
+                  await signOut();
+                }, t("authSignedOut"))
+              }
+            />
+            <NeumorphicButton
+              label={busy ? t("processing") : t("authDeleteAction")}
+              style={styles.buttonFlex}
+              onPress={handleDeleteAccount}
+            />
+          </View>
+        </NeumorphicCard>
+      ) : null}
+
       <NeumorphicCard style={styles.card}>
-        <View style={styles.mannerHead}>
-          <Text style={styles.sectionTitle}>매너온도</Text>
-          <Text style={styles.mannerEmoji}>😊</Text>
+        <Text style={styles.sectionTitle}>{t("languageSectionTitle")}</Text>
+        <View style={styles.languageRow}>
+          {([
+            { key: "en", label: t("languageEnglish") },
+            { key: "ko", label: t("languageKorean") },
+            { key: "ja", label: t("languageJapanese") },
+          ] as const).map((item) => {
+            const isActive = locale === item.key;
+            return (
+              <Pressable
+                key={item.key}
+                onPress={() => setLocale(item.key)}
+                style={[styles.languageButton, isActive && styles.languageButtonActive]}
+              >
+                <Text style={[styles.languageText, isActive && styles.languageTextActive]}>{item.label}</Text>
+              </Pressable>
+            );
+          })}
         </View>
-        <Text style={styles.mannerTemp}>40.5°C</Text>
-        <View style={styles.progressTrack}>
-          <View style={styles.progressFill} />
-        </View>
-        <Text style={styles.helperText}>재거래 희망률 100%</Text>
-        <Text style={styles.muted}>응답률 데이터가 아직 충분하지 않아요.</Text>
       </NeumorphicCard>
 
       <View style={styles.tabRow}>
@@ -324,64 +473,6 @@ export default function SyncScreen() {
         </NeumorphicCard>
       )}
 
-      <NeumorphicCard style={styles.card}>
-        <Text style={styles.sectionTitle}>{t("languageSectionTitle")}</Text>
-        <View style={styles.languageRow}>
-          {([
-            { key: "en", label: t("languageEnglish") },
-            { key: "ko", label: t("languageKorean") },
-            { key: "ja", label: t("languageJapanese") },
-          ] as const).map((item) => {
-            const isActive = locale === item.key;
-            return (
-              <Pressable
-                key={item.key}
-                onPress={() => setLocale(item.key)}
-                style={[styles.languageButton, isActive && styles.languageButtonActive]}
-              >
-                <Text style={[styles.languageText, isActive && styles.languageTextActive]}>{item.label}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      </NeumorphicCard>
-
-      <NeumorphicCard style={styles.card}>
-        <Text style={styles.sectionTitle}>{t("authAccountSectionTitle")}</Text>
-        <Text style={styles.muted}>{t("authSignedInAs", { email })}</Text>
-        <View style={styles.row}>
-          <NeumorphicButton
-            label={busy ? t("processing") : t("authSignOut")}
-            style={styles.buttonFlex}
-            onPress={() =>
-              run(async () => {
-                await signOut();
-              }, t("authSignedOut"))
-            }
-          />
-          <NeumorphicButton
-            label={busy ? t("processing") : t("authDeleteAction")}
-            style={styles.buttonFlex}
-            onPress={handleDeleteAccount}
-          />
-        </View>
-      </NeumorphicCard>
-
-      <NeumorphicCard style={styles.card}>
-        <Text style={styles.sectionTitle}>{t("authPasswordNewLabel")}</Text>
-        <TextInput
-          secureTextEntry
-          placeholder={t("authPasswordPlaceholder")}
-          placeholderTextColor={COLORS.secondaryText}
-          style={styles.input}
-          value={nextPassword}
-          onChangeText={setNextPassword}
-        />
-        <NeumorphicButton
-          label={busy ? t("processing") : t("authPasswordUpdateButton")}
-          onPress={handleChangePassword}
-        />
-      </NeumorphicCard>
     </ScrollView>
   );
 }
@@ -407,7 +498,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   avatarText: { color: COLORS.primaryText, fontWeight: "800", fontSize: 26 },
-  profileName: { color: COLORS.primaryText, fontSize: 32, fontWeight: "800" },
+  avatarImage: { width: "100%", height: "100%", borderRadius: 36 },
+  profileName: { color: COLORS.primaryText, fontSize: 28, fontWeight: "800" },
   profileMeta: { color: COLORS.secondaryText, fontSize: 14 },
   profileInfoList: { gap: 10, marginBottom: 16 },
   profileInfoRow: { flexDirection: "row", alignItems: "center", gap: 8 },
@@ -421,18 +513,23 @@ const styles = StyleSheet.create({
   profileEditText: { color: COLORS.primaryText, fontWeight: "700", fontSize: 16 },
   card: { borderRadius: 22, padding: 16 },
   sectionTitle: { color: COLORS.textOnSurface, fontWeight: "800", marginBottom: 10, fontSize: 18 },
-  mannerHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  mannerEmoji: { fontSize: 42 },
-  mannerTemp: { color: COLORS.accentPeach, fontSize: 50, fontWeight: "800", marginBottom: 10 },
-  progressTrack: {
-    height: 12,
-    width: "100%",
-    borderRadius: 999,
-    backgroundColor: COLORS.softBorder,
-    overflow: "hidden",
-    marginBottom: 12,
+  profileEditAvatarWrap: { gap: 8, marginBottom: 10 },
+  photoButton: {
+    borderWidth: 1,
+    borderColor: COLORS.softBorder,
+    borderRadius: 12,
+    paddingVertical: 10,
+    alignItems: "center",
+    backgroundColor: COLORS.card,
   },
-  progressFill: { width: "42%", height: "100%", backgroundColor: COLORS.accentPeach, borderRadius: 999 },
+  photoButtonText: { color: COLORS.primaryText, fontWeight: "700" },
+  photoSecondaryButton: {
+    borderRadius: 12,
+    paddingVertical: 10,
+    alignItems: "center",
+    backgroundColor: COLORS.background,
+  },
+  photoSecondaryButtonText: { color: COLORS.secondaryText, fontWeight: "600" },
   tabRow: { flexDirection: "row", gap: 8 },
   tabButton: {
     flex: 1,
