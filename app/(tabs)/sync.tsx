@@ -302,27 +302,9 @@ export default function SyncScreen() {
           </View>
         </View>
 
-        <View style={styles.profileActionRow}>
-          <Pressable style={[styles.flatButton, { flex: 1 }]} onPress={() => setProfileEditOpen((prev) => !prev)}>
-            <Text style={styles.flatButtonLabel}>프로필 수정</Text>
-          </Pressable>
-          <View style={styles.menuWrap}>
-            <Pressable style={styles.menuButton} onPress={() => setProfileMenuOpen((prev) => !prev)}>
-              <Ionicons name="ellipsis-vertical" size={16} color={COLORS.primaryText} />
-            </Pressable>
-            {profileMenuOpen ? (
-              <Pressable
-                style={styles.dropdownItem}
-                onPress={() => {
-                  setProfileMenuOpen(false);
-                  handleDeleteAccount();
-                }}
-              >
-                <Text style={styles.dropdownItemText}>{t("authDeleteAction")}</Text>
-              </Pressable>
-            ) : null}
-          </View>
-        </View>
+        <Pressable style={styles.flatButton} onPress={() => setProfileEditOpen((prev) => !prev)}>
+          <Text style={styles.flatButtonLabel}>프로필 수정</Text>
+        </Pressable>
       </NeumorphicCard>
 
       {profileEditOpen ? (
@@ -340,11 +322,6 @@ export default function SyncScreen() {
               >
                 <Text style={styles.flatButtonLabel}>프로필 사진 변경</Text>
               </Pressable>
-              {profileImageUri ? (
-                <Pressable style={styles.flatButton} onPress={() => setProfileImageUri(null)}>
-                  <Text style={styles.flatButtonLabel}>기본 이미지 사용</Text>
-                </Pressable>
-              ) : null}
             </View>
             <TextInput
               placeholder="이름"
@@ -353,9 +330,27 @@ export default function SyncScreen() {
               value={profileName}
               onChangeText={setProfileName}
             />
-            <Pressable style={styles.flatButton} onPress={saveProfile}>
-              <Text style={styles.flatButtonLabel}>{busy ? t("processing") : "프로필 저장"}</Text>
-            </Pressable>
+            <View style={styles.saveRow}>
+              <Pressable style={[styles.flatButton, styles.buttonFlex]} onPress={saveProfile}>
+                <Text style={styles.flatButtonLabel}>{busy ? t("processing") : "프로필 저장"}</Text>
+              </Pressable>
+              <View style={styles.menuWrap}>
+                <Pressable style={styles.menuButtonWhite} onPress={() => setProfileMenuOpen((prev) => !prev)}>
+                  <Ionicons name="ellipsis-vertical" size={16} color={COLORS.primaryText} />
+                </Pressable>
+                {profileMenuOpen ? (
+                  <Pressable
+                    style={styles.dropdownItem}
+                    onPress={() => {
+                      setProfileMenuOpen(false);
+                      handleDeleteAccount();
+                    }}
+                  >
+                    <Text style={styles.dropdownItemText}>{t("authDeleteAction")}</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            </View>
           </NeumorphicCard>
 
           <NeumorphicCard style={styles.card}>
@@ -388,29 +383,31 @@ export default function SyncScreen() {
               <Pressable
                 key={item.key}
                 onPress={() => setLocale(item.key)}
-                style={[styles.flatButton, styles.languageButtonActiveWrap, isActive && styles.languageButtonActive]}
+                style={[styles.flatButton, styles.languageItem, isActive && styles.languageItemActive]}
               >
-                <Text style={[styles.flatButtonLabel, isActive && styles.languageTextActive]}>{item.label}</Text>
+                <Text style={styles.flatButtonLabel}>{item.label}</Text>
               </Pressable>
             );
           })}
         </View>
       </NeumorphicCard>
 
-      <View style={styles.tabRow}>
+      <View style={styles.tabContainer}>
         <Pressable
-          accessibilityRole="button"
+          accessibilityRole="tab"
           onPress={() => setActiveTab("subscription")}
-          style={[styles.flatButton, styles.tabButton, activeTab === "subscription" && styles.tabButtonActive]}
+          style={styles.tabItem}
         >
-          <Text style={[styles.flatButtonLabel, activeTab === "subscription" && styles.tabLabelActive]}>{t("tabSubscription")}</Text>
+          <Text style={[styles.tabText, activeTab === "subscription" && styles.tabTextActive]}>{t("tabSubscription")}</Text>
+          <View style={[styles.tabIndicator, activeTab === "subscription" && styles.tabIndicatorActive]} />
         </Pressable>
         <Pressable
-          accessibilityRole="button"
+          accessibilityRole="tab"
           onPress={() => setActiveTab("backup")}
-          style={[styles.flatButton, styles.tabButton, activeTab === "backup" && styles.tabButtonActive]}
+          style={styles.tabItem}
         >
-          <Text style={[styles.flatButtonLabel, activeTab === "backup" && styles.tabLabelActive]}>{t("tabBackup")}</Text>
+          <Text style={[styles.tabText, activeTab === "backup" && styles.tabTextActive]}>{t("tabBackup")}</Text>
+          <View style={[styles.tabIndicator, activeTab === "backup" && styles.tabIndicatorActive]} />
         </Pressable>
       </View>
 
@@ -491,34 +488,12 @@ const styles = StyleSheet.create({
   avatarImage: { width: "100%", height: "100%", borderRadius: 36 },
   nameRow: { flexDirection: "row", alignItems: "flex-end", gap: 8 },
   smallTextButton: { paddingBottom: 3 },
-  smallTextButtonLabel: { color: COLORS.secondaryText, fontSize: 12, fontWeight: "600" },
+  smallTextButtonLabel: { color: COLORS.danger, fontSize: 12, fontWeight: "700" },
   profileName: { color: COLORS.primaryText, fontSize: 28, fontWeight: "800" },
   profileMeta: { color: COLORS.secondaryText, fontSize: 14 },
   profileInfoList: { gap: 10, marginBottom: 16 },
   profileInfoRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   profileInfoText: { color: COLORS.primaryText, fontSize: 15 },
-  profileActionRow: { flexDirection: "row", gap: 8 },
-  menuWrap: { position: "relative" },
-  menuButton: {
-    backgroundColor: COLORS.background,
-    borderRadius: 14,
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  dropdownItem: {
-    position: "absolute",
-    right: 0,
-    top: 48,
-    backgroundColor: COLORS.background,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    minWidth: 86,
-    zIndex: 10,
-  },
-  dropdownItemText: { color: COLORS.primaryText, fontWeight: "700", fontSize: 13 },
   card: { borderRadius: 22, padding: 16 },
   sectionTitle: { color: COLORS.textOnSurface, fontWeight: "800", marginBottom: 10, fontSize: 18 },
   profileEditAvatarWrap: { gap: 8, marginBottom: 10 },
@@ -531,15 +506,57 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   flatButtonLabel: { color: COLORS.primaryText, fontWeight: "700", fontSize: 15 },
-  tabRow: { flexDirection: "row", gap: 8 },
-  tabButton: { flex: 1 },
-  tabButtonActive: { backgroundColor: "#F4E7D7" },
-  tabLabelActive: { color: COLORS.primaryText },
+  saveRow: { flexDirection: "row", gap: 8 },
+  menuWrap: { position: "relative" },
+  menuButtonWhite: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: COLORS.softBorder,
+  },
+  dropdownItem: {
+    position: "absolute",
+    right: 0,
+    top: 48,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    minWidth: 90,
+    zIndex: 10,
+    borderWidth: 1,
+    borderColor: COLORS.softBorder,
+  },
+  dropdownItemText: { color: COLORS.primaryText, fontWeight: "700", fontSize: 13 },
   helperText: { color: COLORS.primaryText, marginBottom: 6, lineHeight: 20 },
   languageRow: { flexDirection: "row", gap: 10 },
-  languageButtonActiveWrap: { flex: 1 },
-  languageButtonActive: { backgroundColor: "#F4E7D7" },
-  languageTextActive: { color: COLORS.primaryText },
+  languageItem: { flex: 1 },
+  languageItemActive: { backgroundColor: "#F4E7D7" },
+  tabContainer: {
+    flexDirection: "row",
+    paddingHorizontal: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.softBorder,
+  },
+  tabItem: {
+    flex: 1,
+    alignItems: "center",
+    paddingTop: 8,
+    paddingBottom: 0,
+  },
+  tabText: {
+    color: COLORS.secondaryText,
+    fontWeight: "700",
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  tabTextActive: { color: COLORS.primaryText },
+  tabIndicator: { width: "100%", height: 2, backgroundColor: "transparent" },
+  tabIndicatorActive: { backgroundColor: COLORS.primaryText },
   input: {
     borderWidth: 1,
     borderColor: COLORS.softBorder,

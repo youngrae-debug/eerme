@@ -3,7 +3,7 @@ import * as ImagePicker from "expo-image-picker";
 import { ImagePlus, MoreHorizontal, Trash2, X } from "lucide-react-native";
 import React, { useMemo, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { NeumorphicButton, NeumorphicCard } from "../../components/neumorphic";
+import { NeumorphicCard } from "../../components/neumorphic";
 import { useJournalStore } from "../../store/journalStore";
 import { COLORS } from "../../theme/colors";
 import { formatDateDisplay, toDateKey } from "../../utils/date";
@@ -204,11 +204,9 @@ export default function TodayScreen() {
       </NeumorphicCard>
 
       <View style={styles.actions}>
-        <NeumorphicButton
-          label={isSaving ? t("saveInProgress") : t("save")}
-          onPress={save}
-          style={styles.buttonFlex}
-        />
+        <Pressable style={styles.primaryButton} onPress={save}>
+          <Text style={styles.primaryButtonText}>{isSaving ? t("saveInProgress") : t("save")}</Text>
+        </Pressable>
       </View>
 
       <Text style={styles.listTitle}>{t("recentEntriesTitle")}</Text>
@@ -329,7 +327,19 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   actions: { flexDirection: "row", gap: 12, marginVertical: 4, alignItems: "center" },
-  buttonFlex: { flex: 1 },
+  primaryButton: {
+    flex: 1,
+    backgroundColor: "#E7E3DD",
+    borderRadius: 14,
+    paddingVertical: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  primaryButtonText: {
+    color: COLORS.primaryText,
+    fontWeight: "700",
+    fontSize: 15,
+  },
   menuButton: {
     width: 32,
     height: 32,
