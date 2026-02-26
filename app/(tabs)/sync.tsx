@@ -62,13 +62,9 @@ export default function SyncScreen() {
     try {
       listener = attachPurchaseListener((purchase) => {
         if (!mounted) return;
-
         setPremium(true);
         setSubscriptionBusy(false);
-        Alert.alert(
-          t("subscriptionDoneTitle"),
-          t("subscriptionDoneBody", { productId: purchase.productId }),
-        );
+        Alert.alert(t("subscriptionDoneTitle"), t("subscriptionDoneBody", { productId: purchase.productId }));
       });
       setSubscriptionError(null);
     } catch (error) {
@@ -87,12 +83,9 @@ export default function SyncScreen() {
 
   React.useEffect(() => {
     if (!isReady) return;
-
     setSubscriptionBusy(true);
     loadSubscriptionProducts()
-      .then((items) => {
-        setProducts(items);
-      })
+      .then((items) => setProducts(items))
       .catch((error) => {
         console.error("Failed to load subscription products", error);
         const message = error instanceof Error ? error.message : t("subscriptionProductLoadFailed");
@@ -115,12 +108,8 @@ export default function SyncScreen() {
       .then((raw) => {
         if (!raw) return;
         const saved = JSON.parse(raw) as ProfileDraft;
-        if (saved.name?.trim()) {
-          setProfileName(saved.name);
-        }
-        if (saved.imageUri) {
-          setProfileImageUri(saved.imageUri);
-        }
+        if (saved.name?.trim()) setProfileName(saved.name);
+        if (saved.imageUri) setProfileImageUri(saved.imageUri);
       })
       .catch(() => {
         // noop
@@ -131,9 +120,7 @@ export default function SyncScreen() {
     setBusy(true);
     try {
       await task();
-      if (successMessage) {
-        Alert.alert(t("doneTitle"), successMessage);
-      }
+      if (successMessage) Alert.alert(t("doneTitle"), successMessage);
     } catch (error) {
       const message = error instanceof Error ? error.message : t("taskFailed");
       Alert.alert(t("errorTitle"), message);
@@ -143,22 +130,18 @@ export default function SyncScreen() {
   }, []);
 
   const handleDeleteAccount = React.useCallback(() => {
-    Alert.alert(
-      t("authDeleteTitle"),
-      t("authDeleteBody"),
-      [
-        { text: t("cancel"), style: "cancel" },
-        {
-          text: t("authDeleteAction"),
-          style: "destructive",
-          onPress: () => {
-            run(deleteAccount, t("authDeleteDone")).catch((error) => {
-              console.error("deleteAccount failed", error);
-            });
-          },
+    Alert.alert(t("authDeleteTitle"), t("authDeleteBody"), [
+      { text: t("cancel"), style: "cancel" },
+      {
+        text: t("authDeleteAction"),
+        style: "destructive",
+        onPress: () => {
+          run(deleteAccount, t("authDeleteDone")).catch((error) => {
+            console.error("deleteAccount failed", error);
+          });
         },
-      ],
-    );
+      },
+    ]);
   }, [deleteAccount, run]);
 
   const handleChangePassword = React.useCallback(() => {
@@ -192,9 +175,7 @@ export default function SyncScreen() {
 
     if (!result.canceled) {
       const uri = result.assets[0]?.uri;
-      if (uri) {
-        setProfileImageUri(uri);
-      }
+      if (uri) setProfileImageUri(uri);
     }
   }, []);
 
@@ -221,7 +202,6 @@ export default function SyncScreen() {
       Alert.alert(t("errorTitle"), t("selectPlanFirst"));
       return;
     }
-
     setSubscriptionBusy(true);
     requestSubscription(selectedProductId)
       .catch((error) => {
@@ -304,6 +284,10 @@ export default function SyncScreen() {
               <Text style={styles.profileInfoText}>{isPremium ? t("subscriptionStatusPremium") : t("subscriptionStatusFree")}</Text>
             </View>
           </View>
+
+          <Pressable style={styles.accentButton} onPress={() => setProfileModalVisible(true)}>
+            <Text style={styles.accentButtonLabel}>프로필 수정</Text>
+          </Pressable>
         </NeumorphicCard>
 
         <NeumorphicCard style={styles.card}>
@@ -329,19 +313,11 @@ export default function SyncScreen() {
         </NeumorphicCard>
 
         <View style={styles.tabContainer}>
-          <Pressable
-            accessibilityRole="tab"
-            onPress={() => setActiveTab("subscription")}
-            style={styles.tabItem}
-          >
+          <Pressable accessibilityRole="tab" onPress={() => setActiveTab("subscription")} style={styles.tabItem}>
             <Text style={[styles.tabText, activeTab === "subscription" && styles.tabTextActive]}>{t("tabSubscription")}</Text>
             <View style={[styles.tabIndicator, activeTab === "subscription" && styles.tabIndicatorActive]} />
           </Pressable>
-          <Pressable
-            accessibilityRole="tab"
-            onPress={() => setActiveTab("backup")}
-            style={styles.tabItem}
-          >
+          <Pressable accessibilityRole="tab" onPress={() => setActiveTab("backup")} style={styles.tabItem}>
             <Text style={[styles.tabText, activeTab === "backup" && styles.tabTextActive]}>{t("tabBackup")}</Text>
             <View style={[styles.tabIndicator, activeTab === "backup" && styles.tabIndicatorActive]} />
           </Pressable>
@@ -359,10 +335,7 @@ export default function SyncScreen() {
                   key={product.productId}
                   accessibilityRole="button"
                   onPress={() => setSelectedProductId(product.productId)}
-                  style={[
-                    styles.planItem,
-                    selectedProductId === product.productId && styles.planItemSelected,
-                  ]}
+                  style={[styles.planItem, selectedProductId === product.productId && styles.planItemSelected]}
                 >
                   <View style={styles.planIndicatorOuter}>
                     {selectedProductId === product.productId ? <View style={styles.planIndicatorInner} /> : null}
@@ -403,17 +376,44 @@ export default function SyncScreen() {
         <View style={styles.modalSheet}>
           <View style={styles.modalHeader}>
             <Text style={styles.sectionTitle}>프로필 수정</Text>
-            <Pressable style={styles.closeButton} onPress={() => setProfileModalVisible(false)}>
-              <Ionicons name="close" size={20} color={COLORS.primaryText} />
-            </Pressable>
+            <View style={styles.modalHeaderRight}>
+              <View style={styles.menuWrap}>
+                <Pressable style={styles.iconButtonWhite} onPress={() => setProfileMenuOpen((prev) => !prev)}>
+                  <Ionicons name="ellipsis-vertical" size={16} color={COLORS.primaryText} />
+                </Pressable>
+                {profileMenuOpen ? (
+                  <Pressable
+                    style={styles.dropdownItem}
+                    onPress={() => {
+                      setProfileMenuOpen(false);
+                      handleDeleteAccount();
+                    }}
+                  >
+                    <Text style={styles.dropdownItemText}>{t("authDeleteAction")}</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+              <Pressable style={styles.iconButtonWhite} onPress={() => setProfileModalVisible(false)}>
+                <Ionicons name="close" size={18} color={COLORS.primaryText} />
+              </Pressable>
+            </View>
           </View>
 
-          <Pressable style={styles.softButton} onPress={() => {
+          <Pressable style={styles.modalAvatarWrap} onPress={() => {
             pickProfileImage().catch(() => {
               Alert.alert(t("errorTitle"), "사진 선택에 실패했어요.");
             });
           }}>
-            <Text style={styles.softButtonLabel}>프로필 사진 변경</Text>
+            {profileImageUri ? (
+              <Image source={{ uri: profileImageUri }} style={styles.modalAvatarImage} contentFit="cover" />
+            ) : (
+              <View style={styles.modalAvatarFallback}>
+                <Text style={styles.modalAvatarFallbackText}>{initial}</Text>
+              </View>
+            )}
+            <View style={styles.modalAvatarEditBadge}>
+              <Text style={styles.modalAvatarEditText}>edit</Text>
+            </View>
           </Pressable>
 
           <TextInput
@@ -424,27 +424,9 @@ export default function SyncScreen() {
             onChangeText={setProfileName}
           />
 
-          <View style={styles.saveRow}>
-            <Pressable style={[styles.softButton, styles.buttonFlex]} onPress={saveProfile}>
-              <Text style={styles.softButtonLabel}>{busy ? t("processing") : "프로필 저장"}</Text>
-            </Pressable>
-            <View style={styles.menuWrap}>
-              <Pressable style={styles.menuButtonWhite} onPress={() => setProfileMenuOpen((prev) => !prev)}>
-                <Ionicons name="ellipsis-vertical" size={16} color={COLORS.primaryText} />
-              </Pressable>
-              {profileMenuOpen ? (
-                <Pressable
-                  style={styles.dropdownItem}
-                  onPress={() => {
-                    setProfileMenuOpen(false);
-                    handleDeleteAccount();
-                  }}
-                >
-                  <Text style={styles.dropdownItemText}>{t("authDeleteAction")}</Text>
-                </Pressable>
-              ) : null}
-            </View>
-          </View>
+          <Pressable style={styles.softButton} onPress={saveProfile}>
+            <Text style={styles.softButtonLabel}>{busy ? t("processing") : "프로필 저장"}</Text>
+          </Pressable>
 
           <Text style={[styles.sectionTitle, { marginTop: 18 }]}>비밀번호 변경</Text>
           <TextInput
@@ -491,7 +473,7 @@ const styles = StyleSheet.create({
   smallTextButtonLabel: { color: COLORS.danger, fontSize: 12, fontWeight: "700" },
   profileName: { color: COLORS.primaryText, fontSize: 28, fontWeight: "800" },
   profileMeta: { color: COLORS.secondaryText, fontSize: 14 },
-  profileInfoList: { gap: 10 },
+  profileInfoList: { gap: 10, marginBottom: 12 },
   profileInfoRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   profileInfoText: { color: COLORS.primaryText, fontSize: 15 },
   card: { borderRadius: 22, padding: 16 },
@@ -514,32 +496,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   accentButtonLabel: { color: "#5A4E42", fontWeight: "700", fontSize: 15 },
-  saveRow: { flexDirection: "row", gap: 8 },
-  menuWrap: { position: "relative" },
-  menuButtonWhite: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 14,
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: COLORS.softBorder,
-  },
-  dropdownItem: {
-    position: "absolute",
-    right: 0,
-    top: 48,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    minWidth: 90,
-    zIndex: 10,
-    borderWidth: 1,
-    borderColor: COLORS.softBorder,
-  },
-  dropdownItemText: { color: COLORS.primaryText, fontWeight: "700", fontSize: 13 },
   helperText: { color: COLORS.primaryText, marginBottom: 6, lineHeight: 20 },
   languageRow: { flexDirection: "row", gap: 10 },
   languageItem: { flex: 1 },
@@ -632,14 +588,61 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 6,
+    marginBottom: 12,
   },
-  closeButton: {
+  modalHeaderRight: { flexDirection: "row", alignItems: "center", gap: 8 },
+  iconButtonWhite: {
     width: 36,
     height: 36,
     borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#F5F5F5",
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: COLORS.softBorder,
   },
+  menuWrap: { position: "relative" },
+  dropdownItem: {
+    position: "absolute",
+    right: 0,
+    top: 40,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    minWidth: 90,
+    zIndex: 10,
+    borderWidth: 1,
+    borderColor: COLORS.softBorder,
+  },
+  dropdownItemText: { color: COLORS.primaryText, fontWeight: "700", fontSize: 13 },
+  modalAvatarWrap: {
+    width: 108,
+    height: 108,
+    borderRadius: 54,
+    alignSelf: "center",
+    marginBottom: 14,
+    position: "relative",
+    overflow: "visible",
+  },
+  modalAvatarImage: { width: "100%", height: "100%", borderRadius: 54 },
+  modalAvatarFallback: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 54,
+    backgroundColor: COLORS.softBorder,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalAvatarFallbackText: { color: COLORS.primaryText, fontWeight: "800", fontSize: 32 },
+  modalAvatarEditBadge: {
+    position: "absolute",
+    right: -2,
+    bottom: -2,
+    backgroundColor: "#C6B193",
+    borderRadius: 14,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  modalAvatarEditText: { color: "#5A4E42", fontSize: 11, fontWeight: "700" },
 });

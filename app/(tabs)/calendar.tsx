@@ -544,18 +544,27 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   monthContainer: {
-    marginBottom: 24,
+    marginBottom: 16,
+    marginHorizontal: 12,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    paddingBottom: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   monthTitle: {
     fontSize: 18,
     fontWeight: "700",
     color: COLORS.primaryText,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 12,
   },
   weekDays: {
     flexDirection: "row",
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     marginBottom: 8,
   },
   weekDayText: {
@@ -574,7 +583,7 @@ const styles = StyleSheet.create({
   calendar: {
     flexDirection: "row",
     flexWrap: "wrap",
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
   },
   dayCell: {
     width: "14.28%", // 7일
@@ -706,7 +715,7 @@ const styles = StyleSheet.create({
   },
 
   modalBody: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingTop: 20,
   },
   modalBodyContent: {
@@ -747,7 +756,7 @@ const styles = StyleSheet.create({
   },
   modalFooter: {
     flexDirection: "row",
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingTop: 20,
     borderTopWidth: 1,
     borderTopColor: COLORS.softBorder,

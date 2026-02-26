@@ -329,14 +329,14 @@ const styles = StyleSheet.create({
   actions: { flexDirection: "row", gap: 12, marginVertical: 4, alignItems: "center" },
   primaryButton: {
     flex: 1,
-    backgroundColor: "#E7E3DD",
+    backgroundColor: "#C6B193",
     borderRadius: 14,
     paddingVertical: 12,
     alignItems: "center",
     justifyContent: "center",
   },
   primaryButtonText: {
-    color: COLORS.primaryText,
+    color: "#5A4E42",
     fontWeight: "700",
     fontSize: 15,
   },
