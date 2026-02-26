@@ -755,15 +755,16 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     flex: 1,
-    backgroundColor: '#C6B193',
-    borderRadius: 50,
-    padding: 16,
+    backgroundColor: "#C6B193",
+    borderRadius: 14,
+    paddingVertical: 12,
     alignItems: "center",
+    justifyContent: "center",
   },
   saveButtonText: {
-    color: '#5A4E42',
-    fontSize: 16,
-    fontWeight: "600",
+    color: "#5A4E42",
+    fontSize: 15,
+    fontWeight: "700",
   },
   editButton: {
     flex: 1,
