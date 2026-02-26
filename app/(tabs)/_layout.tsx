@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Tabs } from "expo-router";
+import { Redirect, Tabs } from "expo-router";
 import React from "react";
 import { ActivityIndicator, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -9,7 +9,7 @@ import { t, useLocale } from "../../utils/i18n";
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
-  const { isReady } = useJournalStore();
+  const { isReady, session } = useJournalStore();
   const locale = useLocale();
   const [tabsKey, setTabsKey] = React.useState(0);
 
@@ -23,6 +23,11 @@ export default function TabLayout() {
         <ActivityIndicator color={COLORS.surface} />
       </View>
     );
+  }
+
+
+  if (!session) {
+    return <Redirect href="/login" />;
   }
 
   return (

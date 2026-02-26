@@ -4,7 +4,7 @@ import { useJournalStore } from "../store/journalStore";
 import { COLORS } from "../theme/colors";
 
 export default function Index() {
-  const { isReady } = useJournalStore();
+  const { isReady, session } = useJournalStore();
 
   if (!isReady) {
     return (
@@ -14,5 +14,5 @@ export default function Index() {
     );
   }
 
-  return <Redirect href="/(tabs)" />;
+  return <Redirect href={session ? "/(tabs)" : "/login"} />;
 }

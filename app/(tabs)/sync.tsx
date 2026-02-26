@@ -26,6 +26,9 @@ export default function SyncScreen() {
     syncError,
     lastSyncedAt,
     pendingSyncCount,
+    session,
+    signOut,
+    deleteAccount,
     syncNow,
   } = useJournalStore();
   const [activeTab, setActiveTab] = React.useState<MyPageTab>("subscription");
@@ -138,7 +141,7 @@ export default function SyncScreen() {
     });
   }, [selectedProductId, subscribe]);
 
-  const run = async (task: () => Promise<void>, successMessage?: string) => {
+  const run = React.useCallback(async (task: () => Promise<void>, successMessage?: string) => {
     setBusy(true);
     try {
       await task();
@@ -151,7 +154,27 @@ export default function SyncScreen() {
     } finally {
       setBusy(false);
     }
-  };
+  }, []);
+
+
+  const handleDeleteAccount = React.useCallback(() => {
+    Alert.alert(
+      t("authDeleteTitle"),
+      t("authDeleteBody"),
+      [
+        { text: t("cancel"), style: "cancel" },
+        {
+          text: t("authDeleteAction"),
+          style: "destructive",
+          onPress: () => {
+            run(deleteAccount, t("authDeleteDone")).catch((error) => {
+              console.error("deleteAccount failed", error);
+            });
+          },
+        },
+      ],
+    );
+  }, [deleteAccount, run]);
 
   const syncStatusText =
     syncStatus === "syncing" ? t("syncStatusSyncing") : syncStatus === "error" ? t("syncStatusError") : t("syncStatusIdle");
@@ -283,6 +306,7 @@ export default function SyncScreen() {
           <Text style={styles.helperText}>{t("syncPendingLabel", { count: pendingSyncCount })}</Text>
           <Text style={styles.helperText}>{t("syncLastLabel", { value: lastSyncedLabel })}</Text>
           <Text style={styles.helperText}>{t("syncAutoHint")}</Text>
+          <Text style={styles.helperText}>{t("authSignedInAs", { email: session?.user.email ?? "-" })}</Text>
           {syncError ? <Text style={styles.syncErrorText}>{syncError}</Text> : null}
           <View style={styles.row}>
             <NeumorphicButton
@@ -290,7 +314,19 @@ export default function SyncScreen() {
               style={styles.buttonFlex}
               onPress={() => run(syncNow, t("syncDone"))}
             />
+            <NeumorphicButton
+              label={busy ? t("processing") : t("authSignOut")}
+              style={styles.buttonFlex}
+              onPress={() => run(async () => {
+                await signOut();
+              }, t("authSignedOut"))}
+            />
           </View>
+          <Text style={styles.helperText}>{t("authDeleteHint")}</Text>
+          <NeumorphicButton
+            label={busy ? t("processing") : t("authDeleteAction")}
+            onPress={handleDeleteAccount}
+          />
         </NeumorphicCard>
       ) : null}
     </ScrollView>

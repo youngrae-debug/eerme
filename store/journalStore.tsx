@@ -1,6 +1,6 @@
 import * as SQLite from "expo-sqlite";
 import React from "react";
-import { activeSyncProvider, mapRemoteEntriesToLocal, remoteClient } from "../services/remoteSync";
+import { mapRemoteEntriesToLocal, remoteClient } from "../services/remoteSync";
 import { AuthSession, BackupPayload, Entry } from "../types/journal";
 import { toDateKey } from "../utils/date";
 import { t } from "../utils/i18n";
@@ -23,10 +23,12 @@ type JournalContextValue = {
   removeEntry: (id: string) => Promise<void>;
   searchEntries: (keyword: string) => Entry[];
   signInWithEmail: (email: string, password: string) => Promise<void>;
+  signUpWithEmail: (email: string, password: string) => Promise<void>;
   signInWithApple: (identityToken: string) => Promise<void>;
   signInWithGoogle: (identityToken: string) => Promise<void>;
   signInAsGuest: () => Promise<void>;
   signOut: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
   syncNow: () => Promise<void>;
   exportBackup: () => Promise<string>;
   importBackup: (rawBackup: string) => Promise<void>;
@@ -347,6 +349,11 @@ async function clearSyncQueueByIds(entryIds: string[]) {
   });
 }
 
+async function clearSyncQueueAll() {
+  const db = await getDatabase();
+  await db.runAsync(`DELETE FROM ${TABLE_SYNC_QUEUE}`);
+}
+
 async function markSyncQueueFailed(entryIds: string[], errorMessage: string) {
   if (entryIds.length === 0) return;
   const db = await getDatabase();
@@ -480,16 +487,7 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
         setLastSyncedAt(loadedLastSyncedAt);
         setIsPremium(loadedPremiumEnabled);
 
-        let nextSession = loadedSession;
-        if (!nextSession && activeSyncProvider === "firebase" && remoteClient.signInAnonymously) {
-          try {
-            nextSession = await remoteClient.signInAnonymously();
-            await saveSessionToDb(nextSession);
-            await saveAuthMode(AUTH_MODE_NONE);
-          } catch (error) {
-            console.error("Anonymous sign-in failed", error);
-          }
-        }
+        const nextSession = loadedSession;
 
         setSession(nextSession);
         setIsGuest(nextSession ? false : loadedAuthMode === AUTH_MODE_GUEST);
@@ -611,6 +609,22 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
     [entries, lastSyncedAt, performSync],
   );
 
+  const signUpWithEmail = React.useCallback(
+    async (email: string, password: string) => {
+      if (!remoteClient.signUpWithEmail) {
+        throw new Error(t("emailSignupUnsupported"));
+      }
+
+      const nextSession = await remoteClient.signUpWithEmail(email, password);
+      setSession(nextSession);
+      setIsGuest(false);
+      await saveSessionToDb(nextSession);
+      await saveAuthMode(AUTH_MODE_NONE);
+      await performSync(nextSession, entries, lastSyncedAt);
+    },
+    [entries, lastSyncedAt, performSync],
+  );
+
   const signInWithApple = React.useCallback(
     async (identityToken: string) => {
       const nextSession = await remoteClient.signInWithApple(identityToken);
@@ -648,6 +662,29 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
     await saveSessionToDb(null);
     await saveAuthMode(AUTH_MODE_NONE);
   }, []);
+
+  const deleteAccount = React.useCallback(async () => {
+    if (!session) {
+      throw new Error(t("authSessionMissing"));
+    }
+
+    if (!remoteClient.deleteAccount) {
+      throw new Error(t("authDeleteUnsupported"));
+    }
+
+    await remoteClient.deleteAccount(session);
+    await replaceEntriesToDb([]);
+    await clearSyncQueueAll();
+    await saveLastSyncedAt(0);
+    await saveSessionToDb(null);
+    await saveAuthMode(AUTH_MODE_NONE);
+
+    setEntries([]);
+    setLastSyncedAt(0);
+    setSession(null);
+    setIsGuest(false);
+    await refreshPendingSyncCount();
+  }, [refreshPendingSyncCount, session]);
 
   const exportBackup = React.useCallback(async () => {
     const backup: BackupPayload = {
@@ -710,10 +747,12 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
       removeEntry,
       searchEntries,
       signInWithEmail,
+      signUpWithEmail,
       signInWithApple,
       signInWithGoogle,
       signInAsGuest,
       signOut,
+      deleteAccount,
       syncNow,
       exportBackup,
       importBackup,
@@ -732,9 +771,11 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
       isGuest,
       signInWithApple,
       signInWithEmail,
+      signUpWithEmail,
       signInWithGoogle,
       signInAsGuest,
       signOut,
+      deleteAccount,
       syncError,
       syncNow,
       syncStatus,

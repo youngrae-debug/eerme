@@ -56,11 +56,13 @@ type SupabaseAuthResponse = {
 
 type RemoteClient = {
   signInWithEmail: (email: string, password: string) => Promise<AuthSession>;
+  signUpWithEmail?: (email: string, password: string) => Promise<AuthSession>;
   signInWithApple: (identityToken: string) => Promise<AuthSession>;
   signInWithGoogle: (identityToken: string) => Promise<AuthSession>;
   signInAnonymously?: () => Promise<AuthSession>;
   pull: (session: AuthSession, since: number) => Promise<SyncPullResponse>;
   push: (session: AuthSession, entries: Entry[]) => Promise<void>;
+  deleteAccount?: (session: AuthSession) => Promise<void>;
 };
 
 const provider = (process.env.EXPO_PUBLIC_SYNC_PROVIDER as SyncProvider | undefined) ?? "custom";
@@ -153,6 +155,9 @@ const customClient: RemoteClient = {
       user: data.user,
     };
   },
+  async signUpWithEmail() {
+    throw new Error("Email sign-up is not supported by the custom provider.");
+  },
   async signInWithGoogle(identityToken) {
     ensureApiBaseUrl();
     const response = await fetch(`${apiBaseUrl}/auth/google/login`, {
@@ -205,6 +210,9 @@ const customClient: RemoteClient = {
       throw new Error("Push sync failed.");
     }
   },
+  async deleteAccount() {
+    throw new Error("Account deletion is not supported by the custom provider.");
+  },
 };
 
 const firebaseAuth = async (path: string, payload: Record<string, unknown>) => {
@@ -248,6 +256,15 @@ const firebaseClient: RemoteClient = {
       requestUri: "https://localhost",
       returnSecureToken: true,
       returnIdpCredential: true,
+    });
+
+    return toFirebaseSession(auth);
+  },
+  async signUpWithEmail(email, password) {
+    const auth = await firebaseAuth("accounts:signUp", {
+      email,
+      password,
+      returnSecureToken: true,
     });
 
     return toFirebaseSession(auth);
@@ -304,6 +321,31 @@ const firebaseClient: RemoteClient = {
 
     if (!response.ok) {
       throw new Error("Firebase push sync failed.");
+    }
+  },
+  async deleteAccount(session) {
+    ensureFirebaseConfig();
+
+    const removeEntriesResponse = await fetch(
+      `${firebaseDatabaseUrl}/entries/${session.user.id}.json?auth=${session.accessToken}`,
+      { method: "DELETE" },
+    );
+
+    if (!removeEntriesResponse.ok) {
+      throw new Error("Failed to delete Firebase backup data.");
+    }
+
+    const deleteAccountResponse = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:delete?key=${firebaseApiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken: session.accessToken }),
+      },
+    );
+
+    if (!deleteAccountResponse.ok) {
+      throw new Error("Failed to delete Firebase account.");
     }
   },
 };
@@ -377,6 +419,13 @@ const supabaseClient: RemoteClient = {
     });
     return toSupabaseSession(auth);
   },
+  async signUpWithEmail(email, password) {
+    const auth = await supabaseAuth("signup", {
+      email,
+      password,
+    });
+    return toSupabaseSession(auth);
+  },
   async signInWithGoogle(identityToken) {
     const auth = await supabaseAuth("token?grant_type=id_token", {
       provider: "google",
@@ -432,6 +481,9 @@ const supabaseClient: RemoteClient = {
     if (!response.ok) {
       throw new Error("Supabase push sync failed.");
     }
+  },
+  async deleteAccount() {
+    throw new Error("Account deletion is not supported by Supabase provider.");
   },
 };
 
