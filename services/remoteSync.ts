@@ -1,5 +1,4 @@
 import { AuthSession, AuthUser, Entry, SyncProvider } from "../types/journal";
-import { firebaseConfig } from "./firebaseConfig";
 
 type RemoteEntry = {
   id: string;
@@ -77,9 +76,9 @@ type RemoteClient = {
 };
 
 const provider = (process.env.EXPO_PUBLIC_SYNC_PROVIDER as SyncProvider | undefined) ?? "firebase";
-const apiBaseUrl = process.env.EXPO_PUBLIC_SYNC_API_BASE_URL ?? "";
-const firebaseApiKey = firebaseConfig.apiKey;
-const firebaseDatabaseUrl = firebaseConfig.databaseURL;
+const apiBaseUrl = process.env.EXPO_PUBLIC_SYNC_API_BASE_URL ?? "https://eerme-e8335-default-rtdb.firebaseio.com/";
+const firebaseApiKey = "AIzaSyCTe1oUQnVcwTeUzy7oQVoM0O1ZnNMoR1A";
+const firebaseDatabaseUrl = "https://eerme-e8335-default-rtdb.firebaseio.com/";
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "";
 
