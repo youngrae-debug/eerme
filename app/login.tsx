@@ -87,14 +87,14 @@ export default function LoginScreen() {
 
         <View style={styles.row}>
           <NeumorphicButton
-            label={busy ? t("processing") : t("authSignIn")}
-            style={styles.button}
-            onPress={() => runAuth("signin")}
-          />
-          <NeumorphicButton
             label={busy ? t("processing") : t("authSignUp")}
             style={styles.button}
             onPress={() => runAuth("signup")}
+          />
+          <NeumorphicButton
+            label={busy ? t("processing") : t("authSignIn")}
+            style={styles.button}
+            onPress={() => runAuth("signin")}
           />
         </View>
       </NeumorphicCard>
