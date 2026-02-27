@@ -109,7 +109,18 @@ export default function CalendarScreen() {
   const entryMap = useMemo(() => {
     const map = new Map<string, Entry>();
     entries.forEach((entry) => {
-      map.set(entry.date, entry);
+      const current = map.get(entry.date);
+      if (!current) {
+        map.set(entry.date, entry);
+        return;
+      }
+
+      const shouldReplace = entry.updatedAt > current.updatedAt
+        || (entry.updatedAt === current.updatedAt && entry.createdAt >= current.createdAt);
+
+      if (shouldReplace) {
+        map.set(entry.date, entry);
+      }
     });
     return map;
   }, [entries]);
