@@ -75,6 +75,8 @@ const resolveSyncErrorMessage = (error: unknown) => {
   if (normalized.includes("api key not valid")) return t("syncFirebaseApiKeyInvalid");
   if (normalized.includes("project not found")) return t("syncFirebaseProjectNotFound");
   if (normalized.includes("user_disabled")) return t("syncAuthFailed");
+  if (normalized.includes("permission denied")) return t("syncAuthFailed");
+  if (normalized.includes("permission_denied")) return t("syncAuthFailed");
   if (normalized.includes("invalid_login_credentials")) return t("syncAuthInvalidCredentials");
   if (normalized.includes("email_exists")) return t("syncAuthEmailExists");
   if (normalized.includes("authentication failed")) return t("syncAuthFailed");
@@ -524,7 +526,31 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
 
   const syncNow = React.useCallback(async () => {
     if (!session) return;
-    await performSync(session, entries, lastSyncedAt);
+
+    let activeSession = session;
+    if (remoteClient.restoreSession) {
+      const restoredSession = await remoteClient.restoreSession(session);
+
+      if (!restoredSession) {
+        setSession(null);
+        setIsGuest(false);
+        await saveSessionToDb(null);
+        await saveAuthMode(AUTH_MODE_NONE);
+        throw new Error(t("syncAuthFailed"));
+      }
+
+      if (
+        restoredSession.accessToken !== session.accessToken
+        || restoredSession.refreshToken !== session.refreshToken
+      ) {
+        setSession(restoredSession);
+        await saveSessionToDb(restoredSession);
+      }
+
+      activeSession = restoredSession;
+    }
+
+    await performSync(activeSession, entries, lastSyncedAt);
   }, [entries, lastSyncedAt, performSync, session]);
 
   React.useEffect(() => {
