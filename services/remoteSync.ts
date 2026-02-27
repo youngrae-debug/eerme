@@ -123,18 +123,71 @@ const ensureSupabaseConfig = () => {
   }
 };
 
-const toRemoteEntry = (entry: Entry): RemoteEntry => ({
-  id: entry.id,
-  date: entry.date,
-  line1: entry.lines[0],
-  line2: entry.lines[1],
-  line3: entry.lines[2],
-  imageUri: entry.imageUri ?? null,
-  imageUris: Array.isArray(entry.imageUris) ? entry.imageUris.filter((item) => typeof item === "string" && item.length > 0).slice(0, 5) : [],
-  createdAt: entry.createdAt,
-  updatedAt: entry.updatedAt,
-  deletedAt: entry.deletedAt ?? null,
+const normalizeImageUris = (entry: Entry) => (Array.isArray(entry.imageUris)
+  ? entry.imageUris.filter((item) => typeof item === "string" && item.length > 0).slice(0, 5)
+  : entry.imageUri
+    ? [entry.imageUri]
+    : []);
+
+const isLikelyLocalImageUri = (uri: string) => (
+  uri.startsWith("file:")
+  || uri.startsWith("content:")
+  || uri.startsWith("ph:")
+  || uri.startsWith("assets-library:")
+);
+
+const blobToDataUrl = (blob: Blob) => new Promise<string>((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onloadend = () => {
+    if (typeof reader.result === "string") {
+      resolve(reader.result);
+      return;
+    }
+
+    reject(new Error("Failed to encode image blob."));
+  };
+  reader.onerror = () => reject(new Error("Failed to read image blob."));
+  reader.readAsDataURL(blob);
 });
+
+const toBackupSafeImageUri = async (uri: string) => {
+  if (uri.startsWith("data:")) {
+    return uri;
+  }
+
+  if (!isLikelyLocalImageUri(uri)) {
+    return uri;
+  }
+
+  try {
+    const response = await fetch(uri);
+    const blob = await response.blob();
+    return await blobToDataUrl(blob);
+  } catch (error) {
+    console.warn("Failed to convert local image uri to backup-safe data uri", error);
+    return uri;
+  }
+};
+
+const toRemoteEntry = async (entry: Entry, includeBackupSafeImages = false): Promise<RemoteEntry> => {
+  const imageUris = normalizeImageUris(entry);
+  const nextImageUris = includeBackupSafeImages
+    ? (await Promise.all(imageUris.map(toBackupSafeImageUri))).slice(0, 5)
+    : imageUris;
+
+  return {
+    id: entry.id,
+    date: entry.date,
+    line1: entry.lines[0],
+    line2: entry.lines[1],
+    line3: entry.lines[2],
+    imageUri: nextImageUris[0] ?? null,
+    imageUris: nextImageUris,
+    createdAt: entry.createdAt,
+    updatedAt: entry.updatedAt,
+    deletedAt: entry.deletedAt ?? null,
+  };
+};
 
 const toLocalEntry = (entry: RemoteEntry): Entry => {
   const nextImageUris = Array.isArray(entry.imageUris)
@@ -236,13 +289,14 @@ const customClient: RemoteClient = {
   },
   async push(session, entries) {
     ensureApiBaseUrl();
+    const remoteEntries = await Promise.all(entries.map((entry) => toRemoteEntry(entry)));
     const response = await fetch(`${apiBaseUrl}/entries/push`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${session.accessToken}`,
       },
-      body: JSON.stringify({ entries: entries.map(toRemoteEntry) }),
+      body: JSON.stringify({ entries: remoteEntries }),
     });
 
     if (!response.ok) {
@@ -393,8 +447,9 @@ const firebaseClient: RemoteClient = {
     };
   },
   async push(session, entries) {
-    const body = entries.reduce<Record<string, RemoteEntry>>((acc, entry) => {
-      acc[entry.id] = toRemoteEntry(entry);
+    const remoteEntries = await Promise.all(entries.map((entry) => toRemoteEntry(entry, true)));
+    const body = remoteEntries.reduce<Record<string, RemoteEntry>>((acc, entry) => {
+      acc[entry.id] = entry;
       return acc;
     }, {});
 
