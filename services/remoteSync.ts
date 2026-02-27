@@ -1,12 +1,3 @@
-import {
-  createUserWithEmailAndPassword,
-  deleteUser,
-  signInAnonymously as firebaseSignInAnonymously,
-  signInWithEmailAndPassword,
-  updatePassword as firebaseUpdatePassword,
-} from "firebase/auth";
-import { get, ref, remove, update } from "firebase/database";
-import { getFirebaseAuthClient, getFirebaseDatabaseClient } from "./firebaseSdk";
 import { AuthSession, AuthUser, Entry, SyncProvider } from "../types/journal";
 
 type RemoteEntry = {
@@ -49,6 +40,7 @@ type FirebaseAuthResponse = {
   email?: string;
   displayName?: string;
 };
+
 
 type FirebaseRefreshResponse = {
   id_token: string;
@@ -276,29 +268,33 @@ const firebaseAuth = async (path: string, payload: Record<string, unknown>) => {
   return (await response.json()) as FirebaseAuthResponse;
 };
 
+const firebaseDbRequest = async <T>(
+  method: "GET" | "PATCH" | "DELETE",
+  session: AuthSession,
+  path: string,
+  payload?: unknown,
+) => {
+  ensureFirebaseConfig();
+  const baseUrl = firebaseDatabaseUrl.endsWith("/") ? firebaseDatabaseUrl.slice(0, -1) : firebaseDatabaseUrl;
+  const normalizedPath = path.replace(/^\/+/, "");
+  const tokenQuery = `auth=${encodeURIComponent(session.accessToken)}`;
+  const response = await fetch(`${baseUrl}/${normalizedPath}.json?${tokenQuery}`, {
+    method,
+    headers: payload ? { "Content-Type": "application/json" } : undefined,
+    body: payload === undefined ? undefined : JSON.stringify(payload),
+  });
 
+  if (!response.ok) {
+    throw new Error(`Firebase database request failed (${response.status}).`);
+  }
 
+  if (response.status === 204) {
+    return null as T;
+  }
 
-const toFirebaseSessionFromSdkUser = async (user: {
-  uid: string;
-  email: string | null;
-  displayName: string | null;
-  refreshToken?: string;
-  getIdToken: (forceRefresh?: boolean) => Promise<string>;
-}): Promise<AuthSession> => {
-  const idToken = await user.getIdToken();
-
-  return {
-    provider: "firebase",
-    accessToken: idToken,
-    refreshToken: user.refreshToken,
-    user: {
-      id: user.uid,
-      email: user.email ?? "unknown@firebase.local",
-      displayName: user.displayName ?? undefined,
-    },
-  };
+  return (await response.json()) as T;
 };
+
 const toFirebaseSession = (data: FirebaseAuthResponse): AuthSession => ({
   provider: "firebase",
   accessToken: data.idToken,
@@ -312,10 +308,12 @@ const toFirebaseSession = (data: FirebaseAuthResponse): AuthSession => ({
 
 const firebaseClient: RemoteClient = {
   async signInWithEmail(email, password) {
-    ensureFirebaseConfig();
-    const authClient = getFirebaseAuthClient();
-    const credential = await signInWithEmailAndPassword(authClient, email, password);
-    return toFirebaseSessionFromSdkUser(credential.user);
+    const auth = await firebaseAuth("accounts:signInWithPassword", {
+      email,
+      password,
+      returnSecureToken: true,
+    });
+    return toFirebaseSession(auth);
   },
   async signInWithApple(identityToken) {
     const auth = await firebaseAuth("accounts:signInWithIdp", {
@@ -328,10 +326,12 @@ const firebaseClient: RemoteClient = {
     return toFirebaseSession(auth);
   },
   async signUpWithEmail(email, password) {
-    ensureFirebaseConfig();
-    const authClient = getFirebaseAuthClient();
-    const credential = await createUserWithEmailAndPassword(authClient, email, password);
-    return toFirebaseSessionFromSdkUser(credential.user);
+    const auth = await firebaseAuth("accounts:signUp", {
+      email,
+      password,
+      returnSecureToken: true,
+    });
+    return toFirebaseSession(auth);
   },
   async signInWithGoogle(identityToken) {
     const auth = await firebaseAuth("accounts:signInWithIdp", {
@@ -344,10 +344,10 @@ const firebaseClient: RemoteClient = {
     return toFirebaseSession(auth);
   },
   async signInAnonymously() {
-    ensureFirebaseConfig();
-    const authClient = getFirebaseAuthClient();
-    const credential = await firebaseSignInAnonymously(authClient);
-    const session = await toFirebaseSessionFromSdkUser(credential.user);
+    const auth = await firebaseAuth("accounts:signUp", {
+      returnSecureToken: true,
+    });
+    const session = toFirebaseSession(auth);
 
     return {
       ...session,
@@ -358,10 +358,7 @@ const firebaseClient: RemoteClient = {
     };
   },
   async pull(session, since) {
-    ensureFirebaseConfig();
-    const db = getFirebaseDatabaseClient();
-    const snapshot = await get(ref(db, `entries/${session.user.id}`));
-    const payload = (snapshot.val() as FirebaseEntriesMap | null) ?? null;
+    const payload = await firebaseDbRequest<FirebaseEntriesMap | null>("GET", session, `entries/${session.user.id}`);
     const entries = payload ? Object.values(payload).filter((entry) => Number(entry.updatedAt) >= since) : [];
 
     return {
@@ -370,27 +367,15 @@ const firebaseClient: RemoteClient = {
     };
   },
   async push(session, entries) {
-    ensureFirebaseConfig();
-    const db = getFirebaseDatabaseClient();
     const body = entries.reduce<Record<string, RemoteEntry>>((acc, entry) => {
       acc[entry.id] = toRemoteEntry(entry);
       return acc;
     }, {});
 
-    await update(ref(db, `entries/${session.user.id}`), body);
+    await firebaseDbRequest("PATCH", session, `entries/${session.user.id}`, body);
   },
   async deleteAccount(session) {
-    ensureFirebaseConfig();
-    const db = getFirebaseDatabaseClient();
-    const authClient = getFirebaseAuthClient();
-
-    await remove(ref(db, `entries/${session.user.id}`));
-
-    const currentUser = authClient.currentUser;
-    if (currentUser && currentUser.uid === session.user.id) {
-      await deleteUser(currentUser);
-      return;
-    }
+    await firebaseDbRequest("DELETE", session, `entries/${session.user.id}`);
 
     const deleteAccountResponse = await fetch(
       `https://identitytoolkit.googleapis.com/v1/accounts:delete?key=${firebaseApiKey}`,
@@ -406,22 +391,6 @@ const firebaseClient: RemoteClient = {
     }
   },
   async restoreSession(session) {
-    ensureFirebaseConfig();
-    const authClient = getFirebaseAuthClient();
-    const currentUser = authClient.currentUser;
-
-    if (currentUser && currentUser.uid === session.user.id) {
-      const refreshedSession = await toFirebaseSessionFromSdkUser(currentUser);
-      return {
-        ...session,
-        ...refreshedSession,
-        user: {
-          ...session.user,
-          ...refreshedSession.user,
-        },
-      };
-    }
-
     if (!session.refreshToken) {
       return session;
     }
@@ -448,15 +417,6 @@ const firebaseClient: RemoteClient = {
     };
   },
   async updatePassword(session, nextPassword) {
-    ensureFirebaseConfig();
-    const authClient = getFirebaseAuthClient();
-    const currentUser = authClient.currentUser;
-
-    if (currentUser && currentUser.uid === session.user.id) {
-      await firebaseUpdatePassword(currentUser, nextPassword);
-      return toFirebaseSessionFromSdkUser(currentUser);
-    }
-
     const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:update?key=${firebaseApiKey}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
