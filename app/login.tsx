@@ -81,11 +81,11 @@ export default function LoginScreen() {
           style={styles.fullButton}
           onPress={runSignIn}
         />
-        <NeumorphicButton
-          label={t("authSwitchToSignUp")}
-          style={styles.fullButton}
-          onPress={() => router.push("/signup")}
-        />
+
+        <View style={styles.switchRow}>
+          <Text style={styles.switchHelper}>{t("authNoAccount")}</Text>
+          <Text style={styles.switchAction} onPress={() => router.push("/signup")}>{t("authSwitchToSignUp")}</Text>
+        </View>
       </NeumorphicCard>
     </KeyboardAvoidingView>
   );
@@ -112,7 +112,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "700",
     color: COLORS.primaryText,
-    marginBottom: 8,
+    marginBottom: 20,
   },
   helper: {
     color: COLORS.secondaryText,
@@ -122,7 +122,8 @@ const styles = StyleSheet.create({
   label: {
     color: COLORS.textOnSurface,
     fontWeight: "600",
-    marginBottom: 6,
+    marginBottom: 8,
+    marginTop: 4,
   },
   input: {
     borderWidth: 1,
@@ -132,9 +133,25 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     backgroundColor: COLORS.card,
     color: COLORS.primaryText,
-    marginBottom: 10,
+    marginBottom: 14,
   },
   fullButton: {
-    marginTop: 6,
+    marginTop: 14,
+  },
+  switchRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 18,
+    gap: 6,
+  },
+  switchHelper: {
+    color: COLORS.secondaryText,
+    fontSize: 14,
+  },
+  switchAction: {
+    color: COLORS.primaryText,
+    fontWeight: "700",
+    fontSize: 14,
   },
 });
