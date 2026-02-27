@@ -6,10 +6,10 @@ export type FirebaseConfig = {
 };
 
 const readFirebaseEnv = (): FirebaseConfig => ({
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY ?? "",
-  databaseURL: process.env.EXPO_PUBLIC_FIREBASE_DATABASE_URL ?? "",
-  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID ?? "",
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID ?? "",
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY ?? "AIzaSyCTe1oUQnVcwTeUzy7oQVoM0O1ZnNMoR1A",
+  databaseURL: process.env.EXPO_PUBLIC_FIREBASE_DATABASE_URL ?? "https://eerme-e8335-default-rtdb.firebaseio.com",
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID ?? "eerme-e8335",
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID ?? "com.eerme.app",
 });
 
 export const firebaseConfig = readFirebaseEnv();
