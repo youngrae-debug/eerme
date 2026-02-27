@@ -483,6 +483,7 @@ function normalizeBackupEntries(entries: Entry[]) {
 
 export function JournalProvider({ children }: React.PropsWithChildren) {
   const [entries, setEntries] = React.useState<Entry[]>([]);
+  const entriesRef = React.useRef<Entry[]>([]);
   const [isReady, setIsReady] = React.useState(false);
   const [session, setSession] = React.useState<AuthSession | null>(null);
   const [isGuest, setIsGuest] = React.useState(false);
@@ -501,6 +502,10 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
   }, []);
 
   const visibleEntries = React.useMemo(() => entries.filter((entry) => !entry.deletedAt), [entries]);
+
+  React.useEffect(() => {
+    entriesRef.current = entries;
+  }, [entries]);
 
   const refreshPendingSyncCount = React.useCallback(async () => {
     const queue = await loadSyncQueueFromDb();
@@ -650,7 +655,8 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
   const upsertEntry = React.useCallback(
     async (date: string, lines: [string, string, string], imageUri?: string | null, imageUris?: string[]) => {
       const now = Date.now();
-      const existing = entries.find((entry) => entry.date === date && !entry.deletedAt);
+      const currentEntries = entriesRef.current;
+      const existing = currentEntries.find((entry) => entry.date === date && !entry.deletedAt);
 
       const nextImageUris = imageUris !== undefined
         ? normalizeImageUris(undefined, imageUris)
@@ -671,8 +677,9 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
             deletedAt: null,
           };
 
-      const nextEntries = mergeEntries(entries.filter((entry) => entry.id !== nextEntry.id), [nextEntry]);
+      const nextEntries = mergeEntries(currentEntries.filter((entry) => entry.id !== nextEntry.id), [nextEntry]);
       setEntries(nextEntries);
+      entriesRef.current = nextEntries;
       await upsertEntriesToDb([nextEntry]);
       await enqueueSyncFromEntries([nextEntry]);
       await refreshPendingSyncCount();
@@ -683,7 +690,7 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
         });
       }
     },
-    [entries, refreshPendingSyncCount, session, syncNow],
+    [refreshPendingSyncCount, session, syncNow],
   );
 
   const upsertTodayEntry = React.useCallback(
@@ -697,13 +704,15 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
   const removeEntry = React.useCallback(
     async (id: string) => {
       const now = Date.now();
-      const target = entries.find((entry) => entry.id === id);
+      const currentEntries = entriesRef.current;
+      const target = currentEntries.find((entry) => entry.id === id);
       if (!target) return;
 
       const deleted: Entry = { ...target, updatedAt: now, deletedAt: now };
-      const nextEntries = mergeEntries(entries.filter((entry) => entry.id !== id), [deleted]);
+      const nextEntries = mergeEntries(currentEntries.filter((entry) => entry.id !== id), [deleted]);
 
       setEntries(nextEntries);
+      entriesRef.current = nextEntries;
       await upsertEntriesToDb([deleted]);
       await enqueueSyncFromEntries([deleted]);
       await refreshPendingSyncCount();
@@ -714,7 +723,7 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
         });
       }
     },
-    [entries, refreshPendingSyncCount, session, syncNow],
+    [refreshPendingSyncCount, session, syncNow],
   );
 
   const searchEntries = React.useCallback(
