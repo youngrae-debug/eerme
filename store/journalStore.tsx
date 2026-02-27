@@ -81,6 +81,8 @@ const resolveSyncErrorMessage = (error: unknown) => {
   if (normalized.includes("auth/user-disabled")) return t("syncAuthFailed");
   if (normalized.includes("permission denied")) return t("syncAuthFailed");
   if (normalized.includes("permission_denied")) return t("syncAuthFailed");
+  if (normalized.includes("database request failed (401)")) return "Firebase 데이터베이스 권한 오류 (401). Firebase 콘솔에서 Realtime Database 규칙을 확인하세요. 규칙이 'auth.uid'를 올바르게 확인하는지 점검하세요.";
+  if (normalized.includes("(401)")) return "인증 오류 (401). 토큰이 만료되었거나 Firebase 규칙 설정이 잘못되었습니다. 다시 로그인하거나 Firebase 콘솔에서 Database 규칙을 확인하세요.";
   if (normalized.includes("invalid_login_credentials")) return t("syncAuthInvalidCredentials");
   if (normalized.includes("auth/invalid-credential")) return t("syncAuthInvalidCredentials");
   if (normalized.includes("auth/invalid-email")) return t("syncAuthInvalidCredentials");

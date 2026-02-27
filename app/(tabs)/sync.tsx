@@ -229,6 +229,20 @@ export default function SyncScreen() {
     syncStatus === "syncing" ? t("syncStatusSyncing") : syncStatus === "error" ? t("syncStatusError") : t("syncStatusIdle");
   const lastSyncedLabel = lastSyncedAt ? new Date(lastSyncedAt).toLocaleString() : t("syncNever");
 
+  const showFirebaseRulesHelp = React.useCallback(() => {
+    Alert.alert(
+      "Firebase Database 규칙 설정",
+      "401 오류는 대부분 Firebase Realtime Database 규칙 문제입니다.\n\n" +
+      "해결 방법:\n" +
+      "1. Firebase 콘솔 접속\n" +
+      "2. Realtime Database → 규칙 탭\n" +
+      "3. 다음과 같이 설정:\n\n" +
+      '{\n  "rules": {\n    "entries": {\n      "$uid": {\n        ".read": "$uid === auth.uid",\n        ".write": "$uid === auth.uid"\n      }\n    }\n  }\n}\n\n' +
+      "4. '게시' 버튼 클릭",
+      [{ text: "확인" }]
+    );
+  }, []);
+
   if (!isReady) {
     return (
       <View style={styles.loadingWrap}>
@@ -359,7 +373,18 @@ export default function SyncScreen() {
             <Text style={styles.helperText}>{t("syncStatusLabel", { status: syncStatusText })}</Text>
             <Text style={styles.helperText}>{t("syncPendingLabel", { count: pendingSyncCount })}</Text>
             <Text style={styles.helperText}>{t("syncLastLabel", { value: lastSyncedLabel })}</Text>
-            {syncError ? <Text style={styles.syncErrorText}>{syncError}</Text> : null}
+            {syncError ? (
+              <>
+                <Text style={styles.syncErrorText}>{syncError}</Text>
+                {syncError.includes("401") || syncError.includes("권한") ? (
+                  <Pressable onPress={showFirebaseRulesHelp} style={{ marginTop: 8 }}>
+                    <Text style={[styles.syncErrorText, { textDecorationLine: "underline" }]}>
+                      → Firebase 규칙 설정 도움말 보기
+                    </Text>
+                  </Pressable>
+                ) : null}
+              </>
+            ) : null}
             <Pressable style={styles.accentButton} onPress={() => run(syncNow, t("syncDone"))}>
               <Text style={styles.accentButtonLabel}>{busy || syncStatus === "syncing" ? t("processing") : t("syncNowButton")}</Text>
             </Pressable>

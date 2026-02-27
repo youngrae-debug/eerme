@@ -53,7 +53,6 @@ export default function LoginScreen() {
     >
       <NeumorphicCard style={styles.card}>
         <Text style={styles.title}>{t("authSignInTitle")}</Text>
-        <Text style={styles.helper}>{t("authSignInSubtitle")}</Text>
 
         <Text style={styles.label}>{t("authEmailLabel")}</Text>
         <TextInput
@@ -76,7 +75,6 @@ export default function LoginScreen() {
           value={password}
           onChangeText={setPassword}
         />
-        <Text style={styles.helper}>{t("authPasswordHint")}</Text>
 
         <NeumorphicButton
           label={busy ? t("processing") : t("authSignIn")}
@@ -110,6 +108,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
   },
   title: {
+    textAlign: "center",
     fontSize: 22,
     fontWeight: "700",
     color: COLORS.primaryText,

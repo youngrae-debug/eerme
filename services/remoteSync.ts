@@ -285,7 +285,19 @@ const firebaseDbRequest = async <T>(
   });
 
   if (!response.ok) {
-    throw new Error(`Firebase database request failed (${response.status}).`);
+    let errorDetail = '';
+    try {
+      const errorData = await response.json();
+      errorDetail = errorData?.error || '';
+    } catch {
+      // JSON 파싱 실패 시 무시
+    }
+    
+    if (response.status === 401) {
+      throw new Error(`Firebase database request failed (401). 인증 실패: ${errorDetail || '토큰이 만료되었거나 Database 규칙이 잘못 설정되었습니다.'}`);
+    }
+    
+    throw new Error(`Firebase database request failed (${response.status}). ${errorDetail}`);
   }
 
   if (response.status === 204) {
@@ -395,26 +407,33 @@ const firebaseClient: RemoteClient = {
       return session;
     }
 
-    const response = await fetch(`https://securetoken.googleapis.com/v1/token?key=${firebaseApiKey}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: `grant_type=refresh_token&refresh_token=${encodeURIComponent(session.refreshToken)}`,
-    });
+    try {
+      const response = await fetch(`https://securetoken.googleapis.com/v1/token?key=${firebaseApiKey}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: `grant_type=refresh_token&refresh_token=${encodeURIComponent(session.refreshToken)}`,
+      });
 
-    if (!response.ok) {
+      if (!response.ok) {
+        // 토큰 갱신 실패 시 null 반환하여 재로그인 유도
+        return null;
+      }
+
+      const refreshed = (await response.json()) as FirebaseRefreshResponse;
+      return {
+        ...session,
+        accessToken: refreshed.id_token,
+        refreshToken: refreshed.refresh_token,
+        user: {
+          ...session.user,
+          id: refreshed.user_id || session.user.id,
+        },
+      };
+    } catch (error) {
+      // 네트워크 오류 등의 경우 기존 세션 유지
+      console.error("Failed to restore Firebase session:", error);
       return session;
     }
-
-    const refreshed = (await response.json()) as FirebaseRefreshResponse;
-    return {
-      ...session,
-      accessToken: refreshed.id_token,
-      refreshToken: refreshed.refresh_token,
-      user: {
-        ...session.user,
-        id: refreshed.user_id || session.user.id,
-      },
-    };
   },
   async updatePassword(session, nextPassword) {
     const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:update?key=${firebaseApiKey}`, {
