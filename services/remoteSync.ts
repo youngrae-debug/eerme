@@ -49,6 +49,12 @@ type FirebaseRefreshResponse = {
 
 type FirebaseEntriesMap = Record<string, RemoteEntry>;
 
+type FirebaseErrorResponse = {
+  error?: {
+    message?: string;
+  };
+};
+
 type SupabaseAuthResponse = {
   access_token: string;
   refresh_token?: string;
@@ -234,6 +240,19 @@ const firebaseAuth = async (path: string, payload: Record<string, unknown>) => {
   });
 
   if (!response.ok) {
+    try {
+      const data = (await response.json()) as FirebaseErrorResponse;
+      const firebaseMessage = data.error?.message?.trim();
+
+      if (firebaseMessage) {
+        throw new Error(`Firebase authentication failed: ${firebaseMessage}.`);
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith("Firebase authentication failed:")) {
+        throw error;
+      }
+    }
+
     throw new Error("Firebase authentication failed.");
   }
 

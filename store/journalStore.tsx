@@ -62,6 +62,7 @@ const TABLE_SYNC_QUEUE = "sync_queue";
 const SYNC_META_KEY = "lastSyncedAt";
 const AUTH_MODE_KEY = "authMode";
 const PREMIUM_ENABLED_KEY = "premiumEnabled";
+const LAST_AUTH_USER_ID_KEY = "lastAuthUserId";
 const AUTH_MODE_GUEST = "guest";
 const AUTH_MODE_NONE = "none";
 
@@ -71,6 +72,11 @@ const resolveSyncErrorMessage = (error: unknown) => {
   const message = error.message;
   const normalized = message.toLowerCase();
 
+  if (normalized.includes("api key not valid")) return t("syncFirebaseApiKeyInvalid");
+  if (normalized.includes("project not found")) return t("syncFirebaseProjectNotFound");
+  if (normalized.includes("user_disabled")) return t("syncAuthFailed");
+  if (normalized.includes("invalid_login_credentials")) return t("syncAuthInvalidCredentials");
+  if (normalized.includes("email_exists")) return t("syncAuthEmailExists");
   if (normalized.includes("authentication failed")) return t("syncAuthFailed");
   if (normalized.includes("push sync failed")) return t("syncPushFailed");
   if (normalized.includes("pull sync failed")) return t("syncPullFailed");
@@ -332,6 +338,28 @@ async function savePremiumEnabled(value: boolean) {
   );
 }
 
+async function loadLastAuthUserId() {
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<{ value: string }>(`SELECT value FROM ${TABLE_SYNC_META} WHERE key = ?`, [LAST_AUTH_USER_ID_KEY]);
+  return row?.value ?? null;
+}
+
+async function saveLastAuthUserId(userId: string | null) {
+  const db = await getDatabase();
+
+  if (!userId) {
+    await db.runAsync(`DELETE FROM ${TABLE_SYNC_META} WHERE key = ?`, [LAST_AUTH_USER_ID_KEY]);
+    return;
+  }
+
+  await db.runAsync(
+    `INSERT INTO ${TABLE_SYNC_META} (key, value)
+     VALUES (?, ?)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    [LAST_AUTH_USER_ID_KEY, userId],
+  );
+}
+
 async function saveAuthMode(value: string) {
   const db = await getDatabase();
   await db.runAsync(
@@ -437,6 +465,7 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
   const [syncError, setSyncError] = React.useState<string | null>(null);
   const [pendingSyncCount, setPendingSyncCount] = React.useState(0);
   const [isPremium, setIsPremium] = React.useState(false);
+  const [lastAuthUserId, setLastAuthUserId] = React.useState<string | null>(null);
 
   const setPremium = React.useCallback((value: boolean) => {
     setIsPremium(value);
@@ -503,12 +532,13 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
 
     const bootstrap = async () => {
       try {
-        const [loadedEntries, loadedSession, loadedLastSyncedAt, loadedAuthMode, loadedPremiumEnabled] = await Promise.all([
+        const [loadedEntries, loadedSession, loadedLastSyncedAt, loadedAuthMode, loadedPremiumEnabled, loadedLastAuthUserId] = await Promise.all([
           loadEntriesFromDb(),
           loadSessionFromDb(),
           loadLastSyncedAt(),
           loadAuthMode(),
           loadPremiumEnabled(),
+          loadLastAuthUserId(),
         ]);
 
         if (!mounted) return;
@@ -516,6 +546,7 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
         setEntries(loadedEntries);
         setLastSyncedAt(loadedLastSyncedAt);
         setIsPremium(loadedPremiumEnabled);
+        setLastAuthUserId(loadedLastAuthUserId);
 
         let nextSession = loadedSession;
         if (loadedSession && remoteClient.restoreSession) {
@@ -598,7 +629,7 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
 
       if (session) {
         syncNow().catch((error) => {
-          console.error("Background sync failed", error);
+          console.warn("Background sync failed", error);
         });
       }
     },
@@ -629,7 +660,7 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
 
       if (session) {
         syncNow().catch((error) => {
-          console.error("Background sync failed", error);
+          console.warn("Background sync failed", error);
         });
       }
     },
@@ -645,16 +676,44 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
     [visibleEntries],
   );
 
+  const resetLocalDataForAccountSwitch = React.useCallback(async () => {
+    await replaceEntriesToDb([]);
+    await clearSyncQueueAll();
+    await saveLastSyncedAt(0);
+
+    setEntries([]);
+    setLastSyncedAt(0);
+    await refreshPendingSyncCount();
+  }, [refreshPendingSyncCount]);
+
+  const applyAuthenticatedSession = React.useCallback(
+    async (nextSession: AuthSession) => {
+      const isSwitchingAccount = Boolean(lastAuthUserId && lastAuthUserId !== nextSession.user.id);
+
+      if (isSwitchingAccount) {
+        await resetLocalDataForAccountSwitch();
+      }
+
+      setSession(nextSession);
+      setIsGuest(false);
+      setLastAuthUserId(nextSession.user.id);
+      await saveSessionToDb(nextSession);
+      await saveAuthMode(AUTH_MODE_NONE);
+      await saveLastAuthUserId(nextSession.user.id);
+
+      const sourceEntries = isSwitchingAccount ? [] : entries;
+      const sourceSince = isSwitchingAccount ? 0 : lastSyncedAt;
+      await performSync(nextSession, sourceEntries, sourceSince);
+    },
+    [entries, lastAuthUserId, lastSyncedAt, performSync, resetLocalDataForAccountSwitch],
+  );
+
   const signInWithEmail = React.useCallback(
     async (email: string, password: string) => {
       const nextSession = await remoteClient.signInWithEmail(email, password);
-      setSession(nextSession);
-      setIsGuest(false);
-      await saveSessionToDb(nextSession);
-      await saveAuthMode(AUTH_MODE_NONE);
-      await performSync(nextSession, entries, lastSyncedAt);
+      await applyAuthenticatedSession(nextSession);
     },
-    [entries, lastSyncedAt, performSync],
+    [applyAuthenticatedSession],
   );
 
   const signUpWithEmail = React.useCallback(
@@ -664,37 +723,25 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
       }
 
       const nextSession = await remoteClient.signUpWithEmail(email, password);
-      setSession(nextSession);
-      setIsGuest(false);
-      await saveSessionToDb(nextSession);
-      await saveAuthMode(AUTH_MODE_NONE);
-      await performSync(nextSession, entries, lastSyncedAt);
+      await applyAuthenticatedSession(nextSession);
     },
-    [entries, lastSyncedAt, performSync],
+    [applyAuthenticatedSession],
   );
 
   const signInWithApple = React.useCallback(
     async (identityToken: string) => {
       const nextSession = await remoteClient.signInWithApple(identityToken);
-      setSession(nextSession);
-      setIsGuest(false);
-      await saveSessionToDb(nextSession);
-      await saveAuthMode(AUTH_MODE_NONE);
-      await performSync(nextSession, entries, lastSyncedAt);
+      await applyAuthenticatedSession(nextSession);
     },
-    [entries, lastSyncedAt, performSync],
+    [applyAuthenticatedSession],
   );
 
   const signInWithGoogle = React.useCallback(
     async (identityToken: string) => {
       const nextSession = await remoteClient.signInWithGoogle(identityToken);
-      setSession(nextSession);
-      setIsGuest(false);
-      await saveSessionToDb(nextSession);
-      await saveAuthMode(AUTH_MODE_NONE);
-      await performSync(nextSession, entries, lastSyncedAt);
+      await applyAuthenticatedSession(nextSession);
     },
-    [entries, lastSyncedAt, performSync],
+    [applyAuthenticatedSession],
   );
 
   const signInAsGuest = React.useCallback(async () => {
@@ -740,11 +787,13 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
     await saveLastSyncedAt(0);
     await saveSessionToDb(null);
     await saveAuthMode(AUTH_MODE_NONE);
+    await saveLastAuthUserId(null);
 
     setEntries([]);
     setLastSyncedAt(0);
     setSession(null);
     setIsGuest(false);
+    setLastAuthUserId(null);
     await refreshPendingSyncCount();
   }, [refreshPendingSyncCount, session]);
 
@@ -785,7 +834,7 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
 
       if (session) {
         syncNow().catch((error) => {
-          console.error("Background sync failed after backup import", error);
+          console.warn("Background sync failed after backup import", error);
         });
       }
     },

@@ -10,15 +10,22 @@ export default function SignUpScreen() {
   const { isReady, session, signUpWithEmail } = useJournalStore();
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
+  const [confirmPassword, setConfirmPassword] = React.useState("");
   const [busy, setBusy] = React.useState(false);
 
   const emailTrimmed = email.trim();
   const passwordTrimmed = password.trim();
-  const canSubmit = emailTrimmed.length > 0 && passwordTrimmed.length >= 6;
+  const confirmPasswordTrimmed = confirmPassword.trim();
+  const isPasswordConfirmed = passwordTrimmed.length > 0 && passwordTrimmed === confirmPasswordTrimmed;
 
   const runSignUp = React.useCallback(async () => {
-    if (!canSubmit) {
+    if (!emailTrimmed || passwordTrimmed.length < 6) {
       Alert.alert(t("errorTitle"), t("authValidation"));
+      return;
+    }
+
+    if (!isPasswordConfirmed) {
+      Alert.alert(t("errorTitle"), t("authPasswordMismatch"));
       return;
     }
 
@@ -32,7 +39,7 @@ export default function SignUpScreen() {
     } finally {
       setBusy(false);
     }
-  }, [canSubmit, emailTrimmed, passwordTrimmed, signUpWithEmail]);
+  }, [emailTrimmed, isPasswordConfirmed, passwordTrimmed, signUpWithEmail]);
 
   if (!isReady) {
     return (
@@ -75,6 +82,15 @@ export default function SignUpScreen() {
           style={styles.input}
           value={password}
           onChangeText={setPassword}
+        />
+        <Text style={styles.label}>{t("authPasswordConfirmLabel")}</Text>
+        <TextInput
+          secureTextEntry
+          placeholder={t("authPasswordConfirmPlaceholder")}
+          placeholderTextColor={COLORS.secondaryText}
+          style={styles.input}
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
         />
         <Text style={styles.helper}>{t("authPasswordHint")}</Text>
 
