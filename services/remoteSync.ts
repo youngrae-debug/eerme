@@ -49,6 +49,18 @@ type FirebaseRefreshResponse = {
 
 type FirebaseEntriesMap = Record<string, RemoteEntry>;
 
+type FirebaseErrorResponse = {
+  error?: {
+    message?: string;
+  } | string;
+};
+
+const extractFirebaseErrorCode = (data: FirebaseErrorResponse | null | undefined) => {
+  if (!data?.error) return null;
+  if (typeof data.error === "string") return data.error.trim();
+  return data.error.message?.trim() ?? null;
+};
+
 type SupabaseAuthResponse = {
   access_token: string;
   refresh_token?: string;
@@ -234,10 +246,46 @@ const firebaseAuth = async (path: string, payload: Record<string, unknown>) => {
   });
 
   if (!response.ok) {
+    try {
+      const data = (await response.json()) as FirebaseErrorResponse;
+      const firebaseMessage = extractFirebaseErrorCode(data);
+
+      if (firebaseMessage) {
+        throw new Error(`Firebase authentication failed: ${firebaseMessage}.`);
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith("Firebase authentication failed:")) {
+        throw error;
+      }
+    }
+
     throw new Error("Firebase authentication failed.");
   }
 
   return (await response.json()) as FirebaseAuthResponse;
+};
+
+const firebaseDatabaseRequest = async (url: string, init?: RequestInit, fallbackMessage?: string) => {
+  const response = await fetch(url, init);
+
+  if (!response.ok) {
+    try {
+      const data = (await response.json()) as FirebaseErrorResponse;
+      const firebaseMessage = extractFirebaseErrorCode(data);
+
+      if (firebaseMessage) {
+        throw new Error(`${fallbackMessage ?? "Firebase sync failed."}: ${firebaseMessage}.`);
+      }
+    } catch (error) {
+      if (error instanceof Error && (fallbackMessage ? error.message.startsWith(fallbackMessage) : false)) {
+        throw error;
+      }
+    }
+
+    throw new Error(fallbackMessage ?? "Firebase sync failed.");
+  }
+
+  return response;
 };
 
 const toFirebaseSession = (data: FirebaseAuthResponse): AuthSession => ({
@@ -302,10 +350,11 @@ const firebaseClient: RemoteClient = {
   },
   async pull(session, since) {
     ensureFirebaseConfig();
-    const response = await fetch(`${firebaseDatabaseUrl}/entries/${session.user.id}.json?auth=${session.accessToken}`);
-    if (!response.ok) {
-      throw new Error("Firebase pull sync failed.");
-    }
+    const response = await firebaseDatabaseRequest(
+      `${firebaseDatabaseUrl}/entries/${session.user.id}.json?auth=${session.accessToken}`,
+      undefined,
+      "Firebase pull sync failed",
+    );
 
     const payload = (await response.json()) as FirebaseEntriesMap | null;
     const entries = payload
@@ -324,15 +373,15 @@ const firebaseClient: RemoteClient = {
       return acc;
     }, {});
 
-    const response = await fetch(`${firebaseDatabaseUrl}/entries/${session.user.id}.json?auth=${session.accessToken}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-
-    if (!response.ok) {
-      throw new Error("Firebase push sync failed.");
-    }
+    await firebaseDatabaseRequest(
+      `${firebaseDatabaseUrl}/entries/${session.user.id}.json?auth=${session.accessToken}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      },
+      "Firebase push sync failed",
+    );
   },
   async deleteAccount(session) {
     ensureFirebaseConfig();
