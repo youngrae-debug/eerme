@@ -448,7 +448,16 @@ function mergeEntries(local: Entry[], remote: Entry[]) {
   for (const remoteEntry of remote) {
     const current = byId.get(remoteEntry.id);
     if (!current || remoteEntry.updatedAt >= current.updatedAt) {
-      byId.set(remoteEntry.id, remoteEntry);
+      const hasRemoteImages = Boolean(remoteEntry.imageUris?.length || remoteEntry.imageUri);
+      const nextEntry = hasRemoteImages
+        ? remoteEntry
+        : {
+            ...remoteEntry,
+            imageUri: current?.imageUri ?? null,
+            imageUris: current?.imageUris ?? (current?.imageUri ? [current.imageUri] : []),
+          };
+
+      byId.set(remoteEntry.id, nextEntry);
     }
   }
 
@@ -483,6 +492,8 @@ function normalizeBackupEntries(entries: Entry[]) {
 
 export function JournalProvider({ children }: React.PropsWithChildren) {
   const [entries, setEntries] = React.useState<Entry[]>([]);
+  const entriesRef = React.useRef<Entry[]>([]);
+  const lastSyncedAtRef = React.useRef<number | null>(null);
   const [isReady, setIsReady] = React.useState(false);
   const [session, setSession] = React.useState<AuthSession | null>(null);
   const [isGuest, setIsGuest] = React.useState(false);
@@ -501,6 +512,14 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
   }, []);
 
   const visibleEntries = React.useMemo(() => entries.filter((entry) => !entry.deletedAt), [entries]);
+
+  React.useEffect(() => {
+    entriesRef.current = entries;
+  }, [entries]);
+
+  React.useEffect(() => {
+    lastSyncedAtRef.current = lastSyncedAt;
+  }, [lastSyncedAt]);
 
   const refreshPendingSyncCount = React.useCallback(async () => {
     const queue = await loadSyncQueueFromDb();
@@ -533,7 +552,9 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
         await saveLastSyncedAt(pullResult.serverTime);
 
         setEntries(merged);
+        entriesRef.current = merged;
         setLastSyncedAt(pullResult.serverTime);
+        lastSyncedAtRef.current = pullResult.serverTime;
         setSyncStatus("idle");
       } catch (error) {
         const message = resolveSyncErrorMessage(error);
@@ -574,8 +595,8 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
       activeSession = restoredSession;
     }
 
-    await performSync(activeSession, entries, lastSyncedAt);
-  }, [entries, lastSyncedAt, performSync, session]);
+    await performSync(activeSession, entriesRef.current, lastSyncedAtRef.current);
+  }, [performSync, session]);
 
   React.useEffect(() => {
     let mounted = true;
@@ -594,7 +615,9 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
         if (!mounted) return;
 
         setEntries(loadedEntries);
+        entriesRef.current = loadedEntries;
         setLastSyncedAt(loadedLastSyncedAt);
+        lastSyncedAtRef.current = loadedLastSyncedAt;
         setIsPremium(loadedPremiumEnabled);
         setLastAuthUserId(loadedLastAuthUserId);
 
@@ -650,7 +673,8 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
   const upsertEntry = React.useCallback(
     async (date: string, lines: [string, string, string], imageUri?: string | null, imageUris?: string[]) => {
       const now = Date.now();
-      const existing = entries.find((entry) => entry.date === date && !entry.deletedAt);
+      const currentEntries = entriesRef.current;
+      const existing = currentEntries.find((entry) => entry.date === date && !entry.deletedAt);
 
       const nextImageUris = imageUris !== undefined
         ? normalizeImageUris(undefined, imageUris)
@@ -671,8 +695,9 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
             deletedAt: null,
           };
 
-      const nextEntries = mergeEntries(entries.filter((entry) => entry.id !== nextEntry.id), [nextEntry]);
+      const nextEntries = mergeEntries(currentEntries.filter((entry) => entry.id !== nextEntry.id), [nextEntry]);
       setEntries(nextEntries);
+      entriesRef.current = nextEntries;
       await upsertEntriesToDb([nextEntry]);
       await enqueueSyncFromEntries([nextEntry]);
       await refreshPendingSyncCount();
@@ -683,7 +708,7 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
         });
       }
     },
-    [entries, refreshPendingSyncCount, session, syncNow],
+    [refreshPendingSyncCount, session, syncNow],
   );
 
   const upsertTodayEntry = React.useCallback(
@@ -697,13 +722,15 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
   const removeEntry = React.useCallback(
     async (id: string) => {
       const now = Date.now();
-      const target = entries.find((entry) => entry.id === id);
+      const currentEntries = entriesRef.current;
+      const target = currentEntries.find((entry) => entry.id === id);
       if (!target) return;
 
       const deleted: Entry = { ...target, updatedAt: now, deletedAt: now };
-      const nextEntries = mergeEntries(entries.filter((entry) => entry.id !== id), [deleted]);
+      const nextEntries = mergeEntries(currentEntries.filter((entry) => entry.id !== id), [deleted]);
 
       setEntries(nextEntries);
+      entriesRef.current = nextEntries;
       await upsertEntriesToDb([deleted]);
       await enqueueSyncFromEntries([deleted]);
       await refreshPendingSyncCount();
@@ -714,7 +741,7 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
         });
       }
     },
-    [entries, refreshPendingSyncCount, session, syncNow],
+    [refreshPendingSyncCount, session, syncNow],
   );
 
   const searchEntries = React.useCallback(
@@ -732,7 +759,9 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
     await saveLastSyncedAt(0);
 
     setEntries([]);
+    entriesRef.current = [];
     setLastSyncedAt(0);
+    lastSyncedAtRef.current = 0;
     await refreshPendingSyncCount();
   }, [refreshPendingSyncCount]);
 
@@ -840,7 +869,9 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
     await saveLastAuthUserId(null);
 
     setEntries([]);
+    entriesRef.current = [];
     setLastSyncedAt(0);
+    lastSyncedAtRef.current = 0;
     setSession(null);
     setIsGuest(false);
     setLastAuthUserId(null);
@@ -880,6 +911,7 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
       await replaceEntriesToDb(importedEntries);
       await enqueueSyncFromEntries(importedEntries);
       setEntries(importedEntries);
+      entriesRef.current = importedEntries;
       await refreshPendingSyncCount();
 
       if (session) {
