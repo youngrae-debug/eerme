@@ -89,8 +89,9 @@ type RemoteClient = {
 
 const provider = (process.env.EXPO_PUBLIC_SYNC_PROVIDER as SyncProvider | undefined) ?? "firebase";
 const apiBaseUrl = process.env.EXPO_PUBLIC_SYNC_API_BASE_URL ?? "https://eerme-e8335-default-rtdb.firebaseio.com/";
-const firebaseApiKey = "AIzaSyCTe1oUQnVcwTeUzy7oQVoM0O1ZnNMoR1A";
-const firebaseDatabaseUrl = "https://eerme-e8335-default-rtdb.firebaseio.com/";
+const firebaseApiKey = process.env.EXPO_PUBLIC_FIREBASE_API_KEY ?? "AIzaSyCTe1oUQnVcwTeUzy7oQVoM0O1ZnNMoR1A";
+const firebaseDatabaseUrl =
+  process.env.EXPO_PUBLIC_FIREBASE_DATABASE_URL ?? "https://eerme-e8335-default-rtdb.firebaseio.com/";
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "";
 
@@ -107,6 +108,12 @@ const ensureFirebaseConfig = () => {
   if (!firebaseDatabaseUrl) {
     throw new Error("EXPO_PUBLIC_FIREBASE_DATABASE_URL is not set.");
   }
+};
+
+const withFirebaseDbPath = (path: string) => {
+  const baseUrl = firebaseDatabaseUrl.replace(/\/+$/, "");
+  const normalizedPath = path.replace(/^\/+/, "");
+  return `${baseUrl}/${normalizedPath}`;
 };
 
 const ensureSupabaseConfig = () => {
@@ -351,7 +358,7 @@ const firebaseClient: RemoteClient = {
   async pull(session, since) {
     ensureFirebaseConfig();
     const response = await firebaseDatabaseRequest(
-      `${firebaseDatabaseUrl}/entries/${session.user.id}.json?auth=${session.accessToken}`,
+      withFirebaseDbPath(`entries/${session.user.id}.json?auth=${session.accessToken}`),
       undefined,
       "Firebase pull sync failed",
     );
@@ -374,7 +381,7 @@ const firebaseClient: RemoteClient = {
     }, {});
 
     await firebaseDatabaseRequest(
-      `${firebaseDatabaseUrl}/entries/${session.user.id}.json?auth=${session.accessToken}`,
+      withFirebaseDbPath(`entries/${session.user.id}.json?auth=${session.accessToken}`),
       {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -387,7 +394,7 @@ const firebaseClient: RemoteClient = {
     ensureFirebaseConfig();
 
     const removeEntriesResponse = await fetch(
-      `${firebaseDatabaseUrl}/entries/${session.user.id}.json?auth=${session.accessToken}`,
+      withFirebaseDbPath(`entries/${session.user.id}.json?auth=${session.accessToken}`),
       { method: "DELETE" },
     );
 
