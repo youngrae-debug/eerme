@@ -629,7 +629,7 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
 
       if (session) {
         syncNow().catch((error) => {
-          console.error("Background sync failed", error);
+          console.warn("Background sync failed", error);
         });
       }
     },
@@ -660,7 +660,7 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
 
       if (session) {
         syncNow().catch((error) => {
-          console.error("Background sync failed", error);
+          console.warn("Background sync failed", error);
         });
       }
     },
@@ -834,7 +834,7 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
 
       if (session) {
         syncNow().catch((error) => {
-          console.error("Background sync failed after backup import", error);
+          console.warn("Background sync failed after backup import", error);
         });
       }
     },
