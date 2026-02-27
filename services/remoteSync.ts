@@ -6,6 +6,8 @@ type RemoteEntry = {
   line1: string;
   line2: string;
   line3: string;
+  imageUri?: string | null;
+  imageUris?: string[];
   createdAt: number;
   updatedAt: number;
   deletedAt?: number | null;
@@ -127,19 +129,31 @@ const toRemoteEntry = (entry: Entry): RemoteEntry => ({
   line1: entry.lines[0],
   line2: entry.lines[1],
   line3: entry.lines[2],
+  imageUri: entry.imageUri ?? null,
+  imageUris: Array.isArray(entry.imageUris) ? entry.imageUris.filter((item) => typeof item === "string" && item.length > 0).slice(0, 5) : [],
   createdAt: entry.createdAt,
   updatedAt: entry.updatedAt,
   deletedAt: entry.deletedAt ?? null,
 });
 
-const toLocalEntry = (entry: RemoteEntry): Entry => ({
-  id: entry.id,
-  date: entry.date,
-  lines: [entry.line1 ?? "", entry.line2 ?? "", entry.line3 ?? ""],
-  createdAt: Number(entry.createdAt),
-  updatedAt: Number(entry.updatedAt),
-  deletedAt: entry.deletedAt ?? null,
-});
+const toLocalEntry = (entry: RemoteEntry): Entry => {
+  const nextImageUris = Array.isArray(entry.imageUris)
+    ? entry.imageUris.filter((item): item is string => typeof item === "string" && item.length > 0).slice(0, 5)
+    : entry.imageUri
+      ? [entry.imageUri]
+      : [];
+
+  return {
+    id: entry.id,
+    date: entry.date,
+    lines: [entry.line1 ?? "", entry.line2 ?? "", entry.line3 ?? ""],
+    imageUri: nextImageUris[0] ?? null,
+    imageUris: nextImageUris,
+    createdAt: Number(entry.createdAt),
+    updatedAt: Number(entry.updatedAt),
+    deletedAt: entry.deletedAt ?? null,
+  };
+};
 
 const customClient: RemoteClient = {
   async signInWithEmail(email, password) {

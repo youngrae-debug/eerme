@@ -448,7 +448,16 @@ function mergeEntries(local: Entry[], remote: Entry[]) {
   for (const remoteEntry of remote) {
     const current = byId.get(remoteEntry.id);
     if (!current || remoteEntry.updatedAt >= current.updatedAt) {
-      byId.set(remoteEntry.id, remoteEntry);
+      const hasRemoteImages = Boolean(remoteEntry.imageUris?.length || remoteEntry.imageUri);
+      const nextEntry = hasRemoteImages
+        ? remoteEntry
+        : {
+            ...remoteEntry,
+            imageUri: current?.imageUri ?? null,
+            imageUris: current?.imageUris ?? (current?.imageUri ? [current.imageUri] : []),
+          };
+
+      byId.set(remoteEntry.id, nextEntry);
     }
   }
 
