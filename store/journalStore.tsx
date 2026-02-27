@@ -73,12 +73,23 @@ const resolveSyncErrorMessage = (error: unknown) => {
   const normalized = message.toLowerCase();
 
   if (normalized.includes("api key not valid")) return t("syncFirebaseApiKeyInvalid");
+  if (normalized.includes("invalid-api-key")) return t("syncFirebaseApiKeyInvalid");
+  if (normalized.includes("auth/invalid-api-key")) return t("syncFirebaseApiKeyInvalid");
   if (normalized.includes("project not found")) return t("syncFirebaseProjectNotFound");
+  if (normalized.includes("database_url")) return t("syncFirebaseProjectNotFound");
   if (normalized.includes("user_disabled")) return t("syncAuthFailed");
+  if (normalized.includes("auth/user-disabled")) return t("syncAuthFailed");
   if (normalized.includes("permission denied")) return t("syncAuthFailed");
   if (normalized.includes("permission_denied")) return t("syncAuthFailed");
   if (normalized.includes("invalid_login_credentials")) return t("syncAuthInvalidCredentials");
+  if (normalized.includes("auth/invalid-credential")) return t("syncAuthInvalidCredentials");
+  if (normalized.includes("auth/invalid-email")) return t("syncAuthInvalidCredentials");
+  if (normalized.includes("auth/wrong-password")) return t("syncAuthInvalidCredentials");
+  if (normalized.includes("auth/user-not-found")) return t("syncAuthInvalidCredentials");
+  if (normalized.includes("auth/too-many-requests")) return t("syncAuthFailed");
+  if (normalized.includes("auth/network-request-failed")) return t("syncFailed");
   if (normalized.includes("email_exists")) return t("syncAuthEmailExists");
+  if (normalized.includes("auth/email-already-in-use")) return t("syncAuthEmailExists");
   if (normalized.includes("authentication failed")) return t("syncAuthFailed");
   if (normalized.includes("push sync failed")) return t("syncPushFailed");
   if (normalized.includes("pull sync failed")) return t("syncPullFailed");

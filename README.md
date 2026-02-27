@@ -39,6 +39,7 @@
 - Expo + React Native + TypeScript
 - Expo Router (file-based routing)
 - expo-sqlite
+- Firebase JavaScript SDK (`firebase`)
 - react-native-chart-kit
 - lucide-react-native
 
@@ -70,5 +71,5 @@ EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
 ```
 
-> 참고: 현재 프로젝트는 Firebase REST API 기반 동기화를 사용합니다. `EXPO_PUBLIC_FIREBASE_PROJECT_ID`, `EXPO_PUBLIC_FIREBASE_APP_ID`는 Firebase JS SDK 초기화 전환 시 바로 사용할 수 있도록 함께 관리합니다.
+> 참고: Firebase provider는 Firebase JavaScript SDK(auth/database)와 REST API를 함께 사용합니다. 이메일 로그인/회원가입, 실시간 DB 동기화는 SDK 경로를 우선 사용하며, 일부 소셜 로그인/토큰 재발급은 REST API를 병행합니다.
 > 참고: TestFlight/EAS 빌드에서는 로컬 `.env`가 자동 포함되지 않으므로, `EXPO_PUBLIC_SYNC_PROVIDER`와 Firebase 키들은 EAS 환경 변수(또는 `eas.json > build.<profile>.env`)로 반드시 주입해야 합니다. 값이 누락되면 로그인/회원가입 시 환경 변수 누락 오류가 발생합니다.
