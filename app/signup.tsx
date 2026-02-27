@@ -60,7 +60,6 @@ export default function SignUpScreen() {
     >
       <NeumorphicCard style={styles.card}>
         <Text style={styles.title}>{t("authSignUpTitle")}</Text>
-        <Text style={styles.helper}>{t("authSignUpSubtitle")}</Text>
 
         <Text style={styles.label}>{t("authEmailLabel")}</Text>
         <TextInput
@@ -92,18 +91,17 @@ export default function SignUpScreen() {
           value={confirmPassword}
           onChangeText={setConfirmPassword}
         />
-        <Text style={styles.helper}>{t("authPasswordHint")}</Text>
 
         <NeumorphicButton
           label={busy ? t("processing") : t("authSignUp")}
           style={styles.fullButton}
           onPress={runSignUp}
         />
-        <NeumorphicButton
-          label={t("authSwitchToSignIn")}
-          style={styles.fullButton}
-          onPress={() => router.replace("/login")}
-        />
+
+        <View style={styles.switchRow}>
+          <Text style={styles.switchHelper}>{t("authHasAccount")}</Text>
+          <Text style={styles.switchAction} onPress={() => router.replace("/login")}>{t("authSwitchToSignIn")}</Text>
+        </View>
       </NeumorphicCard>
     </KeyboardAvoidingView>
   );
@@ -126,20 +124,17 @@ const styles = StyleSheet.create({
     borderRadius: 24,
   },
   title: {
+    textAlign: "center",
     fontSize: 22,
     fontWeight: "700",
     color: COLORS.primaryText,
-    marginBottom: 8,
-  },
-  helper: {
-    color: COLORS.secondaryText,
-    marginBottom: 12,
-    lineHeight: 20,
+    marginBottom: 20,
   },
   label: {
     color: COLORS.textOnSurface,
     fontWeight: "600",
-    marginBottom: 6,
+    marginBottom: 8,
+    marginTop: 4,
   },
   input: {
     borderWidth: 1,
@@ -149,9 +144,25 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     backgroundColor: COLORS.card,
     color: COLORS.primaryText,
-    marginBottom: 10,
+    marginBottom: 14,
   },
   fullButton: {
-    marginTop: 6,
+    marginTop: 14,
+  },
+  switchRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 18,
+    gap: 6,
+  },
+  switchHelper: {
+    color: COLORS.secondaryText,
+    fontSize: 14,
+  },
+  switchAction: {
+    color: COLORS.primaryText,
+    fontWeight: "700",
+    fontSize: 14,
   },
 });
