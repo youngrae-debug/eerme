@@ -1,3 +1,12 @@
+import {
+  createUserWithEmailAndPassword,
+  deleteUser,
+  signInAnonymously as firebaseSignInAnonymously,
+  signInWithEmailAndPassword,
+  updatePassword as firebaseUpdatePassword,
+} from "firebase/auth";
+import { get, ref, remove, update } from "firebase/database";
+import { getFirebaseAuthClient, getFirebaseDatabaseClient } from "./firebaseSdk";
 import { AuthSession, AuthUser, Entry, SyncProvider } from "../types/journal";
 
 type RemoteEntry = {
@@ -89,8 +98,9 @@ type RemoteClient = {
 
 const provider = (process.env.EXPO_PUBLIC_SYNC_PROVIDER as SyncProvider | undefined) ?? "firebase";
 const apiBaseUrl = process.env.EXPO_PUBLIC_SYNC_API_BASE_URL ?? "https://eerme-e8335-default-rtdb.firebaseio.com/";
-const firebaseApiKey = "AIzaSyCTe1oUQnVcwTeUzy7oQVoM0O1ZnNMoR1A";
-const firebaseDatabaseUrl = "https://eerme-e8335-default-rtdb.firebaseio.com/";
+const firebaseApiKey = process.env.EXPO_PUBLIC_FIREBASE_API_KEY ?? "AIzaSyCTe1oUQnVcwTeUzy7oQVoM0O1ZnNMoR1A";
+const firebaseDatabaseUrl =
+  process.env.EXPO_PUBLIC_FIREBASE_DATABASE_URL ?? "https://eerme-e8335-default-rtdb.firebaseio.com/";
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? "";
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? "";
 
@@ -108,6 +118,7 @@ const ensureFirebaseConfig = () => {
     throw new Error("EXPO_PUBLIC_FIREBASE_DATABASE_URL is not set.");
   }
 };
+
 
 const ensureSupabaseConfig = () => {
   if (!supabaseUrl) {
@@ -265,29 +276,29 @@ const firebaseAuth = async (path: string, payload: Record<string, unknown>) => {
   return (await response.json()) as FirebaseAuthResponse;
 };
 
-const firebaseDatabaseRequest = async (url: string, init?: RequestInit, fallbackMessage?: string) => {
-  const response = await fetch(url, init);
 
-  if (!response.ok) {
-    try {
-      const data = (await response.json()) as FirebaseErrorResponse;
-      const firebaseMessage = extractFirebaseErrorCode(data);
 
-      if (firebaseMessage) {
-        throw new Error(`${fallbackMessage ?? "Firebase sync failed."}: ${firebaseMessage}.`);
-      }
-    } catch (error) {
-      if (error instanceof Error && (fallbackMessage ? error.message.startsWith(fallbackMessage) : false)) {
-        throw error;
-      }
-    }
 
-    throw new Error(fallbackMessage ?? "Firebase sync failed.");
-  }
+const toFirebaseSessionFromSdkUser = async (user: {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  refreshToken?: string;
+  getIdToken: (forceRefresh?: boolean) => Promise<string>;
+}): Promise<AuthSession> => {
+  const idToken = await user.getIdToken();
 
-  return response;
+  return {
+    provider: "firebase",
+    accessToken: idToken,
+    refreshToken: user.refreshToken,
+    user: {
+      id: user.uid,
+      email: user.email ?? "unknown@firebase.local",
+      displayName: user.displayName ?? undefined,
+    },
+  };
 };
-
 const toFirebaseSession = (data: FirebaseAuthResponse): AuthSession => ({
   provider: "firebase",
   accessToken: data.idToken,
@@ -301,13 +312,10 @@ const toFirebaseSession = (data: FirebaseAuthResponse): AuthSession => ({
 
 const firebaseClient: RemoteClient = {
   async signInWithEmail(email, password) {
-    const auth = await firebaseAuth("accounts:signInWithPassword", {
-      email,
-      password,
-      returnSecureToken: true,
-    });
-
-    return toFirebaseSession(auth);
+    ensureFirebaseConfig();
+    const authClient = getFirebaseAuthClient();
+    const credential = await signInWithEmailAndPassword(authClient, email, password);
+    return toFirebaseSessionFromSdkUser(credential.user);
   },
   async signInWithApple(identityToken) {
     const auth = await firebaseAuth("accounts:signInWithIdp", {
@@ -320,13 +328,10 @@ const firebaseClient: RemoteClient = {
     return toFirebaseSession(auth);
   },
   async signUpWithEmail(email, password) {
-    const auth = await firebaseAuth("accounts:signUp", {
-      email,
-      password,
-      returnSecureToken: true,
-    });
-
-    return toFirebaseSession(auth);
+    ensureFirebaseConfig();
+    const authClient = getFirebaseAuthClient();
+    const credential = await createUserWithEmailAndPassword(authClient, email, password);
+    return toFirebaseSessionFromSdkUser(credential.user);
   },
   async signInWithGoogle(identityToken) {
     const auth = await firebaseAuth("accounts:signInWithIdp", {
@@ -339,27 +344,25 @@ const firebaseClient: RemoteClient = {
     return toFirebaseSession(auth);
   },
   async signInAnonymously() {
-    const auth = await firebaseAuth("accounts:signUp", {
-      returnSecureToken: true,
-    });
+    ensureFirebaseConfig();
+    const authClient = getFirebaseAuthClient();
+    const credential = await firebaseSignInAnonymously(authClient);
+    const session = await toFirebaseSessionFromSdkUser(credential.user);
 
-    return toFirebaseSession({
-      ...auth,
-      email: auth.email ?? `${auth.localId}@anonymous.firebase.local`,
-    });
+    return {
+      ...session,
+      user: {
+        ...session.user,
+        email: session.user.email || `${session.user.id}@anonymous.firebase.local`,
+      },
+    };
   },
   async pull(session, since) {
     ensureFirebaseConfig();
-    const response = await firebaseDatabaseRequest(
-      `${firebaseDatabaseUrl}/entries/${session.user.id}.json?auth=${session.accessToken}`,
-      undefined,
-      "Firebase pull sync failed",
-    );
-
-    const payload = (await response.json()) as FirebaseEntriesMap | null;
-    const entries = payload
-      ? Object.values(payload).filter((entry) => Number(entry.updatedAt) >= since)
-      : [];
+    const db = getFirebaseDatabaseClient();
+    const snapshot = await get(ref(db, `entries/${session.user.id}`));
+    const payload = (snapshot.val() as FirebaseEntriesMap | null) ?? null;
+    const entries = payload ? Object.values(payload).filter((entry) => Number(entry.updatedAt) >= since) : [];
 
     return {
       entries,
@@ -368,31 +371,25 @@ const firebaseClient: RemoteClient = {
   },
   async push(session, entries) {
     ensureFirebaseConfig();
+    const db = getFirebaseDatabaseClient();
     const body = entries.reduce<Record<string, RemoteEntry>>((acc, entry) => {
       acc[entry.id] = toRemoteEntry(entry);
       return acc;
     }, {});
 
-    await firebaseDatabaseRequest(
-      `${firebaseDatabaseUrl}/entries/${session.user.id}.json?auth=${session.accessToken}`,
-      {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      },
-      "Firebase push sync failed",
-    );
+    await update(ref(db, `entries/${session.user.id}`), body);
   },
   async deleteAccount(session) {
     ensureFirebaseConfig();
+    const db = getFirebaseDatabaseClient();
+    const authClient = getFirebaseAuthClient();
 
-    const removeEntriesResponse = await fetch(
-      `${firebaseDatabaseUrl}/entries/${session.user.id}.json?auth=${session.accessToken}`,
-      { method: "DELETE" },
-    );
+    await remove(ref(db, `entries/${session.user.id}`));
 
-    if (!removeEntriesResponse.ok) {
-      throw new Error("Failed to delete Firebase backup data.");
+    const currentUser = authClient.currentUser;
+    if (currentUser && currentUser.uid === session.user.id) {
+      await deleteUser(currentUser);
+      return;
     }
 
     const deleteAccountResponse = await fetch(
@@ -409,11 +406,26 @@ const firebaseClient: RemoteClient = {
     }
   },
   async restoreSession(session) {
+    ensureFirebaseConfig();
+    const authClient = getFirebaseAuthClient();
+    const currentUser = authClient.currentUser;
+
+    if (currentUser && currentUser.uid === session.user.id) {
+      const refreshedSession = await toFirebaseSessionFromSdkUser(currentUser);
+      return {
+        ...session,
+        ...refreshedSession,
+        user: {
+          ...session.user,
+          ...refreshedSession.user,
+        },
+      };
+    }
+
     if (!session.refreshToken) {
       return session;
     }
 
-    ensureFirebaseConfig();
     const response = await fetch(`https://securetoken.googleapis.com/v1/token?key=${firebaseApiKey}`, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -421,7 +433,7 @@ const firebaseClient: RemoteClient = {
     });
 
     if (!response.ok) {
-      return null;
+      return session;
     }
 
     const refreshed = (await response.json()) as FirebaseRefreshResponse;
@@ -437,6 +449,14 @@ const firebaseClient: RemoteClient = {
   },
   async updatePassword(session, nextPassword) {
     ensureFirebaseConfig();
+    const authClient = getFirebaseAuthClient();
+    const currentUser = authClient.currentUser;
+
+    if (currentUser && currentUser.uid === session.user.id) {
+      await firebaseUpdatePassword(currentUser, nextPassword);
+      return toFirebaseSessionFromSdkUser(currentUser);
+    }
+
     const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:update?key=${firebaseApiKey}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
