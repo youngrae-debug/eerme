@@ -4,6 +4,7 @@ import { Alert, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, Vie
 import { NeumorphicButton, NeumorphicCard } from "../components/neumorphic";
 import { useJournalStore } from "../store/journalStore";
 import { COLORS } from "../theme/colors";
+import { resolveAuthErrorMessage } from "../utils/authError";
 import { t } from "../utils/i18n";
 
 export default function LoginScreen() {
@@ -27,8 +28,7 @@ export default function LoginScreen() {
       await signInWithEmail(emailTrimmed, passwordTrimmed);
       router.replace("/(tabs)");
     } catch (error) {
-      const message = error instanceof Error ? error.message : t("authFailed");
-      Alert.alert(t("errorTitle"), message);
+      Alert.alert(t("errorTitle"), resolveAuthErrorMessage(error));
     } finally {
       setBusy(false);
     }
