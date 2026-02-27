@@ -456,16 +456,27 @@ function mergeEntries(local: Entry[], remote: Entry[]) {
 function normalizeBackupEntries(entries: Entry[]) {
   return entries
     .filter((entry) => entry && typeof entry.id === "string" && typeof entry.date === "string")
-    .map((entry) => ({
-      id: entry.id,
-      date: entry.date,
-      lines: [entry.lines?.[0] ?? "", entry.lines?.[1] ?? "", entry.lines?.[2] ?? ""] as [string, string, string],
-      imageUris: normalizeImageUris(entry.imageUri, entry.imageUris),
-      imageUri: normalizeImageUris(entry.imageUri, entry.imageUris)[0] ?? null,
-      createdAt: Number(entry.createdAt) || Date.now(),
-      updatedAt: Number(entry.updatedAt) || Date.now(),
-      deletedAt: entry.deletedAt ?? null,
-    }));
+    .map((entry) => {
+      const imageUris = normalizeImageUris(entry.imageUri, entry.imageUris);
+      const createdAt = Number(entry.createdAt);
+      const updatedAt = Number(entry.updatedAt);
+      const deletedAt = entry.deletedAt == null ? null : Number(entry.deletedAt);
+
+      return {
+        id: entry.id,
+        date: entry.date,
+        lines: [String(entry.lines?.[0] ?? ""), String(entry.lines?.[1] ?? ""), String(entry.lines?.[2] ?? "")] as [
+          string,
+          string,
+          string,
+        ],
+        imageUris,
+        imageUri: imageUris[0] ?? null,
+        createdAt: Number.isFinite(createdAt) ? createdAt : Date.now(),
+        updatedAt: Number.isFinite(updatedAt) ? updatedAt : Date.now(),
+        deletedAt: Number.isFinite(deletedAt) ? deletedAt : null,
+      };
+    });
 }
 
 export function JournalProvider({ children }: React.PropsWithChildren) {
