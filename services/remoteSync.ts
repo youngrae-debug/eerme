@@ -406,11 +406,26 @@ const firebaseClient: RemoteClient = {
     }
   },
   async restoreSession(session) {
+    ensureFirebaseConfig();
+    const authClient = getFirebaseAuthClient();
+    const currentUser = authClient.currentUser;
+
+    if (currentUser && currentUser.uid === session.user.id) {
+      const refreshedSession = await toFirebaseSessionFromSdkUser(currentUser);
+      return {
+        ...session,
+        ...refreshedSession,
+        user: {
+          ...session.user,
+          ...refreshedSession.user,
+        },
+      };
+    }
+
     if (!session.refreshToken) {
       return session;
     }
 
-    ensureFirebaseConfig();
     const response = await fetch(`https://securetoken.googleapis.com/v1/token?key=${firebaseApiKey}`, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -418,7 +433,7 @@ const firebaseClient: RemoteClient = {
     });
 
     if (!response.ok) {
-      return null;
+      return session;
     }
 
     const refreshed = (await response.json()) as FirebaseRefreshResponse;
