@@ -17,7 +17,14 @@ export default function StatsScreen() {
   const [chartWidth, setChartWidth] = React.useState(screenWidth - 80);
 
   const chartData = React.useMemo(() => {
-    const labels = stats.dailyStats.map((d) => d.label);
+    const labels = stats.dailyStats.map((d) => {
+      const [year, month, day] = d.date.split("-").map(Number);
+      const date = new Date(year, (month ?? 1) - 1, day ?? 1);
+      return new Intl.DateTimeFormat(locale, {
+        month: "numeric",
+        day: "numeric",
+      }).format(date);
+    });
     const photoSeries = stats.dailyStats.map((d) => Number.isFinite(d.photoCount) ? d.photoCount : 0);
     const lineSeries = stats.dailyStats.map((d) => Number.isFinite(d.lineCount) ? d.lineCount : 0);
 
@@ -25,7 +32,11 @@ export default function StatsScreen() {
     const hasLineValue = lineSeries.some((value) => value > 0);
     const hasAnyValue = hasPhotoValue || hasLineValue;
 
-    const datasets = [
+    const datasets: {
+      data: number[];
+      color: (opacity?: number) => string;
+      strokeWidth: number;
+    }[] = [
       {
         data: hasAnyValue ? lineSeries : [0, 0, 0, 0, 0, 0, 0],
         color: () => COLORS.accentGreen,
@@ -49,7 +60,7 @@ export default function StatsScreen() {
       datasets,
       legend,
     };
-  }, [stats.dailyStats]);
+  }, [locale, stats.dailyStats]);
 
   if (!isReady) {
     return (
