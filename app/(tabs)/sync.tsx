@@ -301,6 +301,14 @@ export default function SyncScreen() {
         </NeumorphicCard>
 
         <NeumorphicCard style={styles.card}>
+          <Text style={styles.sectionTitle}>{t("authAccountSectionTitle")}</Text>
+          <Text style={styles.helperText}>{t("authDeleteHint")}</Text>
+          <Pressable style={styles.dangerButton} onPress={handleDeleteAccount}>
+            <Text style={styles.dangerButtonLabel}>{t("authDeleteAction")}</Text>
+          </Pressable>
+        </NeumorphicCard>
+
+        <NeumorphicCard style={styles.card}>
           <Text style={styles.sectionTitle}>{t("languageSectionTitle")}</Text>
           <View style={styles.languageRow}>
             {([
@@ -336,6 +344,8 @@ export default function SyncScreen() {
         {activeTab === "subscription" ? (
           <NeumorphicCard style={styles.card}>
             <Text style={styles.sectionTitle}>{t("subscriptionProductsLabel")}</Text>
+            <Text style={styles.helperText}>{t("subscriptionHelper")}</Text>
+            <Text style={styles.helperText}>{t("subscriptionRenewalNote")}</Text>
             {subscriptionError ? <Text style={styles.emptyText}>{subscriptionError}</Text> : null}
             {products.length === 0 ? (
               <Text style={styles.emptyText}>{t("subscriptionProductsEmpty")}</Text>
@@ -518,6 +528,20 @@ const styles = StyleSheet.create({
   },
   accentButtonLabel: { color: "#5A4E42", fontWeight: "700", fontSize: 15 },
   helperText: { color: COLORS.primaryText, marginBottom: 6, lineHeight: 20 },
+  dangerButton: {
+    marginTop: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.danger,
+    backgroundColor: "#FFF1F1",
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  dangerButtonLabel: {
+    color: COLORS.danger,
+    fontWeight: "700",
+    fontSize: 14,
+  },
   languageRow: { flexDirection: "row", gap: 10 },
   languageItem: { flex: 1, backgroundColor: "#EFE6DA", borderWidth: 1, borderColor: COLORS.softBorder },
   languageItemActive: { backgroundColor: "#C6B193", borderColor: "#C6B193" },

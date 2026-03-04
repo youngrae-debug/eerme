@@ -47,7 +47,13 @@
           }
         }
       ],
-      "expo-localization"
+      "expo-localization",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow eerme to access your photo library so you can attach photos to your journal entries and profile, for example selecting a meal or progress photo from your library."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
