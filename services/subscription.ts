@@ -1,4 +1,5 @@
-import { NativeModules, Platform } from "react-native";
+import { Platform } from "react-native";
+import * as ExpoInAppPurchases from "expo-in-app-purchases";
 import { t } from "../utils/i18n";
 
 type InAppPurchasesModule = {
@@ -19,9 +20,6 @@ type PurchaseResponse = {
   results?: Purchase[];
 };
 
-type UnknownModule = { default?: unknown; InAppPurchases?: unknown } & Record<string, unknown>;
-
-
 export type Product = {
   productId: string;
   title?: string;
@@ -35,8 +33,8 @@ export type Purchase = {
   transactionReceipt?: string;
 };
 
-const IOS_PRODUCT_IDS = ["eerme_premium_monthly"];
-const ANDROID_PRODUCT_IDS = ["eerme_premium_monthly"];
+const IOS_PRODUCT_IDS = ["eerme_premium_monthly", "eerme_premium_yearly"];
+const ANDROID_PRODUCT_IDS = ["eerme_premium_monthly", "eerme_premium_yearly"];
 
 function buildFallbackProducts(): Product[] {
   return [
@@ -55,11 +53,13 @@ function buildFallbackProducts(): Product[] {
   ];
 }
 
-function isNativeIapModule(value: unknown): value is InAppPurchasesModule {
-  if (!value || typeof value !== "object") return false;
+function getModule(): InAppPurchasesModule | null {
+  if (Platform.OS === "web") {
+    return null;
+  }
 
-  const candidate = value as Partial<InAppPurchasesModule>;
-  return (
+  const candidate = ExpoInAppPurchases as unknown as Partial<InAppPurchasesModule>;
+  const isValid =
     typeof candidate.connectAsync === "function" &&
     typeof candidate.disconnectAsync === "function" &&
     typeof candidate.getProductsAsync === "function" &&
@@ -68,46 +68,9 @@ function isNativeIapModule(value: unknown): value is InAppPurchasesModule {
     typeof candidate.finishTransactionAsync === "function" &&
     typeof candidate.setPurchaseListener === "function" &&
     !!candidate.IAPResponseCode &&
-    typeof candidate.IAPResponseCode.OK === "number"
-  );
-}
+    typeof candidate.IAPResponseCode.OK === "number";
 
-function tryGetModule(): InAppPurchasesModule | null {
-  if (Platform.OS === "web") {
-    return null;
-  }
-
-  if (!(NativeModules as Record<string, unknown>)?.ExpoInAppPurchases) {
-    return null;
-  }
-
-  let requiredModule: unknown;
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports, global-require
-    requiredModule = require("expo-in-app-purchases") as unknown;
-  } catch {
-    return null;
-  }
-
-  const rawModule: UnknownModule | null =
-    requiredModule && typeof requiredModule === "object"
-      ? (requiredModule as UnknownModule)
-      : null;
-
-  const resolved = [
-    rawModule,
-    rawModule?.default,
-    rawModule?.InAppPurchases,
-    rawModule?.default && typeof rawModule.default === "object"
-      ? (rawModule.default as UnknownModule).InAppPurchases
-      : undefined,
-  ].find(isNativeIapModule);
-
-  return resolved ?? null;
-}
-
-function getModule(): InAppPurchasesModule | null {
-  return tryGetModule();
+  return isValid ? (candidate as InAppPurchasesModule) : null;
 }
 
 export function getSubscriptionProductIds() {
@@ -119,9 +82,13 @@ export function getFallbackSubscriptionProducts() {
 }
 
 export async function loadSubscriptionProducts() {
-  const iap = tryGetModule();
+  const iap = getModule();
   if (!iap) {
-    return buildFallbackProducts();
+    if (Platform.OS === "web") {
+      return buildFallbackProducts();
+    }
+
+    throw new Error(t("iapLoadFailed"));
   }
 
   await iap.connectAsync();
@@ -136,7 +103,10 @@ export async function loadSubscriptionProducts() {
 
 export async function restoreSubscription(): Promise<boolean> {
   const iap = getModule();
-  if (!iap) return false;
+  if (!iap) {
+    throw new Error(t("iapLoadFailed"));
+  }
+
   await iap.connectAsync();
 
   const history = await iap.getPurchaseHistoryAsync();
@@ -149,19 +119,22 @@ export async function restoreSubscription(): Promise<boolean> {
 
 export async function requestSubscription(productId: string) {
   const iap = getModule();
-  if (!iap) return;
+  if (!iap) {
+    throw new Error(t("iapLoadFailed"));
+  }
+
   await iap.connectAsync();
   await iap.purchaseItemAsync(productId);
 }
 
 export async function closeSubscriptionConnection() {
-  const iap = tryGetModule();
+  const iap = getModule();
   if (!iap) return;
   await iap.disconnectAsync();
 }
 
 export function attachPurchaseListener(onPurchased: (purchase: Purchase) => void) {
-  const iap = tryGetModule();
+  const iap = getModule();
   if (!iap) {
     return { remove: () => undefined };
   }
