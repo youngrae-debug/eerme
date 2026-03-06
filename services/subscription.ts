@@ -1,5 +1,6 @@
 import Constants from "expo-constants";
 import { Platform } from "react-native";
+import { ProductIDs, SubscriptionProductIDs } from "../constants/Purchase";
 import { t } from "../utils/i18n";
 
 type RevenueCatProduct = {
@@ -83,13 +84,13 @@ function getRevenueCatApiKey() {
 function buildFallbackProducts(): Product[] {
   return [
     {
-      productId: "eerme_premium_monthly",
+      productId: ProductIDs.monthly,
       title: t("subscriptionMonthlyTitle"),
       description: t("subscriptionMonthlyDescription"),
       price: t("subscriptionMonthlyPrice"),
     },
     {
-      productId: "eerme_premium_yearly",
+      productId: ProductIDs.annual,
       title: t("subscriptionYearlyTitle"),
       description: t("subscriptionYearlyDescription"),
       price: t("subscriptionYearlyPrice"),
@@ -162,7 +163,7 @@ function hasPremium(customerInfo?: RevenueCatCustomerInfo) {
 }
 
 export function getSubscriptionProductIds() {
-  return buildFallbackProducts().map((product) => product.productId);
+  return [...SubscriptionProductIDs];
 }
 
 export function getFallbackSubscriptionProducts() {
