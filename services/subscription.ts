@@ -30,6 +30,10 @@ type RevenueCatOfferings = {
 
 type RevenueCatModule = {
   configure: (options: { apiKey: string }) => void;
+  setLogLevel?: (logLevel: unknown) => void;
+  LOG_LEVEL?: {
+    DEBUG?: unknown;
+  };
   getOfferings: () => Promise<RevenueCatOfferings>;
   purchasePackage: (pkg: RevenueCatPackage) => Promise<{ customerInfo?: RevenueCatCustomerInfo }>;
   restorePurchases: () => Promise<RevenueCatCustomerInfo>;
@@ -52,6 +56,7 @@ export type Purchase = {
 
 type ExtraConfig = {
   revenueCat?: {
+    apiKey?: string;
     iosApiKey?: string;
     androidApiKey?: string;
     entitlementId?: string;
@@ -76,6 +81,7 @@ function getRevenueCatEntitlementId() {
 
 function getRevenueCatApiKey() {
   const config = getExtraConfig().revenueCat;
+  if (config?.apiKey) return config.apiKey;
   if (Platform.OS === "ios") return config?.iosApiKey ?? "";
   if (Platform.OS === "android") return config?.androidApiKey ?? "";
   return "";
@@ -240,6 +246,17 @@ export async function requestSubscription(productId: string) {
 
 export async function closeSubscriptionConnection() {
   return Promise.resolve();
+}
+
+export async function initializeSubscriptionSDK() {
+  const rc = getRevenueCatModule();
+  if (!rc) return;
+
+  if (rc.setLogLevel && rc.LOG_LEVEL?.DEBUG !== undefined) {
+    rc.setLogLevel(rc.LOG_LEVEL.DEBUG);
+  }
+
+  await ensureConfigured(rc);
 }
 
 export function attachPurchaseListener(onPurchased: (purchase: Purchase) => void) {
