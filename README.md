@@ -52,6 +52,34 @@ npm start
 
 Expo 개발 서버가 실행되면 Android/iOS 시뮬레이터 또는 Expo Go에서 앱을 열어 확인할 수 있습니다.
 
+
+## RevenueCat 구독 설정
+
+현재 구독 결제는 RevenueCat(`react-native-purchases`) 기준으로 동작하도록 구현되어 있습니다.
+
+1. 패키지 설치
+```bash
+npm install react-native-purchases
+```
+
+2. `app.json`의 `expo.extra`에 키/권한 ID 설정
+```json
+{
+  "expo": {
+    "extra": {
+      "revenueCat": {
+        "iosApiKey": "appl_xxxxxxxxx",
+        "androidApiKey": "goog_xxxxxxxxx",
+        "entitlementId": "premium"
+      }
+    }
+  }
+}
+```
+
+- `entitlementId`는 RevenueCat 대시보드의 Entitlement ID와 동일해야 합니다.
+- Offering에 월간/연간 패키지를 연결하면 앱의 구독 화면에서 자동으로 상품 목록을 가져옵니다.
+
 ## 환경 변수
 
 ```bash
