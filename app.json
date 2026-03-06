@@ -63,6 +63,9 @@
       "router": {},
       "eas": {
         "projectId": "58323cc1-bf17-40c7-baaa-f95cda402f31"
+      },
+      "revenueCat": {
+        "apiKey": "appl_IoDXnLEFpuZoFEQqVkfZFSeRDgO"
       }
     },
     "owner": "gamjabaht"
