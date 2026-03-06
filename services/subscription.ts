@@ -1,26 +1,40 @@
-import { NativeModules, Platform } from "react-native";
+import Constants from "expo-constants";
+import { Platform } from "react-native";
 import { t } from "../utils/i18n";
 
-type InAppPurchasesModule = {
-  IAPResponseCode: {
-    OK: number;
+type RevenueCatProduct = {
+  identifier: string;
+  title?: string;
+  description?: string;
+  priceString?: string;
+};
+
+type RevenueCatPackage = {
+  identifier: string;
+  product: RevenueCatProduct;
+};
+
+type RevenueCatCustomerInfo = {
+  activeSubscriptions?: string[];
+  entitlements?: {
+    active?: Record<string, unknown>;
   };
-  connectAsync: () => Promise<void>;
-  disconnectAsync: () => Promise<void>;
-  getProductsAsync: (productIds: string[]) => Promise<{ responseCode: number; results: Product[] }>;
-  getPurchaseHistoryAsync: () => Promise<{ responseCode: number; results?: Purchase[] }>;
-  purchaseItemAsync: (productId: string) => Promise<void>;
-  finishTransactionAsync: (purchase: Purchase, consumeItem?: boolean) => Promise<void>;
-  setPurchaseListener: (listener: (response: PurchaseResponse) => void) => { remove: () => void };
 };
 
-type PurchaseResponse = {
-  responseCode: number;
-  results?: Purchase[];
+type RevenueCatOfferings = {
+  current?: {
+    availablePackages?: RevenueCatPackage[];
+  } | null;
 };
 
-type UnknownModule = { default?: unknown; InAppPurchases?: unknown } & Record<string, unknown>;
-
+type RevenueCatModule = {
+  configure: (options: { apiKey: string }) => void;
+  getOfferings: () => Promise<RevenueCatOfferings>;
+  purchasePackage: (pkg: RevenueCatPackage) => Promise<{ customerInfo?: RevenueCatCustomerInfo }>;
+  restorePurchases: () => Promise<RevenueCatCustomerInfo>;
+  addCustomerInfoUpdateListener: (listener: (customerInfo: RevenueCatCustomerInfo) => void) => void;
+  removeCustomerInfoUpdateListener: (listener: (customerInfo: RevenueCatCustomerInfo) => void) => void;
+};
 
 export type Product = {
   productId: string;
@@ -35,8 +49,36 @@ export type Purchase = {
   transactionReceipt?: string;
 };
 
-const IOS_PRODUCT_IDS = ["eerme_premium_monthly"];
-const ANDROID_PRODUCT_IDS = ["eerme_premium_monthly"];
+type ExtraConfig = {
+  revenueCat?: {
+    iosApiKey?: string;
+    androidApiKey?: string;
+    entitlementId?: string;
+  };
+};
+
+const DEFAULT_ENTITLEMENT_ID = "premium";
+
+let configured = false;
+let configuring: Promise<void> | null = null;
+let lastPackages: RevenueCatPackage[] = [];
+
+function getExtraConfig(): ExtraConfig {
+  const expoExtra = (Constants.expoConfig?.extra ?? {}) as ExtraConfig;
+  const legacyExtra = (Constants.manifest2?.extra ?? {}) as ExtraConfig;
+  return expoExtra.revenueCat ? expoExtra : legacyExtra;
+}
+
+function getRevenueCatEntitlementId() {
+  return getExtraConfig().revenueCat?.entitlementId ?? DEFAULT_ENTITLEMENT_ID;
+}
+
+function getRevenueCatApiKey() {
+  const config = getExtraConfig().revenueCat;
+  if (Platform.OS === "ios") return config?.iosApiKey ?? "";
+  if (Platform.OS === "android") return config?.androidApiKey ?? "";
+  return "";
+}
 
 function buildFallbackProducts(): Product[] {
   return [
@@ -55,63 +97,72 @@ function buildFallbackProducts(): Product[] {
   ];
 }
 
-function isNativeIapModule(value: unknown): value is InAppPurchasesModule {
+function isRevenueCatModule(value: unknown): value is RevenueCatModule {
   if (!value || typeof value !== "object") return false;
+  const candidate = value as Partial<RevenueCatModule>;
 
-  const candidate = value as Partial<InAppPurchasesModule>;
   return (
-    typeof candidate.connectAsync === "function" &&
-    typeof candidate.disconnectAsync === "function" &&
-    typeof candidate.getProductsAsync === "function" &&
-    typeof candidate.getPurchaseHistoryAsync === "function" &&
-    typeof candidate.purchaseItemAsync === "function" &&
-    typeof candidate.finishTransactionAsync === "function" &&
-    typeof candidate.setPurchaseListener === "function" &&
-    !!candidate.IAPResponseCode &&
-    typeof candidate.IAPResponseCode.OK === "number"
+    typeof candidate.configure === "function" &&
+    typeof candidate.getOfferings === "function" &&
+    typeof candidate.purchasePackage === "function" &&
+    typeof candidate.restorePurchases === "function" &&
+    typeof candidate.addCustomerInfoUpdateListener === "function" &&
+    typeof candidate.removeCustomerInfoUpdateListener === "function"
   );
 }
 
-function tryGetModule(): InAppPurchasesModule | null {
-  if (Platform.OS === "web") {
-    return null;
-  }
+function getRevenueCatModule(): RevenueCatModule | null {
+  if (Platform.OS === "web") return null;
 
-  if (!(NativeModules as Record<string, unknown>)?.ExpoInAppPurchases) {
-    return null;
-  }
-
-  let requiredModule: unknown;
+  let moduleValue: unknown;
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports, global-require
-    requiredModule = require("expo-in-app-purchases") as unknown;
+    moduleValue = require("react-native-purchases") as unknown;
   } catch {
     return null;
   }
 
-  const rawModule: UnknownModule | null =
-    requiredModule && typeof requiredModule === "object"
-      ? (requiredModule as UnknownModule)
-      : null;
-
-  const resolved = [
-    rawModule,
-    rawModule?.default,
-    rawModule?.InAppPurchases,
-    rawModule?.default && typeof rawModule.default === "object"
-      ? (rawModule.default as UnknownModule).InAppPurchases
-      : undefined,
-  ].find(isNativeIapModule);
-
-  return resolved ?? null;
+  const asObject = moduleValue && typeof moduleValue === "object" ? (moduleValue as Record<string, unknown>) : null;
+  const candidates = [moduleValue, asObject?.default].filter(isRevenueCatModule);
+  return candidates[0] ?? null;
 }
 
-function getModule(): InAppPurchasesModule | null {
-  return tryGetModule();
+async function ensureConfigured(module: RevenueCatModule) {
+  if (configured) return;
+  if (configuring) {
+    await configuring;
+    return;
+  }
+
+  const apiKey = getRevenueCatApiKey();
+  if (!apiKey) {
+    throw new Error(t("iapLoadFailed"));
+  }
+
+  configuring = Promise.resolve().then(() => {
+    module.configure({ apiKey });
+    configured = true;
+  }).finally(() => {
+    configuring = null;
+  });
+
+  await configuring;
+}
+
+function hasPremium(customerInfo?: RevenueCatCustomerInfo) {
+  if (!customerInfo) return false;
+
+  const entitlementId = getRevenueCatEntitlementId();
+  const activeEntitlements = customerInfo.entitlements?.active ?? {};
+  if (activeEntitlements[entitlementId]) {
+    return true;
+  }
+
+  return (customerInfo.activeSubscriptions ?? []).length > 0;
 }
 
 export function getSubscriptionProductIds() {
-  return Platform.OS === "ios" ? IOS_PRODUCT_IDS : ANDROID_PRODUCT_IDS;
+  return buildFallbackProducts().map((product) => product.productId);
 }
 
 export function getFallbackSubscriptionProducts() {
@@ -119,60 +170,94 @@ export function getFallbackSubscriptionProducts() {
 }
 
 export async function loadSubscriptionProducts() {
-  const iap = tryGetModule();
-  if (!iap) {
+  const rc = getRevenueCatModule();
+  if (!rc) {
+    if (Platform.OS === "web") {
+      return buildFallbackProducts();
+    }
+
+    throw new Error(t("iapLoadFailed"));
+  }
+
+  await ensureConfigured(rc);
+
+  const offerings = await rc.getOfferings();
+  const packages = offerings.current?.availablePackages ?? [];
+  lastPackages = packages;
+
+  if (packages.length === 0) {
     return buildFallbackProducts();
   }
 
-  await iap.connectAsync();
+  return packages.map((pkg) => ({
+    productId: pkg.product.identifier,
+    title: pkg.product.title,
+    description: pkg.product.description,
+    price: pkg.product.priceString,
+  }));
+}
 
-  const response = await iap.getProductsAsync(getSubscriptionProductIds());
-  if (response.responseCode !== iap.IAPResponseCode.OK) {
-    throw new Error(t("subscriptionProductLoadFailed"));
-  }
+function findPackageByProductId(productId: string): RevenueCatPackage | null {
+  const byProduct = lastPackages.find((pkg) => pkg.product.identifier === productId);
+  if (byProduct) return byProduct;
 
-  return response.results;
+  const byPackageId = lastPackages.find((pkg) => pkg.identifier === productId);
+  return byPackageId ?? null;
 }
 
 export async function restoreSubscription(): Promise<boolean> {
-  const iap = getModule();
-  if (!iap) return false;
-  await iap.connectAsync();
-
-  const history = await iap.getPurchaseHistoryAsync();
-  if (history.responseCode !== iap.IAPResponseCode.OK) {
-    throw new Error(t("purchaseHistoryFailed"));
+  const rc = getRevenueCatModule();
+  if (!rc) {
+    throw new Error(t("iapLoadFailed"));
   }
 
-  return (history.results ?? []).some((item) => getSubscriptionProductIds().includes(item.productId));
+  await ensureConfigured(rc);
+  const customerInfo = await rc.restorePurchases();
+  return hasPremium(customerInfo);
 }
 
 export async function requestSubscription(productId: string) {
-  const iap = getModule();
-  if (!iap) return;
-  await iap.connectAsync();
-  await iap.purchaseItemAsync(productId);
+  const rc = getRevenueCatModule();
+  if (!rc) {
+    throw new Error(t("iapLoadFailed"));
+  }
+
+  await ensureConfigured(rc);
+
+  if (lastPackages.length === 0) {
+    const offerings = await rc.getOfferings();
+    lastPackages = offerings.current?.availablePackages ?? [];
+  }
+
+  const targetPackage = findPackageByProductId(productId);
+  if (!targetPackage) {
+    throw new Error(t("subscriptionProductLoadFailed"));
+  }
+
+  await rc.purchasePackage(targetPackage);
 }
 
 export async function closeSubscriptionConnection() {
-  const iap = tryGetModule();
-  if (!iap) return;
-  await iap.disconnectAsync();
+  return Promise.resolve();
 }
 
 export function attachPurchaseListener(onPurchased: (purchase: Purchase) => void) {
-  const iap = tryGetModule();
-  if (!iap) {
+  const rc = getRevenueCatModule();
+  if (!rc) {
     return { remove: () => undefined };
   }
 
-  return iap.setPurchaseListener(async ({ responseCode, results }) => {
-    if (responseCode !== iap.IAPResponseCode.OK || !results?.length) return;
+  const listener = (customerInfo: RevenueCatCustomerInfo) => {
+    if (!hasPremium(customerInfo)) return;
+    const productId = customerInfo.activeSubscriptions?.[0] ?? getRevenueCatEntitlementId();
+    onPurchased({ productId });
+  };
 
-    const purchase = results.find((item) => getSubscriptionProductIds().includes(item.productId));
-    if (!purchase) return;
+  rc.addCustomerInfoUpdateListener(listener);
 
-    await iap.finishTransactionAsync(purchase, false);
-    onPurchased(purchase);
-  });
+  return {
+    remove: () => {
+      rc.removeCustomerInfoUpdateListener(listener);
+    },
+  };
 }
