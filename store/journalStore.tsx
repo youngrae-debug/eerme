@@ -125,7 +125,7 @@ const parseImageUris = (raw: string | null): string[] => {
 
 const normalizeImageUris = (imageUri?: string | null, imageUris?: string[]): string[] => {
   if (Array.isArray(imageUris)) {
-    return imageUris.filter((item): item is string => typeof item === "string" && item.length > 0).slice(0, 5);
+    return imageUris.filter((item): item is string => typeof item === "string" && item.length > 0).slice(0, 10);
   }
 
   return imageUri ? [imageUri] : [];
