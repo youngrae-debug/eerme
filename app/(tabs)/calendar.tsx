@@ -327,14 +327,19 @@ function EntryModal({
       const nextUri = result.assets[0].uri;
       setImageUris((prev) => {
         if (isPremium) {
-          if (prev.length >= 5) {
+          if (prev.length >= 10) {
             Alert.alert(t("premiumTitle"), t("premiumLimitBody"));
             return prev;
           }
           return [...prev, nextUri];
         }
 
-        return [nextUri];
+        if (prev.length >= 3) {
+          Alert.alert(t("freeTitle"), t("freeLimitBody"));
+          return prev;
+        }
+
+        return [...prev, nextUri];
       });
     }
   };
@@ -439,7 +444,7 @@ function EntryModal({
                       )}
                     </View>
                   ))}
-                  {isEditing && (isPremium ? imageUris.length < 5 : imageUris.length < 1) ? (
+                  {isEditing && (isPremium ? imageUris.length < 10 : imageUris.length < 3) ? (
                     <Pressable onPress={pickImage} style={styles.addImageButton}>
                       <ImagePlus size={24} color={COLORS.secondaryText} />
                       <Text style={styles.addImageText}>{t("imageAdd")}</Text>
