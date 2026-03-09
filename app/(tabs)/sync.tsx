@@ -11,7 +11,6 @@ import {
   getFallbackSubscriptionProducts,
   loadSubscriptionProducts,
   requestSubscription,
-  restoreSubscription,
   type Product,
 } from "../../services/subscription";
 import { useJournalStore } from "../../store/journalStore";
@@ -49,6 +48,7 @@ export default function SyncScreen() {
   const [subscriptionBusy, setSubscriptionBusy] = React.useState(false);
   const [subscriptionError, setSubscriptionError] = React.useState<string | null>(null);
   const [selectedProductId, setSelectedProductId] = React.useState<string | null>(null);
+  const [agreedTerms, setAgreedTerms] = React.useState({ service: false, privacy: false, billing: false });
   const [nextPassword, setNextPassword] = React.useState("");
   const [profileModalVisible, setProfileModalVisible] = React.useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = React.useState(false);
@@ -197,9 +197,32 @@ export default function SyncScreen() {
       });
   }, [profileImageUri, profileName]);
 
+  const allTermsChecked = agreedTerms.service && agreedTerms.privacy && agreedTerms.billing;
+
+  const toggleAgreement = React.useCallback((key: "service" | "privacy" | "billing") => {
+    setAgreedTerms((prev) => ({ ...prev, [key]: !prev[key] }));
+  }, []);
+
+  const toggleAgreementAll = React.useCallback(() => {
+    setAgreedTerms((prev) => {
+      const nextValue = !(prev.service && prev.privacy && prev.billing);
+      return { service: nextValue, privacy: nextValue, billing: nextValue };
+    });
+  }, []);
+
+  const openTermsModal = React.useCallback((type: "service" | "privacy" | "billing") => {
+    const titleKey = type === "service" ? "subscriptionTermsServiceTitle" : type === "privacy" ? "subscriptionTermsPrivacyTitle" : "subscriptionTermsBillingTitle";
+    const bodyKey = type === "service" ? "subscriptionTermsServiceBody" : type === "privacy" ? "subscriptionTermsPrivacyBody" : "subscriptionTermsBillingBody";
+    Alert.alert(t(titleKey), t(bodyKey));
+  }, []);
+
   const handleSubscribe = React.useCallback(() => {
     if (!selectedProductId) {
       Alert.alert(t("errorTitle"), t("selectPlanFirst"));
+      return;
+    }
+    if (!allTermsChecked) {
+      Alert.alert(t("errorTitle"), t("subscriptionAgreementRequiredError"));
       return;
     }
     setSubscriptionBusy(true);
@@ -209,21 +232,8 @@ export default function SyncScreen() {
         Alert.alert(t("errorTitle"), message);
       })
       .finally(() => setSubscriptionBusy(false));
-  }, [selectedProductId]);
+  }, [allTermsChecked, selectedProductId]);
 
-  const handleRestorePurchase = React.useCallback(() => {
-    setSubscriptionBusy(true);
-    restoreSubscription()
-      .then((restored) => {
-        setPremium(restored);
-        Alert.alert(t("restoreTitle"), restored ? t("restoreSuccess") : t("restoreNone"));
-      })
-      .catch((error) => {
-        const message = error instanceof Error ? error.message : t("restoreFailed");
-        Alert.alert(t("errorTitle"), message);
-      })
-      .finally(() => setSubscriptionBusy(false));
-  }, [setPremium]);
 
   const syncStatusText =
     syncStatus === "syncing" ? t("syncStatusSyncing") : syncStatus === "error" ? t("syncStatusError") : t("syncStatusIdle");
@@ -404,12 +414,38 @@ export default function SyncScreen() {
                 </Pressable>
               ))
             )}
+
+            <View style={styles.agreementWrap}>
+              <Text style={styles.agreementTitle}>{t("subscriptionAgreementTitle")}</Text>
+              <Pressable style={styles.agreementAllRow} onPress={toggleAgreementAll}>
+                <Ionicons name={(allTermsChecked ? "checkmark-circle" : "ellipse-outline")} size={20} color={COLORS.primaryText} />
+                <Text style={styles.agreementAllText}>{t("subscriptionAgreementAll")}</Text>
+              </Pressable>
+
+              {([
+                { key: "service", label: t("subscriptionAgreementService") },
+                { key: "privacy", label: t("subscriptionAgreementPrivacy") },
+                { key: "billing", label: t("subscriptionAgreementBilling") },
+              ] as const).map((item) => (
+                <View key={item.key} style={styles.agreementRow}>
+                  <Pressable style={styles.agreementCheckArea} onPress={() => toggleAgreement(item.key)}>
+                    <Ionicons
+                      name={(agreedTerms[item.key] ? "checkmark-circle" : "ellipse-outline")}
+                      size={18}
+                      color={COLORS.primaryText}
+                    />
+                    <Text style={styles.agreementText}>[{t("subscriptionAgreementRequired")}] {item.label}</Text>
+                  </Pressable>
+                  <Pressable onPress={() => openTermsModal(item.key)}>
+                    <Text style={styles.agreementLink}>{t("subscriptionAgreementView")}</Text>
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+
             <View style={styles.row}>
               <Pressable style={[styles.accentButton, styles.buttonFlex]} onPress={handleSubscribe}>
                 <Text style={styles.accentButtonLabel}>{subscriptionBusy ? t("requestInProgress") : t("subscribeButton")}</Text>
-              </Pressable>
-              <Pressable style={[styles.accentButton, styles.buttonFlex]} onPress={handleRestorePurchase}>
-                <Text style={styles.accentButtonLabel}>{subscriptionBusy ? t("processing") : t("restoreSubscriptionButton")}</Text>
               </Pressable>
             </View>
             </NeumorphicCard>
@@ -720,6 +756,22 @@ const styles = StyleSheet.create({
   },
   planPrice: { color: COLORS.textOnSurface, fontWeight: "700", marginBottom: 2 },
   planDescription: { color: COLORS.secondaryText, fontSize: 12 },
+  agreementWrap: {
+    marginTop: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: COLORS.softBorder,
+    padding: 12,
+    backgroundColor: "#FFFDF8",
+    gap: 8,
+  },
+  agreementTitle: { color: COLORS.primaryText, fontSize: 14, fontWeight: "800" },
+  agreementAllRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 2 },
+  agreementAllText: { color: COLORS.primaryText, fontWeight: "700", fontSize: 14 },
+  agreementRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  agreementCheckArea: { flexDirection: "row", alignItems: "center", gap: 8, flex: 1, paddingVertical: 2 },
+  agreementText: { color: COLORS.textOnSurface, fontSize: 13, flexShrink: 1 },
+  agreementLink: { color: COLORS.primaryText, fontSize: 12, fontWeight: "700", textDecorationLine: "underline" },
   row: { flexDirection: "row", gap: 10, marginTop: 8 },
   buttonFlex: { flex: 1 },
   emptyText: { color: COLORS.textOnSurface, marginTop: 6 },
@@ -738,6 +790,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     padding: 16,
     paddingBottom: 24,
+    maxHeight: "80%",
   },
   modalHeader: {
     flexDirection: "row",
