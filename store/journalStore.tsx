@@ -570,7 +570,7 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
   );
 
   const syncNow = React.useCallback(async () => {
-    if (!session) return;
+    if (!isPremium || !session) return;
 
     let activeSession = session;
     if (remoteClient.restoreSession) {
@@ -596,7 +596,7 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
     }
 
     await performSync(activeSession, entriesRef.current, lastSyncedAtRef.current);
-  }, [performSync, session]);
+  }, [isPremium, performSync, session]);
 
   React.useEffect(() => {
     let mounted = true;
@@ -646,7 +646,7 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
         await refreshPendingSyncCount();
         setIsReady(true);
 
-        if (nextSession) {
+        if (loadedPremiumEnabled && nextSession) {
           try {
             await performSync(nextSession, loadedEntries, loadedLastSyncedAt);
           } catch {
@@ -669,6 +669,15 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
       mounted = false;
     };
   }, [performSync, refreshPendingSyncCount]);
+
+
+  React.useEffect(() => {
+    if (!isPremium || !session || !isReady) return;
+
+    syncNow().catch((error) => {
+      console.warn("Background sync failed after premium enabled", error);
+    });
+  }, [isPremium, isReady, session, syncNow]);
 
   const upsertEntry = React.useCallback(
     async (date: string, lines: [string, string, string], imageUri?: string | null, imageUris?: string[]) => {
@@ -702,13 +711,13 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
       await enqueueSyncFromEntries([nextEntry]);
       await refreshPendingSyncCount();
 
-      if (session) {
+      if (isPremium && session) {
         syncNow().catch((error) => {
           console.warn("Background sync failed", error);
         });
       }
     },
-    [refreshPendingSyncCount, session, syncNow],
+    [isPremium, refreshPendingSyncCount, session, syncNow],
   );
 
   const upsertTodayEntry = React.useCallback(
@@ -735,13 +744,13 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
       await enqueueSyncFromEntries([deleted]);
       await refreshPendingSyncCount();
 
-      if (session) {
+      if (isPremium && session) {
         syncNow().catch((error) => {
           console.warn("Background sync failed", error);
         });
       }
     },
-    [refreshPendingSyncCount, session, syncNow],
+    [isPremium, refreshPendingSyncCount, session, syncNow],
   );
 
   const searchEntries = React.useCallback(
@@ -780,11 +789,13 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
       await saveAuthMode(AUTH_MODE_NONE);
       await saveLastAuthUserId(nextSession.user.id);
 
-      const sourceEntries = isSwitchingAccount ? [] : entries;
-      const sourceSince = isSwitchingAccount ? 0 : lastSyncedAt;
-      await performSync(nextSession, sourceEntries, sourceSince);
+      if (isPremium) {
+        const sourceEntries = isSwitchingAccount ? [] : entries;
+        const sourceSince = isSwitchingAccount ? 0 : lastSyncedAt;
+        await performSync(nextSession, sourceEntries, sourceSince);
+      }
     },
-    [entries, lastAuthUserId, lastSyncedAt, performSync, resetLocalDataForAccountSwitch],
+    [entries, isPremium, lastAuthUserId, lastSyncedAt, performSync, resetLocalDataForAccountSwitch],
   );
 
   const signInWithEmail = React.useCallback(
@@ -914,13 +925,13 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
       entriesRef.current = importedEntries;
       await refreshPendingSyncCount();
 
-      if (session) {
+      if (isPremium && session) {
         syncNow().catch((error) => {
           console.warn("Background sync failed after backup import", error);
         });
       }
     },
-    [refreshPendingSyncCount, session, syncNow],
+    [isPremium, refreshPendingSyncCount, session, syncNow],
   );
 
   const value = React.useMemo(
