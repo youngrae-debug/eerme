@@ -11,7 +11,6 @@ import {
   getFallbackSubscriptionProducts,
   loadSubscriptionProducts,
   requestSubscription,
-  restoreSubscription,
   type Product,
 } from "../../services/subscription";
 import { useJournalStore } from "../../store/journalStore";
@@ -235,19 +234,6 @@ export default function SyncScreen() {
       .finally(() => setSubscriptionBusy(false));
   }, [allTermsChecked, selectedProductId]);
 
-  const handleRestorePurchase = React.useCallback(() => {
-    setSubscriptionBusy(true);
-    restoreSubscription()
-      .then((restored) => {
-        setPremium(restored);
-        Alert.alert(t("restoreTitle"), restored ? t("restoreSuccess") : t("restoreNone"));
-      })
-      .catch((error) => {
-        const message = error instanceof Error ? error.message : t("restoreFailed");
-        Alert.alert(t("errorTitle"), message);
-      })
-      .finally(() => setSubscriptionBusy(false));
-  }, [setPremium]);
 
   const syncStatusText =
     syncStatus === "syncing" ? t("syncStatusSyncing") : syncStatus === "error" ? t("syncStatusError") : t("syncStatusIdle");
@@ -460,9 +446,6 @@ export default function SyncScreen() {
             <View style={styles.row}>
               <Pressable style={[styles.accentButton, styles.buttonFlex]} onPress={handleSubscribe}>
                 <Text style={styles.accentButtonLabel}>{subscriptionBusy ? t("requestInProgress") : t("subscribeButton")}</Text>
-              </Pressable>
-              <Pressable style={[styles.accentButton, styles.buttonFlex]} onPress={handleRestorePurchase}>
-                <Text style={styles.accentButtonLabel}>{subscriptionBusy ? t("processing") : t("restoreSubscriptionButton")}</Text>
               </Pressable>
             </View>
             </NeumorphicCard>
