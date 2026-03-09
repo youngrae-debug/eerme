@@ -87,7 +87,7 @@ export default function SyncScreen() {
     loadSubscriptionProducts()
       .then((items) => setProducts(items))
       .catch((error) => {
-        console.error("Failed to load subscription products", error);
+        console.warn("Failed to load subscription products", error);
         const message = error instanceof Error ? error.message : t("subscriptionProductLoadFailed");
         setSubscriptionError(message);
         setProducts(getFallbackSubscriptionProducts());
