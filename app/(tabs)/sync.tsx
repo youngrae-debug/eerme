@@ -87,7 +87,7 @@ export default function SyncScreen() {
     loadSubscriptionProducts()
       .then((items) => setProducts(items))
       .catch((error) => {
-        console.error("Failed to load subscription products", error);
+        console.warn("Failed to load subscription products", error);
         const message = error instanceof Error ? error.message : t("subscriptionProductLoadFailed");
         setSubscriptionError(message);
         setProducts(getFallbackSubscriptionProducts());
@@ -254,6 +254,8 @@ export default function SyncScreen() {
   const email = session?.user.email ?? "-";
   const displayName = profileName.trim() || (email.includes("@") ? email.split("@")[0] : email);
   const initial = displayName[0]?.toUpperCase() ?? "M";
+  const subscriptionHeadline = isPremium ? t("subscriptionHeadlinePremium") : t("subscriptionHeadlineFree");
+  const renewalDateLabel = t("subscriptionNextBillingUnknown");
 
   return (
     <>
@@ -342,10 +344,37 @@ export default function SyncScreen() {
         </View>
 
         {activeTab === "subscription" ? (
-          <NeumorphicCard style={styles.card}>
-            <Text style={styles.sectionTitle}>{t("subscriptionProductsLabel")}</Text>
-            <Text style={styles.helperText}>{t("subscriptionHelper")}</Text>
-            <Text style={styles.helperText}>{t("subscriptionRenewalNote")}</Text>
+          <>
+            <NeumorphicCard style={[styles.card, styles.subscriptionHeroCard]}>
+              <Text style={styles.subscriptionHeroTitle}>{subscriptionHeadline}</Text>
+              <Text style={styles.subscriptionHeroSubtitle}>{t("subscriptionHeroSubtitle")}</Text>
+              <View style={styles.benefitRow}>
+                <View style={styles.benefitChip}>
+                  <Ionicons name="images-outline" size={14} color={COLORS.primaryText} />
+                  <Text style={styles.benefitChipText}>{t("subscriptionBenefitPhotos")}</Text>
+                </View>
+                <View style={styles.benefitChip}>
+                  <Ionicons name="cloud-upload-outline" size={14} color={COLORS.primaryText} />
+                  <Text style={styles.benefitChipText}>{t("subscriptionBenefitBackup")}</Text>
+                </View>
+              </View>
+            </NeumorphicCard>
+
+            <NeumorphicCard style={styles.card}>
+              <Text style={styles.sectionTitle}>{t("subscriptionStatusLabel")}</Text>
+              <View style={styles.subscriptionStatusRow}>
+                <Text style={styles.subscriptionStatusValue}>{isPremium ? t("subscriptionStatusPremium") : t("subscriptionStatusFree")}</Text>
+                <View style={[styles.stateBadge, isPremium ? styles.stateBadgePremium : styles.stateBadgeFree]}>
+                  <Text style={styles.stateBadgeText}>{isPremium ? "ON" : "FREE"}</Text>
+                </View>
+              </View>
+              <Text style={styles.helperText}>{t("subscriptionNextBillingLabel", { date: renewalDateLabel })}</Text>
+            </NeumorphicCard>
+
+            <NeumorphicCard style={styles.card}>
+              <Text style={styles.sectionTitle}>{t("subscriptionProductsLabel")}</Text>
+              <Text style={styles.helperText}>{t("subscriptionHelper")}</Text>
+              <Text style={styles.helperText}>{t("subscriptionRenewalNote")}</Text>
             {subscriptionError ? <Text style={styles.emptyText}>{subscriptionError}</Text> : null}
             {products.length === 0 ? (
               <Text style={styles.emptyText}>{t("subscriptionProductsEmpty")}</Text>
@@ -361,7 +390,14 @@ export default function SyncScreen() {
                     {selectedProductId === product.productId ? <View style={styles.planIndicatorInner} /> : null}
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.planTitle}>{product.title ?? product.productId}</Text>
+                    <View style={styles.planTitleRow}>
+                      <Text style={styles.planTitle}>{product.title ?? product.productId}</Text>
+                      {(product.productId.includes("year") || product.productId.includes("annual")) ? (
+                        <View style={styles.planBadge}>
+                          <Text style={styles.planBadgeText}>{t("subscriptionPlanBadgeBest")}</Text>
+                        </View>
+                      ) : null}
+                    </View>
                     <Text style={styles.planPrice}>{product.price ?? t("priceUnavailable")}</Text>
                     <Text style={styles.planDescription}>{product.description ?? t("premiumAllFeatures")}</Text>
                   </View>
@@ -376,7 +412,8 @@ export default function SyncScreen() {
                 <Text style={styles.accentButtonLabel}>{subscriptionBusy ? t("processing") : t("restoreSubscriptionButton")}</Text>
               </Pressable>
             </View>
-          </NeumorphicCard>
+            </NeumorphicCard>
+          </>
         ) : (
           <NeumorphicCard style={styles.card}>
             <Text style={styles.sectionTitle}>{t("syncSectionTitle")}</Text>
@@ -509,6 +546,62 @@ const styles = StyleSheet.create({
   profileInfoText: { color: COLORS.primaryText, fontSize: 15 },
   card: { borderRadius: 22, padding: 16 },
   sectionTitle: { color: COLORS.textOnSurface, fontWeight: "800", marginBottom: 10, fontSize: 18 },
+  subscriptionHeroCard: {
+    backgroundColor: "#F6EDDF",
+    borderWidth: 1,
+    borderColor: "#E7D5BB",
+  },
+  subscriptionHeroTitle: {
+    color: COLORS.primaryText,
+    fontSize: 22,
+    fontWeight: "800",
+    marginBottom: 6,
+  },
+  subscriptionHeroSubtitle: {
+    color: COLORS.textOnSurface,
+    fontSize: 14,
+    marginBottom: 10,
+  },
+  benefitRow: { flexDirection: "row", gap: 8 },
+  benefitChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#D8C4A8",
+    backgroundColor: "#FFF8EE",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  benefitChipText: {
+    color: COLORS.primaryText,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  subscriptionStatusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  subscriptionStatusValue: {
+    color: COLORS.primaryText,
+    fontWeight: "800",
+    fontSize: 18,
+  },
+  stateBadge: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  stateBadgePremium: { backgroundColor: "#C6B193" },
+  stateBadgeFree: { backgroundColor: "#E9DFD1" },
+  stateBadgeText: {
+    color: "#5A4E42",
+    fontWeight: "800",
+    fontSize: 11,
+  },
   softButton: {
     backgroundColor: "#C6B193",
     borderRadius: 14,
@@ -608,7 +701,24 @@ const styles = StyleSheet.create({
     backgroundColor: "#F4E7D7",
   },
   planTitle: { color: COLORS.primaryText, fontWeight: "700", marginBottom: 2 },
-  planPrice: { color: COLORS.textOnSurface, fontWeight: "600", marginBottom: 2 },
+  planTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 2,
+  },
+  planBadge: {
+    borderRadius: 10,
+    backgroundColor: "#FDE68A",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  planBadgeText: {
+    color: "#5A4E42",
+    fontSize: 10,
+    fontWeight: "800",
+  },
+  planPrice: { color: COLORS.textOnSurface, fontWeight: "700", marginBottom: 2 },
   planDescription: { color: COLORS.secondaryText, fontSize: 12 },
   row: { flexDirection: "row", gap: 10, marginTop: 8 },
   buttonFlex: { flex: 1 },

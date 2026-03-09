@@ -11,10 +11,10 @@ import { t, useLocale } from "../../utils/i18n";
 export default function SearchScreen() {
   const locale = useLocale();
   const [keyword, setKeyword] = React.useState("");
-  const { searchEntries, isReady, isPremium } = useJournalStore();
+  const { searchEntries, entries, isReady, isPremium } = useJournalStore();
 
-  const results = searchEntries(keyword);
-
+  const trimmedKeyword = keyword.trim();
+  const results = trimmedKeyword.length === 0 ? entries : searchEntries(trimmedKeyword);
 
   if (!isReady) {
     return (
@@ -66,8 +66,19 @@ export default function SearchScreen() {
         >
           <NeumorphicCard style={styles.resultCard}>
             <Text style={styles.date}>{formatDateDisplay(entry.date)}</Text>
+            {(entry.imageUris?.[0] || entry.imageUri) ? (
+              <Image
+                source={{ uri: entry.imageUris?.[0] ?? entry.imageUri ?? "" }}
+                style={styles.resultImage}
+                contentFit="cover"
+              />
+            ) : null}
             {(entry.lines ?? [])
-              .filter((line) => line && line.toLowerCase().includes(keyword.toLowerCase()))
+              .filter((line) => {
+                if (!line) return false;
+                if (trimmedKeyword.length === 0) return true;
+                return line.toLowerCase().includes(trimmedKeyword.toLowerCase());
+              })
               .map((line, idx) => (
                 <Text key={`${entry.id}-${idx}`} style={styles.line}>
                   • {line}
@@ -114,6 +125,12 @@ const styles = StyleSheet.create({
   count: { color: COLORS.secondaryText },
   empty: { color: COLORS.secondaryText },
   resultCard: { borderRadius: 24 },
+  resultImage: {
+    width: "100%",
+    height: 180,
+    borderRadius: 16,
+    marginBottom: 10,
+  },
   date: { color: COLORS.primaryText, fontWeight: "600", marginBottom: 4 },
   line: { color: COLORS.secondaryText, lineHeight: 22 },
 });
