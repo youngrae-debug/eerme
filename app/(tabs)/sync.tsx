@@ -11,6 +11,7 @@ import {
   getFallbackSubscriptionProducts,
   loadSubscriptionProducts,
   requestSubscription,
+  restoreSubscription,
   type Product,
 } from "../../services/subscription";
 import { useJournalStore } from "../../store/journalStore";
@@ -18,11 +19,16 @@ import { COLORS } from "../../theme/colors";
 import { setLocale, t, useLocale } from "../../utils/i18n";
 
 type MyPageTab = "subscription" | "backup";
-const PROFILE_STORAGE_KEY = "@eerme/my-profile";
+const PROFILE_STORAGE_KEY_PREFIX = "@eerme/my-profile";
 
 type ProfileDraft = {
   name: string;
   imageUri: string | null;
+};
+
+const getProfileStorageKey = (userIdOrEmail?: string | null) => {
+  const safeId = (userIdOrEmail ?? "guest").replace(/[^a-zA-Z0-9_.@-]/g, "_");
+  return `${PROFILE_STORAGE_KEY_PREFIX}:${safeId}`;
 };
 
 export default function SyncScreen() {
@@ -103,8 +109,10 @@ export default function SyncScreen() {
   React.useEffect(() => {
     const fallbackName = session?.user.displayName ?? (session?.user.email?.includes("@") ? session.user.email.split("@")[0] : "Me");
     setProfileName(fallbackName);
+    setProfileImageUri(null);
 
-    AsyncStorage.getItem(PROFILE_STORAGE_KEY)
+    const storageKey = getProfileStorageKey(session?.user.id ?? session?.user.email ?? null);
+    AsyncStorage.getItem(storageKey)
       .then((raw) => {
         if (!raw) return;
         const saved = JSON.parse(raw) as ProfileDraft;
@@ -114,7 +122,7 @@ export default function SyncScreen() {
       .catch(() => {
         // noop
       });
-  }, [session?.user.displayName, session?.user.email]);
+  }, [session?.user.displayName, session?.user.email, session?.user.id]);
 
   const run = React.useCallback(async (task: () => Promise<void>, successMessage?: string) => {
     setBusy(true);
@@ -187,7 +195,7 @@ export default function SyncScreen() {
     }
 
     const draft: ProfileDraft = { name: trimmed, imageUri: profileImageUri };
-    AsyncStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(draft))
+    AsyncStorage.setItem(getProfileStorageKey(session?.user.id ?? session?.user.email ?? null), JSON.stringify(draft))
       .then(() => {
         setProfileName(trimmed);
         Alert.alert(t("doneTitle"), t("profileSaveSuccess"));
@@ -195,7 +203,7 @@ export default function SyncScreen() {
       .catch(() => {
         Alert.alert(t("errorTitle"), t("profileSaveFailed"));
       });
-  }, [profileImageUri, profileName]);
+  }, [profileImageUri, profileName, session?.user.email, session?.user.id]);
 
   const allTermsChecked = agreedTerms.service && agreedTerms.privacy && agreedTerms.billing;
 
@@ -234,6 +242,26 @@ export default function SyncScreen() {
       .finally(() => setSubscriptionBusy(false));
   }, [allTermsChecked, selectedProductId]);
 
+
+
+  const handleRestore = React.useCallback(() => {
+    setSubscriptionBusy(true);
+    restoreSubscription()
+      .then((restored) => {
+        if (restored) {
+          setPremium(true);
+          Alert.alert(t("restoreTitle"), t("restoreSuccess"));
+          return;
+        }
+
+        Alert.alert(t("restoreTitle"), t("restoreNone"));
+      })
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : t("restoreFailed");
+        Alert.alert(t("restoreTitle"), message);
+      })
+      .finally(() => setSubscriptionBusy(false));
+  }, [setPremium]);
 
   const syncStatusText =
     syncStatus === "syncing" ? t("syncStatusSyncing") : syncStatus === "error" ? t("syncStatusError") : t("syncStatusIdle");
@@ -446,6 +474,9 @@ export default function SyncScreen() {
             <View style={styles.row}>
               <Pressable style={[styles.accentButton, styles.buttonFlex]} onPress={handleSubscribe}>
                 <Text style={styles.accentButtonLabel}>{subscriptionBusy ? t("requestInProgress") : t("subscribeButton")}</Text>
+              </Pressable>
+              <Pressable style={[styles.secondaryButton, styles.buttonFlex]} onPress={handleRestore}>
+                <Text style={styles.secondaryButtonLabel}>{t("restoreTitle")}</Text>
               </Pressable>
             </View>
             </NeumorphicCard>
@@ -775,6 +806,20 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", gap: 10, marginTop: 8 },
   buttonFlex: { flex: 1 },
   emptyText: { color: COLORS.textOnSurface, marginTop: 6 },
+  secondaryButton: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: COLORS.softBorder,
+    backgroundColor: "#fff",
+    minHeight: 46,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  secondaryButtonLabel: {
+    color: COLORS.primaryText,
+    fontWeight: "700",
+    fontSize: 14,
+  },
   syncErrorText: { color: COLORS.danger, marginBottom: 10 },
   modalBackdrop: {
     flex: 1,

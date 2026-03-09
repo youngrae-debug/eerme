@@ -776,7 +776,8 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
 
   const applyAuthenticatedSession = React.useCallback(
     async (nextSession: AuthSession) => {
-      const isSwitchingAccount = Boolean(lastAuthUserId && lastAuthUserId !== nextSession.user.id);
+      const previousUserIds = [lastAuthUserId, session?.user.id].filter((value): value is string => Boolean(value));
+      const isSwitchingAccount = previousUserIds.some((userId) => userId !== nextSession.user.id);
 
       if (isSwitchingAccount) {
         await resetLocalDataForAccountSwitch();
@@ -795,7 +796,7 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
         await performSync(nextSession, sourceEntries, sourceSince);
       }
     },
-    [entries, isPremium, lastAuthUserId, lastSyncedAt, performSync, resetLocalDataForAccountSwitch],
+    [entries, isPremium, lastAuthUserId, lastSyncedAt, performSync, resetLocalDataForAccountSwitch, session?.user.id],
   );
 
   const signInWithEmail = React.useCallback(
@@ -842,11 +843,24 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
   }, []);
 
   const signOut = React.useCallback(async () => {
+    const previousUserId = session?.user.id ?? lastAuthUserId;
+
+    await resetLocalDataForAccountSwitch();
+
     setSession(null);
     setIsGuest(false);
     await saveSessionToDb(null);
     await saveAuthMode(AUTH_MODE_NONE);
-  }, []);
+
+    if (previousUserId) {
+      setLastAuthUserId(previousUserId);
+      await saveLastAuthUserId(previousUserId);
+      return;
+    }
+
+    setLastAuthUserId(null);
+    await saveLastAuthUserId(null);
+  }, [lastAuthUserId, resetLocalDataForAccountSwitch, session?.user.id]);
 
   const updatePassword = React.useCallback(async (nextPassword: string) => {
     if (!session) {
