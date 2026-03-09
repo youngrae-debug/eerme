@@ -124,7 +124,7 @@ const ensureSupabaseConfig = () => {
 };
 
 const normalizeImageUris = (entry: Entry) => (Array.isArray(entry.imageUris)
-  ? entry.imageUris.filter((item) => typeof item === "string" && item.length > 0).slice(0, 5)
+  ? entry.imageUris.filter((item) => typeof item === "string" && item.length > 0).slice(0, 10)
   : entry.imageUri
     ? [entry.imageUri]
     : []);
@@ -172,7 +172,7 @@ const toBackupSafeImageUri = async (uri: string) => {
 const toRemoteEntry = async (entry: Entry, includeBackupSafeImages = false): Promise<RemoteEntry> => {
   const imageUris = normalizeImageUris(entry);
   const nextImageUris = includeBackupSafeImages
-    ? (await Promise.all(imageUris.map(toBackupSafeImageUri))).slice(0, 5)
+    ? (await Promise.all(imageUris.map(toBackupSafeImageUri))).slice(0, 10)
     : imageUris;
 
   return {
@@ -191,7 +191,7 @@ const toRemoteEntry = async (entry: Entry, includeBackupSafeImages = false): Pro
 
 const toLocalEntry = (entry: RemoteEntry): Entry => {
   const nextImageUris = Array.isArray(entry.imageUris)
-    ? entry.imageUris.filter((item): item is string => typeof item === "string" && item.length > 0).slice(0, 5)
+    ? entry.imageUris.filter((item): item is string => typeof item === "string" && item.length > 0).slice(0, 10)
     : entry.imageUri
       ? [entry.imageUri]
       : [];

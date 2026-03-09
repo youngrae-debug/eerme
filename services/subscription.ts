@@ -179,29 +179,29 @@ export function getFallbackSubscriptionProducts() {
 export async function loadSubscriptionProducts() {
   const rc = getRevenueCatModule();
   if (!rc) {
-    if (Platform.OS === "web") {
-      return buildFallbackProducts();
-    }
-
-    throw new Error(t("iapLoadFailed"));
-  }
-
-  await ensureConfigured(rc);
-
-  const offerings = await rc.getOfferings();
-  const packages = offerings.current?.availablePackages ?? [];
-  lastPackages = packages;
-
-  if (packages.length === 0) {
     return buildFallbackProducts();
   }
 
-  return packages.map((pkg) => ({
-    productId: pkg.product.identifier,
-    title: pkg.product.title,
-    description: pkg.product.description,
-    price: pkg.product.priceString,
-  }));
+  try {
+    await ensureConfigured(rc);
+
+    const offerings = await rc.getOfferings();
+    const packages = offerings.current?.availablePackages ?? [];
+    lastPackages = packages;
+
+    if (packages.length === 0) {
+      return buildFallbackProducts();
+    }
+
+    return packages.map((pkg) => ({
+      productId: pkg.product.identifier,
+      title: pkg.product.title,
+      description: pkg.product.description,
+      price: pkg.product.priceString,
+    }));
+  } catch {
+    return buildFallbackProducts();
+  }
 }
 
 function findPackageByProductId(productId: string): RevenueCatPackage | null {
