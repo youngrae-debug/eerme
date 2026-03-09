@@ -77,6 +77,9 @@ npm install react-native-purchases
 }
 ```
 
+- `react-native-purchases`는 네이티브 모듈이므로 **Expo Go에서는 동작하지 않습니다**. 반드시 EAS Development Build(또는 스토어 배포 빌드)에서 결제를 테스트하세요.
+- Expo managed workflow에서는 별도 config plugin 추가 없이 EAS 빌드(또는 `expo prebuild`)로 네이티브 프로젝트에 모듈을 반영하세요.
+- iOS/Android 동시 지원이면 `iosApiKey`/`androidApiKey`를 각각 넣어 주세요. 단일 `apiKey`만 넣으면 모든 플랫폼에서 같은 키를 사용합니다.
 - `entitlementId`는 RevenueCat 대시보드의 Entitlement ID와 동일해야 합니다.
 - Offering에 월간/연간 패키지를 연결하면 앱의 구독 화면에서 자동으로 상품 목록을 가져옵니다.
 - 앱 내 구독 약관/고지 문구는 `docs/subscription-terms.ko.md`를 기준으로 관리합니다.

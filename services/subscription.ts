@@ -37,8 +37,8 @@ type RevenueCatModule = {
   getOfferings: () => Promise<RevenueCatOfferings>;
   purchasePackage: (pkg: RevenueCatPackage) => Promise<{ customerInfo?: RevenueCatCustomerInfo }>;
   restorePurchases: () => Promise<RevenueCatCustomerInfo>;
-  addCustomerInfoUpdateListener: (listener: (customerInfo: RevenueCatCustomerInfo) => void) => void;
-  removeCustomerInfoUpdateListener: (listener: (customerInfo: RevenueCatCustomerInfo) => void) => void;
+  addCustomerInfoUpdateListener?: (listener: (customerInfo: RevenueCatCustomerInfo) => void) => void;
+  removeCustomerInfoUpdateListener?: (listener: (customerInfo: RevenueCatCustomerInfo) => void) => void;
 };
 
 export type Product = {
@@ -81,10 +81,9 @@ function getRevenueCatEntitlementId() {
 
 function getRevenueCatApiKey() {
   const config = getExtraConfig().revenueCat;
-  if (config?.apiKey) return config.apiKey;
-  if (Platform.OS === "ios") return config?.iosApiKey ?? "";
-  if (Platform.OS === "android") return config?.androidApiKey ?? "";
-  return "";
+  if (Platform.OS === "ios") return config?.iosApiKey ?? config?.apiKey ?? "";
+  if (Platform.OS === "android") return config?.androidApiKey ?? config?.apiKey ?? "";
+  return config?.apiKey ?? "";
 }
 
 function buildFallbackProducts(): Product[] {
@@ -112,14 +111,13 @@ function isRevenueCatModule(value: unknown): value is RevenueCatModule {
     typeof candidate.configure === "function" &&
     typeof candidate.getOfferings === "function" &&
     typeof candidate.purchasePackage === "function" &&
-    typeof candidate.restorePurchases === "function" &&
-    typeof candidate.addCustomerInfoUpdateListener === "function" &&
-    typeof candidate.removeCustomerInfoUpdateListener === "function"
+    typeof candidate.restorePurchases === "function"
   );
 }
 
 function getRevenueCatModule(): RevenueCatModule | null {
   if (Platform.OS === "web") return null;
+  if (Constants.appOwnership === "expo") return null;
 
   let moduleValue: unknown;
   try {
@@ -215,6 +213,9 @@ function findPackageByProductId(productId: string): RevenueCatPackage | null {
 export async function restoreSubscription(): Promise<boolean> {
   const rc = getRevenueCatModule();
   if (!rc) {
+    if (Constants.appOwnership === "expo") {
+      throw new Error(t("iapExpoGoUnsupported"));
+    }
     throw new Error(t("iapLoadFailed"));
   }
 
@@ -226,6 +227,9 @@ export async function restoreSubscription(): Promise<boolean> {
 export async function requestSubscription(productId: string) {
   const rc = getRevenueCatModule();
   if (!rc) {
+    if (Constants.appOwnership === "expo") {
+      throw new Error(t("iapExpoGoUnsupported"));
+    }
     throw new Error(t("iapLoadFailed"));
   }
 
@@ -271,11 +275,15 @@ export function attachPurchaseListener(onPurchased: (purchase: Purchase) => void
     onPurchased({ productId });
   };
 
+  if (typeof rc.addCustomerInfoUpdateListener !== "function" || typeof rc.removeCustomerInfoUpdateListener !== "function") {
+    return { remove: () => undefined };
+  }
+
   rc.addCustomerInfoUpdateListener(listener);
 
   return {
     remove: () => {
-      rc.removeCustomerInfoUpdateListener(listener);
+      rc.removeCustomerInfoUpdateListener?.(listener);
     },
   };
 }
