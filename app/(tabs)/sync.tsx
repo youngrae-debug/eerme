@@ -48,7 +48,7 @@ export default function SyncScreen() {
     syncNow,
   } = useJournalStore();
 
-  const [activeTab, setActiveTab] = React.useState<MyPageTab>("subscription");
+  const [activeTab, setActiveTab] = React.useState<MyPageTab>("backup");
   const [busy, setBusy] = React.useState(false);
   const [products, setProducts] = React.useState<Product[]>([]);
   const [subscriptionBusy, setSubscriptionBusy] = React.useState(false);
@@ -371,17 +371,20 @@ export default function SyncScreen() {
         </NeumorphicCard>
 
         <View style={styles.tabContainer}>
+          {/* 앱 심사 대응을 위해 구독 탭 노출 임시 비활성화
           <Pressable accessibilityRole="tab" onPress={() => setActiveTab("subscription")} style={styles.tabItem}>
             <Text style={[styles.tabText, activeTab === "subscription" && styles.tabTextActive]}>{t("tabSubscription")}</Text>
             <View style={[styles.tabIndicator, activeTab === "subscription" && styles.tabIndicatorActive]} />
           </Pressable>
+          */}
           <Pressable accessibilityRole="tab" onPress={() => setActiveTab("backup")} style={styles.tabItem}>
             <Text style={[styles.tabText, activeTab === "backup" && styles.tabTextActive]}>{t("tabBackup")}</Text>
             <View style={[styles.tabIndicator, activeTab === "backup" && styles.tabIndicatorActive]} />
           </Pressable>
         </View>
 
-        {activeTab === "subscription" ? (
+        {/* 앱 심사 대응을 위해 구독 콘텐츠 임시 비활성화 */}
+        {false ? (
           <>
             <NeumorphicCard style={[styles.card, styles.subscriptionHeroCard]}>
               <Text style={styles.subscriptionHeroTitle}>{subscriptionHeadline}</Text>
