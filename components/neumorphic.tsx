@@ -24,10 +24,10 @@ type NeumorphicButtonProps = {
 
 export function NeumorphicButton({ label, onPress, style, textStyle, variant = "primary" }: NeumorphicButtonProps) {
   const variantStyles = {
-    primary: { backgroundColor: '#C6B193' },
-    secondary: { backgroundColor: '#BFA888' },
-    peach: { backgroundColor: '#C6B193' },
-    mint: { backgroundColor: '#BFA888' },
+    primary: { backgroundColor: COLORS.primaryText },
+    secondary: { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border },
+    peach: { backgroundColor: COLORS.primaryText },
+    mint: { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border },
   };
 
   return (
@@ -37,41 +37,38 @@ export function NeumorphicButton({ label, onPress, style, textStyle, variant = "
         styles.button,
         variantStyles[variant],
         style,
-        pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+        pressed && { opacity: 0.86 },
       ]}
     >
-      <Text style={[styles.buttonLabel, textStyle]}>{label}</Text>
+      <Text style={[styles.buttonLabel, variant === "secondary" || variant === "mint" ? styles.buttonLabelMuted : styles.buttonLabelInverted, textStyle]}>{label}</Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: COLORS.card,
-    borderRadius: 24,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 15,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 6,
+    backgroundColor: COLORS.surface,
+    borderRadius: 6,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   button: {
-    borderRadius: 50,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
+    borderRadius: 4,
+    paddingVertical: 13,
+    paddingHorizontal: 20,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
   },
   buttonLabel: {
-    color: '#5A4E42',
     fontWeight: "600",
     fontSize: 15,
     textAlign: "center",
+  },
+  buttonLabelInverted: {
+    color: COLORS.surface,
+  },
+  buttonLabelMuted: {
+    color: COLORS.primaryText,
   },
 });
