@@ -1,8 +1,6 @@
-import { Image } from "expo-image";
 import React from "react";
 import { Dimensions, ScrollView, StyleSheet, Text, View } from "react-native";
 import { LineChart } from "react-native-chart-kit";
-import { NeumorphicCard } from "../../components/neumorphic";
 import { useJournalStore } from "../../store/journalStore";
 import { COLORS } from "../../theme/colors";
 import { t, useLocale } from "../../utils/i18n";
@@ -12,9 +10,9 @@ const screenWidth = Dimensions.get("window").width;
 
 export default function StatsScreen() {
   const locale = useLocale();
-  const { entries, isReady, isPremium } = useJournalStore();
+  const { entries, isReady } = useJournalStore();
   const stats = React.useMemo(() => getJournalStats(entries), [entries]);
-  const [chartWidth, setChartWidth] = React.useState(screenWidth - 80);
+  const [chartWidth, setChartWidth] = React.useState(screenWidth - 88);
 
   const chartData = React.useMemo(() => {
     const labels = stats.dailyStats.map((d) => {
@@ -25,40 +23,25 @@ export default function StatsScreen() {
         day: "numeric",
       }).format(date);
     });
-    const photoSeries = stats.dailyStats.map((d) => Number.isFinite(d.photoCount) ? d.photoCount : 0);
+
     const lineSeries = stats.dailyStats.map((d) => Number.isFinite(d.lineCount) ? d.lineCount : 0);
-
-    const hasPhotoValue = photoSeries.some((value) => value > 0);
-    const hasLineValue = lineSeries.some((value) => value > 0);
-    const hasAnyValue = hasPhotoValue || hasLineValue;
-
-    const datasets: {
-      data: number[];
-      color: (opacity?: number) => string;
-      strokeWidth: number;
-    }[] = [
-      {
-        data: hasAnyValue ? lineSeries : [0, 0, 0, 0, 0, 0, 0],
-        color: () => COLORS.accentGreen,
-        strokeWidth: 2,
-      },
-    ];
-
-    const legend = [t("statsLegendLines")];
-
-    if (hasPhotoValue) {
-      datasets.push({
-        data: photoSeries,
-        color: () => COLORS.accentPeach,
-        strokeWidth: 2,
-      });
-      legend.push(t("statsLegendPhotos"));
-    }
+    const photoSeries = stats.dailyStats.map((d) => Number.isFinite(d.photoCount) ? d.photoCount : 0);
 
     return {
       labels,
-      datasets,
-      legend,
+      datasets: [
+        {
+          data: lineSeries.some((v) => v > 0) ? lineSeries : [0, 0, 0, 0, 0, 0, 0],
+          color: () => COLORS.primaryText,
+          strokeWidth: 2,
+        },
+        {
+          data: photoSeries.some((v) => v > 0) ? photoSeries : [0, 0, 0, 0, 0, 0, 0],
+          color: () => COLORS.secondaryText,
+          strokeWidth: 2,
+        },
+      ],
+      legend: [t("statsLegendLines"), t("statsLegendPhotos")],
     };
   }, [locale, stats.dailyStats]);
 
@@ -72,73 +55,69 @@ export default function StatsScreen() {
 
   return (
     <ScrollView key={locale} style={styles.container} contentContainerStyle={styles.content}>
-      {/* 프리미엄 배지 */}
-      {isPremium && (
-        <View style={styles.premiumBadge}>
-          <Image
-            source={require("../../assets/images/logo.png")}
-            style={styles.premiumLogo}
-            contentFit="contain"
-          />
-          <Text style={styles.premiumText}>{t("premiumBadge")}</Text>
-        </View>
-      )}
-
+      <Text style={styles.screenTitle}>{t("tabStats")}</Text>
       <Text style={styles.subtitle}>{t("statsSubtitle")}</Text>
+      <View style={styles.divider} />
 
-      {/* 주간 기록 현황 차트 */}
-      <View style={styles.card} onLayout={(event) => {
-        const nextWidth = event.nativeEvent.layout.width - 40;
-        if (nextWidth > 240 && Math.abs(nextWidth - chartWidth) > 1) {
-          setChartWidth(nextWidth);
-        }
-      }}>
-        <Text style={styles.cardTitle}>{t("statsWeeklyTitle")}</Text>
-        <Text style={styles.cardDesc}>{t("statsWeeklyDesc")}</Text>
-        <View style={styles.chartWrapper}>
-          <LineChart
-            data={chartData}
-            width={chartWidth}
-            height={200}
-            chartConfig={{
-              backgroundColor: COLORS.card,
-              backgroundGradientFrom: COLORS.card,
-              backgroundGradientTo: COLORS.card,
-              color: () => COLORS.secondaryText,
-              labelColor: () => COLORS.secondaryText,
-              decimalPlaces: 0,
-              propsForDots: {
-                r: "4",
-                strokeWidth: "1",
-              },
-              propsForLabels: {
-                fontSize: 11,
-              },
-            }}
-            style={styles.chart}
-            fromZero
-            yAxisLabel=""
-            yAxisSuffix=""
-            withVerticalLines={false}
-          />
-        </View>
+      <View
+        style={styles.section}
+        onLayout={(event) => {
+          const nextWidth = event.nativeEvent.layout.width - 28;
+          if (nextWidth > 240 && Math.abs(nextWidth - chartWidth) > 1) {
+            setChartWidth(nextWidth);
+          }
+        }}
+      >
+        <Text style={styles.sectionTitle}>{t("statsWeeklyTitle")}</Text>
+        <Text style={styles.sectionMeta}>{t("statsWeeklyDesc")}</Text>
+        <LineChart
+          data={chartData}
+          width={chartWidth}
+          height={208}
+          chartConfig={{
+            backgroundColor: COLORS.surface,
+            backgroundGradientFrom: COLORS.surface,
+            backgroundGradientTo: COLORS.surface,
+            color: () => COLORS.primaryText,
+            labelColor: () => COLORS.secondaryText,
+            decimalPlaces: 0,
+            propsForDots: {
+              r: "3",
+              strokeWidth: "1",
+              stroke: COLORS.surface,
+            },
+            propsForBackgroundLines: {
+              stroke: COLORS.border,
+              strokeWidth: 1,
+            },
+            propsForLabels: {
+              fontSize: 11,
+            },
+          }}
+          style={styles.chart}
+          fromZero
+          yAxisLabel=""
+          yAxisSuffix=""
+          withVerticalLines={false}
+          withInnerLines
+          withOuterLines={false}
+        />
       </View>
 
-      {/* 이번 달 문장수 / 총 문장수 카드 */}
       <View style={styles.metricRow}>
-        <NeumorphicCard style={[styles.metricCard, styles.metricHalf]}>
+        <View style={[styles.metricBox, styles.metricHalf]}>
           <Text style={styles.metricLabel}>{t("statsMonthlyLines")}</Text>
           <Text style={styles.metricValue}>{t("statsLinesValue", { count: stats.monthlyLineCount })}</Text>
-        </NeumorphicCard>
-
-        <NeumorphicCard style={[styles.metricCard, styles.metricHalf]}>
+        </View>
+        <View style={[styles.metricBox, styles.metricHalf]}>
           <Text style={styles.metricLabel}>{t("statsTotalLines")}</Text>
           <Text style={styles.metricValue}>{t("statsLinesValue", { count: stats.totalLineCount })}</Text>
-        </NeumorphicCard>
+        </View>
       </View>
 
-      <NeumorphicCard style={styles.metricCard}>
-        <Text style={styles.metricLabel}>{t("statsTopKeywords")}</Text>
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>{t("statsTopKeywords")}</Text>
+        <View style={styles.innerDivider} />
         {stats.topKeywords.length === 0 ? (
           <Text style={styles.emptyText}>{t("statsNoKeywords")}</Text>
         ) : (
@@ -149,87 +128,51 @@ export default function StatsScreen() {
             </View>
           ))
         )}
-      </NeumorphicCard>
+      </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  content: { padding: 20, paddingBottom: 36, gap: 14 },
-  loadingWrap: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-    justifyContent: "center",
-    alignItems: "center",
-  },
+  content: { paddingHorizontal: 24, paddingTop: 24, paddingBottom: 40 },
+  loadingWrap: { flex: 1, backgroundColor: COLORS.background, justifyContent: "center", alignItems: "center" },
   loadingText: { color: COLORS.secondaryText, fontSize: 15 },
-  premiumBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 12,
-    gap: 8,
+  screenTitle: { color: COLORS.primaryText, fontSize: 28, fontWeight: "600", marginTop: 8 },
+  subtitle: { color: COLORS.secondaryText, fontSize: 14, marginTop: 12, marginBottom: 14 },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: COLORS.border, marginBottom: 18 },
+  section: {
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 6,
+    padding: 14,
+    marginBottom: 14,
   },
-  premiumLogo: {
-    width: 28,
-    height: 28,
+  sectionTitle: { color: COLORS.primaryText, fontSize: 18, fontWeight: "500" },
+  sectionMeta: { color: COLORS.secondaryText, fontSize: 13, marginTop: 4, marginBottom: 12 },
+  chart: { marginLeft: -24, borderRadius: 6 },
+  metricRow: { flexDirection: "row", gap: 10, marginBottom: 14 },
+  metricBox: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 6,
+    padding: 14,
+    backgroundColor: COLORS.surface,
   },
-  premiumText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: COLORS.accentPeach,
-  },
-  title: { color: COLORS.primaryText, fontSize: 28, fontWeight: "800" },
-  subtitle: { color: COLORS.secondaryText, marginBottom: 8 },
-  card: {
-    backgroundColor: COLORS.card,
-    borderRadius: 26,
-    padding: 20,
-    marginBottom: 6,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
-  },
-  cardTitle: { fontWeight: "700", marginBottom: 4, color: COLORS.primaryText, fontSize: 16 },
-  cardDesc: { color: COLORS.secondaryText, fontSize: 13, marginBottom: 12 },
-  chartWrapper: { alignItems: "center", justifyContent: "center" },
-  chart: { borderRadius: 20, marginTop: 8 },
-  legendContainer: { marginTop: 12, gap: 8 },
-  legendRow: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-  },
-  legendItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    minWidth: 100,
-  },
-  legendDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  legendText: {
-    color: COLORS.secondaryText,
-    fontSize: 13,
-  },
-  metricRow: { flexDirection: "row", gap: 12 },
-  metricCard: { borderRadius: 24 },
   metricHalf: { flex: 1 },
-  metricLabel: { color: COLORS.secondaryText, fontWeight: "600", marginBottom: 8 },
-  metricValue: { color: COLORS.primaryText, fontSize: 28, fontWeight: "800" },
-  emptyText: { color: COLORS.secondaryText },
+  metricLabel: { color: COLORS.secondaryText, fontSize: 13, marginBottom: 8 },
+  metricValue: { color: COLORS.primaryText, fontSize: 20, fontWeight: "500" },
+  innerDivider: { height: StyleSheet.hairlineWidth, backgroundColor: COLORS.border, marginVertical: 12 },
+  emptyText: { color: COLORS.secondaryText, fontSize: 14 },
   keywordRow: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
     paddingVertical: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: COLORS.softBorder,
+    borderBottomColor: COLORS.border,
   },
-  keywordText: { color: COLORS.primaryText, fontWeight: "600" },
-  keywordCount: { color: COLORS.secondaryText },
+  keywordText: { color: COLORS.primaryText, fontSize: 15 },
+  keywordCount: { color: COLORS.secondaryText, fontSize: 13 },
 });
