@@ -203,19 +203,19 @@ export default function TodayScreen() {
         entries.slice(0, 7).map((entry) => {
           const nonEmptyLines = (entry.lines ?? []).filter(Boolean);
           const titleLine = nonEmptyLines[0] ?? t("emptyEntries");
-          const bodyLine = nonEmptyLines[1] ?? nonEmptyLines[0] ?? "";
+
 
           return (
             <View key={entry.id} style={styles.listItem}>
               <View style={styles.listItemHeader}>
-                <Text style={styles.listItemTitle} numberOfLines={1}>{titleLine}</Text>
+                <Text style={styles.listItemTitle}>{titleLine}</Text>
                 <Text style={styles.dateLabel}>{formatDateDisplay(entry.date)}</Text>
               </View>
-              {!!bodyLine && (
-                <Text style={styles.lineText} numberOfLines={2}>
-                  {bodyLine}
+              {nonEmptyLines.slice(1).map((line, idx) => (
+                <Text key={`${entry.id}-line-${idx}`} style={styles.lineText}>
+                  {line}
                 </Text>
-              )}
+              ))}
               {(entry.imageUris?.[0] || entry.imageUri) && (
                 <Image source={{ uri: entry.imageUris?.[0] ?? entry.imageUri ?? "" }} style={styles.listImage} contentFit="cover" />
               )}

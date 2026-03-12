@@ -69,11 +69,11 @@ export default function SearchScreen() {
               }
             >
               <View style={styles.resultTopRow}>
-                <Text style={styles.resultTitle} numberOfLines={1}>{filteredLines[0] ?? t("emptyEntries")}</Text>
+                <Text style={styles.resultTitle}>{filteredLines[0] ?? t("emptyEntries")}</Text>
                 <Text style={styles.date}>{formatDateDisplay(entry.date)}</Text>
               </View>
-              {filteredLines.slice(1, 2).map((line, idx) => (
-                <Text key={`${entry.id}-${idx}`} style={styles.line} numberOfLines={2}>
+              {filteredLines.slice(1).map((line, idx) => (
+                <Text key={`${entry.id}-${idx}`} style={styles.line}>
                   {line}
                 </Text>
               ))}

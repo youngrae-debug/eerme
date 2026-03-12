@@ -363,7 +363,7 @@ export default function SyncScreen() {
                   onPress={() => setLocale(item.key)}
                   style={[styles.softButton, styles.languageItem, isActive && styles.languageItemActive]}
                 >
-                  <Text style={styles.softButtonLabel}>{item.label}</Text>
+                  <Text style={[styles.softButtonLabel, styles.languageItemLabel, isActive && styles.languageItemLabelActive]}>{item.label}</Text>
                 </Pressable>
               );
             })}
@@ -708,6 +708,12 @@ const styles = StyleSheet.create({
   languageRow: { flexDirection: "row", gap: 10 },
   languageItem: { flex: 1, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border },
   languageItemActive: { backgroundColor: COLORS.primaryText, borderColor: COLORS.primaryText },
+  languageItemLabel: {
+    color: COLORS.primaryText,
+  },
+  languageItemLabelActive: {
+    color: COLORS.surface,
+  },
   tabContainer: {
     flexDirection: "row",
     paddingHorizontal: 6,
