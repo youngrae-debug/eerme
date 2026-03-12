@@ -58,27 +58,33 @@ export default function SearchScreen() {
           });
 
           return (
-            <Pressable
-              key={entry.id}
-              style={styles.resultItem}
-              onPress={() =>
-                router.push({
-                  pathname: "/(tabs)/calendar",
-                  params: { date: entry.date },
-                })
-              }
-            >
-              <View style={styles.resultTopRow}>
-                <Text style={styles.resultTitle}>{filteredLines[0] ?? t("emptyEntries")}</Text>
-                <Text style={styles.date}>{formatDateDisplay(entry.date)}</Text>
-              </View>
-              {filteredLines.slice(1).map((line, idx) => (
-                <Text key={`${entry.id}-${idx}`} style={styles.line}>
-                  {line}
-                </Text>
-              ))}
+            <View key={entry.id} style={styles.resultItem}>
+              <Pressable
+                style={styles.resultPressableArea}
+                onPress={() =>
+                  router.push({
+                    pathname: "/(tabs)/calendar",
+                    params: { date: entry.date },
+                  })
+                }
+              >
+                <View style={styles.resultTopRow}>
+                  <Text style={styles.resultTitle}>{filteredLines[0] ?? t("emptyEntries")}</Text>
+                  <Text style={styles.date}>{formatDateDisplay(entry.date)}</Text>
+                </View>
+                {filteredLines.slice(1).map((line, idx) => (
+                  <Text key={`${entry.id}-${idx}`} style={styles.line}>
+                    {line}
+                  </Text>
+                ))}
+              </Pressable>
               {(entry.imageUris?.length || entry.imageUri) ? (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.resultImageList}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.resultImageList}
+                  directionalLockEnabled
+                >
                   {(entry.imageUris?.length ? entry.imageUris : entry.imageUri ? [entry.imageUri] : []).map((uri, index) => (
                     <Image
                       key={`${entry.id}-image-${index}`}
@@ -89,7 +95,7 @@ export default function SearchScreen() {
                   ))}
                 </ScrollView>
               ) : null}
-            </Pressable>
+            </View>
           );
         })
       )}
@@ -121,6 +127,9 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: COLORS.border,
+  },
+  resultPressableArea: {
+    paddingVertical: 2,
   },
   resultTopRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 12 },
   resultTitle: { flex: 1, color: COLORS.primaryText, fontSize: 18, lineHeight: 26 },
