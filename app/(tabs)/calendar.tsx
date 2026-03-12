@@ -380,6 +380,7 @@ function EntryModal({
   if (!visible || !dateKey) return null;
 
   const canSave = isEditing;
+  const mergedLines = [line1, line2, line3].map((line) => line.trim()).filter((line) => line.length > 0);
 
   return (
     <Modal visible={visible} transparent animationType="slide">
@@ -391,9 +392,10 @@ function EntryModal({
         <View style={styles.modalContent}>
           {isMenuOpen && <Pressable style={styles.menuBackdrop} onPress={() => setIsMenuOpen(false)} />}
 
-          {/* 헤더 */}
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>{formatDateDisplay(dateKey)}</Text>
+            <Pressable onPress={onClose} style={styles.iconButton} hitSlop={8}>
+              <X size={22} color={COLORS.primaryText} />
+            </Pressable>
             <View style={styles.headerActions}>
               {entry && !isEditing && (
                 <View style={[styles.menuWrapper, isMenuOpen && styles.menuWrapperOpen]}>
@@ -415,13 +417,9 @@ function EntryModal({
                   )}
                 </View>
               )}
-              <Pressable onPress={onClose} style={styles.iconButton} hitSlop={8}>
-                <X size={24} color={COLORS.primaryText} />
-              </Pressable>
             </View>
           </View>
 
-          {/* 내용 */}
           <ScrollView
             style={styles.modalBody}
             contentContainerStyle={styles.modalBodyContent}
@@ -430,39 +428,35 @@ function EntryModal({
             contentInsetAdjustmentBehavior="always"
             automaticallyAdjustKeyboardInsets
           >
-            {/* Image section */}
-            <View style={styles.inputContainer}>
-              {imageUris.length > 0 ? (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.modalImageList}>
-                  {imageUris.map((uri, index) => (
-                    <View key={`${uri}-${index}`} style={styles.modalImageContainer}>
-                      <Image source={{ uri }} style={styles.modalImage} contentFit="cover" />
-                      {isEditing && (
-                        <Pressable onPress={() => removeImage(index)} style={styles.removeModalImageButton} hitSlop={10}>
-                          <X size={16} color="#fff" />
+            {isEditing ? (
+              <>
+                <View style={styles.inputContainer}>
+                  {imageUris.length > 0 ? (
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.modalImageList}>
+                      {imageUris.map((uri, index) => (
+                        <View key={`${uri}-${index}`} style={styles.modalImageContainer}>
+                          <Image source={{ uri }} style={styles.modalImage} contentFit="cover" />
+                          <Pressable onPress={() => removeImage(index)} style={styles.removeModalImageButton} hitSlop={10}>
+                            <X size={16} color="#fff" />
+                          </Pressable>
+                        </View>
+                      ))}
+                      {(isPremium ? imageUris.length < 10 : imageUris.length < 3) ? (
+                        <Pressable onPress={pickImage} style={styles.addImageButton}>
+                          <ImagePlus size={24} color={COLORS.secondaryText} />
+                          <Text style={styles.addImageText}>{t("imageAdd")}</Text>
                         </Pressable>
-                      )}
-                    </View>
-                  ))}
-                  {isEditing && (isPremium ? imageUris.length < 10 : imageUris.length < 3) ? (
+                      ) : null}
+                    </ScrollView>
+                  ) : (
                     <Pressable onPress={pickImage} style={styles.addImageButton}>
                       <ImagePlus size={24} color={COLORS.secondaryText} />
                       <Text style={styles.addImageText}>{t("imageAdd")}</Text>
                     </Pressable>
-                  ) : null}
-                </ScrollView>
-              ) : isEditing ? (
-                <Pressable onPress={pickImage} style={styles.addImageButton}>
-                  <ImagePlus size={24} color={COLORS.secondaryText} />
-                  <Text style={styles.addImageText}>{t("imageAdd")}</Text>
-                </Pressable>
-              ) : (
-                <Text style={styles.noImageText}>{t("imageNone")}</Text>
-              )}
-            </View>
+                  )}
+                </View>
 
-            <View style={styles.inputContainer}>
-              {isEditing ? (
+                <View style={styles.inputContainer}>
                 <TextInput
                   ref={line1InputRef}
                   style={styles.input}
@@ -474,13 +468,9 @@ function EntryModal({
                   editable={isEditing}
                   multiline
                 />
-              ) : (
-                <Text style={styles.readonlyText}>{line1 || " "}</Text>
-              )}
-            </View>
+                </View>
 
-            <View style={styles.inputContainer}>
-              {isEditing ? (
+                <View style={styles.inputContainer}>
                 <TextInput
                   ref={line2InputRef}
                   style={styles.input}
@@ -492,13 +482,9 @@ function EntryModal({
                   editable={isEditing}
                   multiline
                 />
-              ) : (
-                <Text style={styles.readonlyText}>{line2 || " "}</Text>
-              )}
-            </View>
+                </View>
 
-            <View style={styles.inputContainer}>
-              {isEditing ? (
+                <View style={styles.inputContainer}>
                 <TextInput
                   ref={line3InputRef}
                   style={styles.input}
@@ -510,10 +496,27 @@ function EntryModal({
                   editable={isEditing}
                   multiline
                 />
-              ) : (
-                <Text style={styles.readonlyText}>{line3 || " "}</Text>
-              )}
-            </View>
+                </View>
+              </>
+            ) : (
+              <View style={styles.readonlyContainer}>
+                <Text style={styles.entryTitle}>{line1 || t("line1Placeholder")}</Text>
+                <Text style={styles.entryMeta}>{formatDateDisplay(dateKey)}</Text>
+                <View style={styles.entryDivider} />
+                <Text style={styles.readonlyText}>{mergedLines.join("\n\n") || " "}</Text>
+                {imageUris.length > 0 ? (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.modalImageList}>
+                    {imageUris.map((uri, index) => (
+                      <View key={`${uri}-${index}`} style={styles.modalImageContainer}>
+                        <Image source={{ uri }} style={styles.modalImage} contentFit="cover" />
+                      </View>
+                    ))}
+                  </ScrollView>
+                ) : (
+                  <Text style={styles.noImageText}>{t("imageNone")}</Text>
+                )}
+              </View>
+            )}
           </ScrollView>
 
           {/* 버튼 */}
@@ -552,28 +555,25 @@ const styles = StyleSheet.create({
     height: 28,
   },
   premiumText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: COLORS.accentPeach,
+    fontSize: 14,
+    fontWeight: "500",
+    color: COLORS.secondaryText,
   },
   scrollContent: {
     paddingBottom: 20,
   },
   monthContainer: {
     marginBottom: 16,
-    marginHorizontal: 12,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    paddingBottom: 10,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+    marginHorizontal: 16,
+    backgroundColor: COLORS.surface,
+    borderRadius: 8,
+    paddingBottom: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
   },
   monthTitle: {
-    fontSize: 18,
-    fontWeight: "700",
+    fontSize: 17,
+    fontWeight: "500",
     color: COLORS.primaryText,
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -594,7 +594,7 @@ const styles = StyleSheet.create({
     color: COLORS.danger,
   },
   saturdayText: {
-    color: COLORS.accentLavender,
+    color: COLORS.secondaryText,
   },
   calendar: {
     flexDirection: "row",
@@ -632,37 +632,38 @@ const styles = StyleSheet.create({
     color: COLORS.secondaryText,
   },
   todayText: {
-    color: COLORS.accentPink,
-    fontWeight: "800",
+    color: COLORS.primaryText,
+    fontWeight: "700",
   },
   entryDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: COLORS.accentMint,
+    backgroundColor: COLORS.secondaryText,
     position: "absolute",
     bottom: 4,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.3)",
+    backgroundColor: "rgba(0,0,0,0.18)",
     justifyContent: "flex-end",
   },
   modalContent: {
     position: "relative",
-    backgroundColor: COLORS.background,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    maxHeight: "88%",
+    backgroundColor: COLORS.surface,
+    borderTopLeftRadius: 14,
+    borderTopRightRadius: 14,
+    maxHeight: "92%",
   },
   modalHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.softBorder,
-    backgroundColor: COLORS.background,
+    borderBottomColor: COLORS.border,
+    backgroundColor: COLORS.surface,
     zIndex: 20,
     elevation: 20,
   },
@@ -683,30 +684,30 @@ const styles = StyleSheet.create({
     zIndex: 40,
   },
   iconButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: COLORS.softBorder,
+    borderColor: COLORS.border,
   },
   menuDropdown: {
     position: "absolute",
     top: 40,
     right: 0,
-    backgroundColor: COLORS.card,
-    borderRadius: 12,
+    backgroundColor: COLORS.surface,
+    borderRadius: 6,
     borderWidth: 1,
-    borderColor: COLORS.softBorder,
+    borderColor: COLORS.border,
     minWidth: 110,
     overflow: "hidden",
     zIndex: 10,
     shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
   },
   menuItem: {
     minHeight: 48,
@@ -726,21 +727,15 @@ const styles = StyleSheet.create({
   menuItemDangerText: {
     color: COLORS.danger,
   },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: COLORS.primaryText,
-  },
-
   modalBody: {
-    paddingHorizontal: 16,
-    paddingTop: 20,
+    paddingHorizontal: 24,
+    paddingTop: 18,
   },
   modalBodyContent: {
-    paddingBottom: 20,
+    paddingBottom: 28,
   },
   inputContainer: {
-    marginBottom: 20,
+    marginBottom: 14,
   },
   inputLabel: {
     fontSize: 14,
@@ -749,22 +744,41 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   input: {
-    backgroundColor: COLORS.card,
-    borderRadius: 16,
-    padding: 16,
+    backgroundColor: COLORS.surface,
+    borderRadius: 0,
+    padding: 14,
     fontSize: 16,
     color: COLORS.primaryText,
     minHeight: 80,
     textAlignVertical: "top",
     borderWidth: 1,
-    borderColor: COLORS.softBorder,
+    borderColor: COLORS.border,
+  },
+  readonlyContainer: {
+    paddingTop: 6,
+  },
+  entryTitle: {
+    fontSize: 34,
+    lineHeight: 42,
+    fontWeight: "500",
+    letterSpacing: -0.4,
+    color: COLORS.primaryText,
+  },
+  entryMeta: {
+    marginTop: 12,
+    fontSize: 13,
+    color: COLORS.secondaryText,
+  },
+  entryDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: COLORS.border,
+    marginVertical: 20,
   },
   readonlyText: {
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-    fontSize: 16,
+    paddingVertical: 4,
+    fontSize: 20,
     color: COLORS.primaryText,
-    lineHeight: 22,
+    lineHeight: 36,
   },
   warningText: {
     color: COLORS.accentPeach,
@@ -774,24 +788,24 @@ const styles = StyleSheet.create({
   },
   modalFooter: {
     flexDirection: "row",
-    paddingHorizontal: 16,
-    paddingTop: 20,
+    paddingHorizontal: 24,
+    paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: COLORS.softBorder,
+    borderTopColor: COLORS.border,
     gap: 12,
   },
   saveButton: {
     flex: 1,
-    backgroundColor: "#C6B193",
-    borderRadius: 14,
-    paddingVertical: 12,
+    backgroundColor: COLORS.primaryText,
+    borderRadius: 4,
+    paddingVertical: 13,
     alignItems: "center",
     justifyContent: "center",
   },
   saveButtonText: {
-    color: "#5A4E42",
+    color: COLORS.surface,
     fontSize: 15,
-    fontWeight: "700",
+    fontWeight: "600",
   },
   editButton: {
     flex: 1,
@@ -845,7 +859,7 @@ const styles = StyleSheet.create({
   modalImage: {
     width: 150,
     height: 150,
-    borderRadius: 16,
+    borderRadius: 6,
   },
   removeModalImageButton: {
     position: "absolute",
@@ -862,19 +876,19 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    paddingVertical: 18,
-    paddingHorizontal: 24,
-    backgroundColor: COLORS.card,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    backgroundColor: COLORS.surface,
     borderWidth: 1,
-    borderColor: COLORS.softBorder,
+    borderColor: COLORS.border,
     borderStyle: "dashed",
-    borderRadius: 16,
+    borderRadius: 6,
     alignSelf: "flex-start",
   },
   addImageText: {
     color: COLORS.secondaryText,
-    fontSize: 15,
-    fontWeight: "500",
+    fontSize: 14,
+    fontWeight: "400",
   },
   imageLimitText: {
     color: COLORS.secondaryText,
