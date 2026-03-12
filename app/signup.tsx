@@ -120,6 +120,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: COLORS.background,
   },
+  helper: {
+    color: COLORS.secondaryText,
+    fontSize: 14,
+  },
   card: {
     borderRadius: 24,
   },
