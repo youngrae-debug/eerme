@@ -500,10 +500,8 @@ function EntryModal({
               </>
             ) : (
               <View style={styles.readonlyContainer}>
-                <Text style={styles.entryTitle}>{line1 || t("line1Placeholder")}</Text>
                 <Text style={styles.entryMeta}>{formatDateDisplay(dateKey)}</Text>
                 <View style={styles.entryDivider} />
-                <Text style={styles.readonlyText}>{mergedLines.join("\n\n") || " "}</Text>
                 {imageUris.length > 0 ? (
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.modalImageList}>
                     {imageUris.map((uri, index) => (
@@ -515,6 +513,8 @@ function EntryModal({
                 ) : (
                   <Text style={styles.noImageText}>{t("imageNone")}</Text>
                 )}
+                <View style={styles.entryDivider} />
+                <Text style={styles.readonlyText}>{mergedLines.join("\n\n") || " "}</Text>
               </View>
             )}
           </ScrollView>
@@ -757,13 +757,6 @@ const styles = StyleSheet.create({
   readonlyContainer: {
     paddingTop: 6,
   },
-  entryTitle: {
-    fontSize: 34,
-    lineHeight: 42,
-    fontWeight: "500",
-    letterSpacing: -0.4,
-    color: COLORS.primaryText,
-  },
   entryMeta: {
     marginTop: 12,
     fontSize: 13,
@@ -776,7 +769,7 @@ const styles = StyleSheet.create({
   },
   readonlyText: {
     paddingVertical: 4,
-    fontSize: 20,
+    fontSize: 18,
     color: COLORS.primaryText,
     lineHeight: 36,
   },

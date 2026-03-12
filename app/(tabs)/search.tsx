@@ -77,12 +77,17 @@ export default function SearchScreen() {
                   {line}
                 </Text>
               ))}
-              {(entry.imageUris?.[0] || entry.imageUri) ? (
-                <Image
-                  source={{ uri: entry.imageUris?.[0] ?? entry.imageUri ?? "" }}
-                  style={styles.resultImage}
-                  contentFit="cover"
-                />
+              {(entry.imageUris?.length || entry.imageUri) ? (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.resultImageList}>
+                  {(entry.imageUris?.length ? entry.imageUris : entry.imageUri ? [entry.imageUri] : []).map((uri, index) => (
+                    <Image
+                      key={`${entry.id}-image-${index}`}
+                      source={{ uri }}
+                      style={styles.resultImage}
+                      contentFit="cover"
+                    />
+                  ))}
+                </ScrollView>
               ) : null}
             </Pressable>
           );
@@ -121,5 +126,6 @@ const styles = StyleSheet.create({
   resultTitle: { flex: 1, color: COLORS.primaryText, fontSize: 18, lineHeight: 26 },
   date: { color: COLORS.secondaryText, fontSize: 12, marginTop: 4 },
   line: { color: COLORS.secondaryText, lineHeight: 24, marginTop: 8, fontSize: 15 },
-  resultImage: { width: "100%", height: 120, borderRadius: 6, marginTop: 10 },
+  resultImageList: { gap: 8, marginTop: 10 },
+  resultImage: { width: 120, height: 120, borderRadius: 6 },
 });
