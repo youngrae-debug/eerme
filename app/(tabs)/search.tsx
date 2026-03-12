@@ -2,7 +2,6 @@ import { Image } from "expo-image";
 import { router } from "expo-router";
 import React from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { NeumorphicCard } from "../../components/neumorphic";
 import { useJournalStore } from "../../store/journalStore";
 import { COLORS } from "../../theme/colors";
 import { formatDateDisplay } from "../../utils/date";
@@ -11,7 +10,7 @@ import { t, useLocale } from "../../utils/i18n";
 export default function SearchScreen() {
   const locale = useLocale();
   const [keyword, setKeyword] = React.useState("");
-  const { searchEntries, entries, isReady, isPremium } = useJournalStore();
+  const { searchEntries, entries, isReady } = useJournalStore();
 
   const trimmedKeyword = keyword.trim();
   const results = trimmedKeyword.length === 0 ? entries : searchEntries(trimmedKeyword);
@@ -31,106 +30,96 @@ export default function SearchScreen() {
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
     >
-      {/* 프리미엄 배지 */}
-      {isPremium && (
-        <View style={styles.premiumBadge}>
-          <Image
-            source={require("../../assets/images/logo.png")}
-            style={styles.premiumLogo}
-            contentFit="contain"
-          />
-          <Text style={styles.premiumText}>{t("premiumBadge")}</Text>
-        </View>
-      )}
+      <Text style={styles.screenTitle}>{t("tabSearch")}</Text>
+      <Text style={styles.subtitle}>{t("searchPlaceholder")}</Text>
+      <View style={styles.divider} />
 
-      <NeumorphicCard style={styles.searchCard}>
-        <TextInput
-          value={keyword}
-          onChangeText={setKeyword}
-          placeholder={t("searchPlaceholder")}
-          placeholderTextColor={COLORS.secondaryText}
-          style={styles.input}
-        />
-      </NeumorphicCard>
+      <TextInput
+        value={keyword}
+        onChangeText={setKeyword}
+        placeholder={t("searchPlaceholder")}
+        placeholderTextColor={COLORS.secondaryText}
+        style={styles.input}
+      />
 
-      <Text style={styles.count}>{t("searchCount", { count: results.length })}</Text>
-      {results.map((entry) => (
-        <Pressable
-          key={entry.id}
-          onPress={() =>
-            router.push({
-              pathname: "/(tabs)/calendar",
-              params: { date: entry.date },
-            })
-          }
-        >
-          <NeumorphicCard style={styles.resultCard}>
-            <Text style={styles.date}>{formatDateDisplay(entry.date)}</Text>
-            {(entry.imageUris?.[0] || entry.imageUri) ? (
-              <Image
-                source={{ uri: entry.imageUris?.[0] ?? entry.imageUri ?? "" }}
-                style={styles.resultImage}
-                contentFit="cover"
-              />
-            ) : null}
-            {(entry.lines ?? [])
-              .filter((line) => {
-                if (!line) return false;
-                if (trimmedKeyword.length === 0) return true;
-                return line.toLowerCase().includes(trimmedKeyword.toLowerCase());
-              })
-              .map((line, idx) => (
+      <View style={styles.listHeader}>
+        <Text style={styles.listTitle}>{t("searchCount", { count: results.length })}</Text>
+      </View>
+      <View style={styles.divider} />
+
+      {results.length === 0 ? (
+        <Text style={styles.empty}>{t("emptyEntries")}</Text>
+      ) : (
+        results.map((entry) => {
+          const filteredLines = (entry.lines ?? []).filter((line) => {
+            if (!line) return false;
+            if (trimmedKeyword.length === 0) return true;
+            return line.toLowerCase().includes(trimmedKeyword.toLowerCase());
+          });
+
+          return (
+            <Pressable
+              key={entry.id}
+              style={styles.resultItem}
+              onPress={() =>
+                router.push({
+                  pathname: "/(tabs)/calendar",
+                  params: { date: entry.date },
+                })
+              }
+            >
+              <View style={styles.resultTopRow}>
+                <Text style={styles.resultTitle}>{filteredLines[0] ?? t("emptyEntries")}</Text>
+                <Text style={styles.date}>{formatDateDisplay(entry.date)}</Text>
+              </View>
+              {filteredLines.slice(1).map((line, idx) => (
                 <Text key={`${entry.id}-${idx}`} style={styles.line}>
-                  • {line}
+                  {line}
                 </Text>
               ))}
-          </NeumorphicCard>
-        </Pressable>
-      ))}
+              {(entry.imageUris?.[0] || entry.imageUri) ? (
+                <Image
+                  source={{ uri: entry.imageUris?.[0] ?? entry.imageUri ?? "" }}
+                  style={styles.resultImage}
+                  contentFit="cover"
+                />
+              ) : null}
+            </Pressable>
+          );
+        })
+      )}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  content: { padding: 20, paddingBottom: 32, gap: 14 },
-  premiumBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 12,
-    gap: 8,
-  },
-  premiumLogo: {
-    width: 28,
-    height: 28,
-  },
-  premiumText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: COLORS.accentPeach,
-  },
-  title: { color: COLORS.primaryText, fontSize: 28, fontWeight: "800" },
-  searchCard: { borderRadius: 24 },
+  content: { paddingHorizontal: 24, paddingTop: 24, paddingBottom: 40 },
+  screenTitle: { color: COLORS.primaryText, fontSize: 28, fontWeight: "600", marginTop: 8 },
+  subtitle: { color: COLORS.secondaryText, fontSize: 14, marginTop: 12, marginBottom: 14 },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: COLORS.border, marginBottom: 18 },
   input: {
-    backgroundColor: COLORS.card,
-    borderColor: COLORS.softBorder,
     borderWidth: 1,
-    borderRadius: 16,
+    borderColor: COLORS.border,
+    borderRadius: 0,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    backgroundColor: COLORS.surface,
     color: COLORS.primaryText,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 15,
+    fontSize: 16,
+    marginBottom: 18,
   },
-  count: { color: COLORS.secondaryText },
-  empty: { color: COLORS.secondaryText },
-  resultCard: { borderRadius: 24 },
-  resultImage: {
-    width: "100%",
-    height: 180,
-    borderRadius: 16,
-    marginBottom: 10,
+  listHeader: { marginBottom: 10 },
+  listTitle: { color: COLORS.secondaryText, fontSize: 13 },
+  empty: { color: COLORS.secondaryText, fontSize: 14, paddingVertical: 6 },
+  resultItem: {
+    paddingVertical: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: COLORS.border,
   },
-  date: { color: COLORS.primaryText, fontWeight: "600", marginBottom: 4 },
-  line: { color: COLORS.secondaryText, lineHeight: 22 },
+  resultTopRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 12 },
+  resultTitle: { flex: 1, color: COLORS.primaryText, fontSize: 18, lineHeight: 26 },
+  date: { color: COLORS.secondaryText, fontSize: 12, marginTop: 4 },
+  line: { color: COLORS.secondaryText, lineHeight: 24, marginTop: 8, fontSize: 15 },
+  resultImage: { width: "100%", height: 120, borderRadius: 6, marginTop: 10 },
 });
