@@ -42,7 +42,7 @@ export default function TabLayout() {
         },
         headerTintColor: COLORS.primaryText,
         headerTitleStyle: {
-          fontWeight: "600",
+          fontWeight: "500",
           fontSize: 18,
         },
         tabBarStyle: {
@@ -53,7 +53,7 @@ export default function TabLayout() {
           paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
           height: 56 + (insets.bottom > 0 ? insets.bottom : 8),
         },
-        tabBarActiveTintColor: COLORS.accentPink,
+        tabBarActiveTintColor: COLORS.primaryText,
         tabBarInactiveTintColor: COLORS.secondaryText,
         tabBarLabelStyle: {
           fontSize: 11,
