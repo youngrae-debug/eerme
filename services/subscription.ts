@@ -117,7 +117,7 @@ function isRevenueCatModule(value: unknown): value is RevenueCatModule {
 
 function getRevenueCatModule(): RevenueCatModule | null {
   if (Platform.OS === "web") return null;
-  if (Constants.appOwnership === "expo") return null;
+  if (Constants.executionEnvironment === "storeClient") return null;
 
   let moduleValue: unknown;
   try {
@@ -213,7 +213,7 @@ function findPackageByProductId(productId: string): RevenueCatPackage | null {
 export async function restoreSubscription(): Promise<boolean> {
   const rc = getRevenueCatModule();
   if (!rc) {
-    if (Constants.appOwnership === "expo") {
+    if (Constants.executionEnvironment === "storeClient") {
       throw new Error(t("iapExpoGoUnsupported"));
     }
     throw new Error(t("iapLoadFailed"));
@@ -227,7 +227,7 @@ export async function restoreSubscription(): Promise<boolean> {
 export async function requestSubscription(productId: string) {
   const rc = getRevenueCatModule();
   if (!rc) {
-    if (Constants.appOwnership === "expo") {
+    if (Constants.executionEnvironment === "storeClient") {
       throw new Error(t("iapExpoGoUnsupported"));
     }
     throw new Error(t("iapLoadFailed"));
