@@ -311,18 +311,6 @@ const customClient: RemoteClient = {
       throw new Error("Password reset request failed.");
     }
   },
-  async requestPasswordReset(email) {
-    ensureApiBaseUrl();
-    const response = await fetch(`${apiBaseUrl}/auth/email/reset-password`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
-    });
-
-    if (!response.ok) {
-      throw new Error("Password reset request failed.");
-    }
-  },
   async signInWithGoogle(identityToken) {
     ensureApiBaseUrl();
     const response = await fetch(`${apiBaseUrl}/auth/google/login`, {

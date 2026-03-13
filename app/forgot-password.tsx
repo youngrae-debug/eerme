@@ -1,4 +1,4 @@
-import { Redirect, router } from "expo-router";
+import { router } from "expo-router";
 import React from "react";
 import { Alert, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from "react-native";
 import { NeumorphicButton, NeumorphicCard } from "../components/neumorphic";
@@ -7,45 +7,34 @@ import { COLORS } from "../theme/colors";
 import { resolveAuthErrorMessage } from "../utils/authError";
 import { t } from "../utils/i18n";
 
-export default function LoginScreen() {
-  const { isReady, session, signInWithEmail, requestPasswordReset } = useJournalStore();
+export default function ForgotPasswordScreen() {
+  const { requestPasswordReset } = useJournalStore();
   const [email, setEmail] = React.useState("");
-  const [password, setPassword] = React.useState("");
   const [busy, setBusy] = React.useState(false);
 
   const emailTrimmed = email.trim();
-  const passwordTrimmed = password.trim();
-  const canSubmit = emailTrimmed.length > 0 && passwordTrimmed.length >= 6;
 
-  const runSignIn = React.useCallback(async () => {
-    if (!canSubmit) {
-      Alert.alert(t("errorTitle"), t("authValidation"));
+  const runResetPassword = React.useCallback(async () => {
+    if (!emailTrimmed) {
+      Alert.alert(t("errorTitle"), t("authResetEmailRequired"));
       return;
     }
 
     setBusy(true);
     try {
-      await signInWithEmail(emailTrimmed, passwordTrimmed);
-      router.replace("/(tabs)");
+      await requestPasswordReset(emailTrimmed);
+      Alert.alert(t("doneTitle"), t("authResetEmailSent"), [
+        {
+          text: t("confirmTitle"),
+          onPress: () => router.replace("/login"),
+        },
+      ]);
     } catch (error) {
       Alert.alert(t("errorTitle"), resolveAuthErrorMessage(error));
     } finally {
       setBusy(false);
     }
-  }, [canSubmit, emailTrimmed, passwordTrimmed, signInWithEmail]);
-
-
-  if (!isReady) {
-    return (
-      <View style={styles.centered}>
-        <Text style={styles.helper}>{t("loadingSettings")}</Text>
-      </View>
-    );
-  }
-
-  if (session) {
-    return <Redirect href="/(tabs)" />;
-  }
+  }, [emailTrimmed, requestPasswordReset]);
 
   return (
     <KeyboardAvoidingView
@@ -53,7 +42,8 @@ export default function LoginScreen() {
       style={styles.container}
     >
       <NeumorphicCard style={styles.card}>
-        <Text style={styles.title}>{t("authSignInTitle")}</Text>
+        <Text style={styles.title}>{t("authForgotPasswordTitle")}</Text>
+        <Text style={styles.helper}>{t("authForgotPasswordSubtitle")}</Text>
 
         <Text style={styles.label}>{t("authEmailLabel")}</Text>
         <TextInput
@@ -67,27 +57,15 @@ export default function LoginScreen() {
           onChangeText={setEmail}
         />
 
-        <Text style={styles.label}>{t("authPasswordLabel")}</Text>
-        <TextInput
-          secureTextEntry
-          placeholder={t("authPasswordPlaceholder")}
-          placeholderTextColor={COLORS.secondaryText}
-          style={styles.input}
-          value={password}
-          onChangeText={setPassword}
-        />
-
-        <Text style={styles.linkAction} onPress={() => router.push("/forgot-password")}>{t("authForgotPassword")}</Text>
-
         <NeumorphicButton
-          label={busy ? t("processing") : t("authSignIn")}
+          label={busy ? t("processing") : t("authResetPasswordButton")}
           style={styles.fullButton}
-          onPress={runSignIn}
+          onPress={runResetPassword}
         />
 
         <View style={styles.switchRow}>
-          <Text style={styles.switchHelper}>{t("authNoAccount")}</Text>
-          <Text style={styles.switchAction} onPress={() => router.push("/signup")}>{t("authSwitchToSignUp")}</Text>
+          <Text style={styles.switchHelper}>{t("authHasAccount")}</Text>
+          <Text style={styles.switchAction} onPress={() => router.replace("/login")}>{t("authSwitchToSignIn")}</Text>
         </View>
       </NeumorphicCard>
     </KeyboardAvoidingView>
@@ -101,12 +79,6 @@ const styles = StyleSheet.create({
     padding: 20,
     backgroundColor: COLORS.background,
   },
-  centered: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: COLORS.background,
-  },
   card: {
     borderRadius: 24,
   },
@@ -115,11 +87,12 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "700",
     color: COLORS.primaryText,
-    marginBottom: 20,
+    marginBottom: 10,
   },
   helper: {
     color: COLORS.secondaryText,
-    marginBottom: 12,
+    marginBottom: 16,
+    textAlign: "center",
     lineHeight: 20,
   },
   label: {
@@ -156,12 +129,5 @@ const styles = StyleSheet.create({
     color: COLORS.primaryText,
     fontWeight: "700",
     fontSize: 14,
-  },
-  linkAction: {
-    color: COLORS.secondaryText,
-    fontSize: 13,
-    textAlign: "right",
-    textDecorationLine: "underline",
-    marginBottom: 6,
   },
 });
