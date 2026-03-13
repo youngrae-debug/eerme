@@ -35,6 +35,11 @@ type EmailAuthResponse = {
   user: AuthUser;
 };
 
+type OptionalEmailAuthResponse = Partial<EmailAuthResponse> & {
+  token?: string;
+  access_token?: string;
+};
+
 type FirebaseAuthResponse = {
   idToken: string;
   refreshToken?: string;
@@ -248,8 +253,63 @@ const customClient: RemoteClient = {
       user: data.user,
     };
   },
-  async signUpWithEmail() {
-    throw new Error("Email sign-up is not supported by the custom provider.");
+  async signUpWithEmail(email, password) {
+    ensureApiBaseUrl();
+
+    const endpoints = ["/auth/email/signup", "/auth/email/register"];
+    let response: Response | null = null;
+
+    for (const endpoint of endpoints) {
+      const candidate = await fetch(`${apiBaseUrl}${endpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (candidate.status === 404) {
+        continue;
+      }
+
+      response = candidate;
+      break;
+    }
+
+    if (!response) {
+      throw new Error("Email sign-up endpoint was not found.");
+    }
+
+    if (!response.ok) {
+      throw new Error("Email sign-up failed.");
+    }
+
+    if (response.status === 204) {
+      return this.signInWithEmail(email, password);
+    }
+
+    const payload = (await response.json()) as OptionalEmailAuthResponse;
+    const accessToken = payload.accessToken ?? payload.access_token ?? payload.token;
+
+    if (!accessToken || !payload.user) {
+      return this.signInWithEmail(email, password);
+    }
+
+    return {
+      provider: "custom",
+      accessToken,
+      user: payload.user,
+    };
+  },
+  async requestPasswordReset(email) {
+    ensureApiBaseUrl();
+    const response = await fetch(`${apiBaseUrl}/auth/email/reset-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Password reset request failed.");
+    }
   },
   async requestPasswordReset(email) {
     ensureApiBaseUrl();
