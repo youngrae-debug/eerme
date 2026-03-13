@@ -8,7 +8,7 @@ import { resolveAuthErrorMessage } from "../utils/authError";
 import { t } from "../utils/i18n";
 
 export default function LoginScreen() {
-  const { isReady, session, signInWithEmail } = useJournalStore();
+  const { isReady, session, signInWithEmail, requestPasswordReset } = useJournalStore();
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [busy, setBusy] = React.useState(false);
@@ -33,6 +33,23 @@ export default function LoginScreen() {
       setBusy(false);
     }
   }, [canSubmit, emailTrimmed, passwordTrimmed, signInWithEmail]);
+
+  const runResetPassword = React.useCallback(async () => {
+    if (!emailTrimmed) {
+      Alert.alert(t("errorTitle"), t("authResetEmailRequired"));
+      return;
+    }
+
+    setBusy(true);
+    try {
+      await requestPasswordReset(emailTrimmed);
+      Alert.alert(t("doneTitle"), t("authResetEmailSent"));
+    } catch (error) {
+      Alert.alert(t("errorTitle"), resolveAuthErrorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  }, [emailTrimmed, requestPasswordReset]);
 
   if (!isReady) {
     return (
@@ -75,6 +92,8 @@ export default function LoginScreen() {
           value={password}
           onChangeText={setPassword}
         />
+
+        <Text style={styles.linkAction} onPress={runResetPassword}>{t("authForgotPassword")}</Text>
 
         <NeumorphicButton
           label={busy ? t("processing") : t("authSignIn")}
@@ -153,5 +172,12 @@ const styles = StyleSheet.create({
     color: COLORS.primaryText,
     fontWeight: "700",
     fontSize: 14,
+  },
+  linkAction: {
+    color: COLORS.secondaryText,
+    fontSize: 13,
+    textAlign: "right",
+    textDecorationLine: "underline",
+    marginBottom: 6,
   },
 });

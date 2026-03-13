@@ -80,6 +80,7 @@ type SupabaseAuthResponse = {
 type RemoteClient = {
   signInWithEmail: (email: string, password: string) => Promise<AuthSession>;
   signUpWithEmail?: (email: string, password: string) => Promise<AuthSession>;
+  requestPasswordReset?: (email: string) => Promise<void>;
   signInWithApple: (identityToken: string) => Promise<AuthSession>;
   signInWithGoogle: (identityToken: string) => Promise<AuthSession>;
   signInAnonymously?: () => Promise<AuthSession>;
@@ -250,6 +251,18 @@ const customClient: RemoteClient = {
   async signUpWithEmail() {
     throw new Error("Email sign-up is not supported by the custom provider.");
   },
+  async requestPasswordReset(email) {
+    ensureApiBaseUrl();
+    const response = await fetch(`${apiBaseUrl}/auth/email/reset-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Password reset request failed.");
+    }
+  },
   async signInWithGoogle(identityToken) {
     ensureApiBaseUrl();
     const response = await fetch(`${apiBaseUrl}/auth/google/login`, {
@@ -412,6 +425,12 @@ const firebaseClient: RemoteClient = {
       returnSecureToken: true,
     });
     return toFirebaseSession(auth);
+  },
+  async requestPasswordReset(email) {
+    await firebaseAuth("accounts:sendOobCode", {
+      requestType: "PASSWORD_RESET",
+      email,
+    });
   },
   async signInWithGoogle(identityToken) {
     const auth = await firebaseAuth("accounts:signInWithIdp", {
@@ -610,6 +629,21 @@ const supabaseClient: RemoteClient = {
       password,
     });
     return toSupabaseSession(auth);
+  },
+  async requestPasswordReset(email) {
+    ensureSupabaseConfig();
+    const response = await fetch(`${supabaseUrl}/auth/v1/recover`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: supabaseAnonKey,
+      },
+      body: JSON.stringify({ email }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to request Supabase password reset.");
+    }
   },
   async signInWithGoogle(identityToken) {
     const auth = await supabaseAuth("token?grant_type=id_token", {

@@ -24,6 +24,7 @@ type JournalContextValue = {
   searchEntries: (keyword: string) => Entry[];
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (email: string, password: string) => Promise<void>;
+  requestPasswordReset: (email: string) => Promise<void>;
   signInWithApple: (identityToken: string) => Promise<void>;
   signInWithGoogle: (identityToken: string) => Promise<void>;
   signInAsGuest: () => Promise<void>;
@@ -819,6 +820,14 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
     [applyAuthenticatedSession],
   );
 
+  const requestPasswordReset = React.useCallback(async (email: string) => {
+    if (!remoteClient.requestPasswordReset) {
+      throw new Error(t("authResetUnsupported"));
+    }
+
+    await remoteClient.requestPasswordReset(email);
+  }, []);
+
   const signInWithApple = React.useCallback(
     async (identityToken: string) => {
       const nextSession = await remoteClient.signInWithApple(identityToken);
@@ -966,6 +975,7 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
       searchEntries,
       signInWithEmail,
       signUpWithEmail,
+      requestPasswordReset,
       signInWithApple,
       signInWithGoogle,
       signInAsGuest,
@@ -991,6 +1001,7 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
       signInWithApple,
       signInWithEmail,
       signUpWithEmail,
+      requestPasswordReset,
       signInWithGoogle,
       signInAsGuest,
       signOut,
