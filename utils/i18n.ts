@@ -252,6 +252,10 @@ const translations: Translations = {
     authSwitchToSignUp: "Sign up",
     authHasAccount: "Already have an account?",
     authSwitchToSignIn: "Sign in",
+    authForgotPassword: "Forgot password?",
+    authResetEmailRequired: "Enter your email first to reset password.",
+    authResetEmailSent: "We've sent you a password reset email. Please check your inbox.",
+    authResetUnsupported: "Password reset is not supported by this sync provider.",
   },
   ko: {
     premiumBadge: "Premium",
@@ -488,6 +492,10 @@ const translations: Translations = {
     authSwitchToSignUp: "회원가입",
     authHasAccount: "이미 계정이 있나요?",
     authSwitchToSignIn: "로그인",
+    authForgotPassword: "비밀번호를 잊으셨나요?",
+    authResetEmailRequired: "비밀번호 재설정을 위해 이메일을 먼저 입력해 주세요.",
+    authResetEmailSent: "비밀번호 재설정 메일을 보냈어요. 받은편지함을 확인해 주세요.",
+    authResetUnsupported: "현재 동기화 제공자에서는 비밀번호 재설정을 지원하지 않습니다.",
   },
   ja: {
     premiumBadge: "プレミアム",
@@ -724,6 +732,10 @@ const translations: Translations = {
     authSwitchToSignUp: "会員登録",
     authHasAccount: "すでにアカウントをお持ちですか？",
     authSwitchToSignIn: "ログイン",
+    authForgotPassword: "パスワードをお忘れですか？",
+    authResetEmailRequired: "パスワード再設定のため、先にメールアドレスを入力してください。",
+    authResetEmailSent: "パスワード再設定メールを送信しました。受信トレイをご確認ください。",
+    authResetUnsupported: "この同期プロバイダーではパスワード再設定に対応していません。",
   },
 };
 

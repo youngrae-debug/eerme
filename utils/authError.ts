@@ -12,6 +12,8 @@ const AUTH_ERROR_MAPPINGS: Array<{ token: string; messageKey: string }> = [
   { token: "auth/user-disabled", messageKey: "syncAuthFailed" },
   { token: "auth/network-request-failed", messageKey: "syncFailed" },
   { token: "auth/weak-password", messageKey: "authPasswordWeak" },
+  { token: "password reset request failed", messageKey: "syncAuthFailed" },
+  { token: "failed to request supabase password reset", messageKey: "syncAuthFailed" },
 ];
 
 export const resolveAuthErrorMessage = (error: unknown) => {
@@ -25,6 +27,5 @@ export const resolveAuthErrorMessage = (error: unknown) => {
     }
   }
 
-  return t("authFailed");
+  return error.message || t("authFailed");
 };
-
