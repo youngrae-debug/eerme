@@ -8,7 +8,7 @@ import { resolveAuthErrorMessage } from "../utils/authError";
 import { t } from "../utils/i18n";
 
 export default function LoginScreen() {
-  const { isReady, session, signInWithEmail } = useJournalStore();
+  const { isReady, session, signInWithEmail, requestPasswordReset } = useJournalStore();
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [busy, setBusy] = React.useState(false);
