@@ -116,6 +116,33 @@ export default function StatsScreen() {
       </View>
 
       <View style={styles.section}>
+        <Text style={styles.sectionTitle}>{t("statsWeeklyStatsTitle")}</Text>
+        <Text style={styles.sectionMeta}>{t("statsWeeklyStatsDesc")}</Text>
+        <View style={styles.statsGrid}>
+          <View style={styles.statItem}>
+            <Text style={styles.statLabel}>{t("statsWeeklyActive")}</Text>
+            <Text style={styles.statValue}>{stats.weeklyActiveDays}</Text>
+            <Text style={styles.statUnit}>{t("statsDaysUnit")}</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Text style={styles.statLabel}>{t("statsWeeklyStreak")}</Text>
+            <Text style={styles.statValue}>{stats.weeklyStreakDays}</Text>
+            <Text style={styles.statUnit}>{t("statsDaysUnit")}</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Text style={styles.statLabel}>{t("statsWeeklyPhotos")}</Text>
+            <Text style={styles.statValue}>{stats.weeklyPhotoCount}</Text>
+            <Text style={styles.statUnit}>{t("statsPhotosUnit")}</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Text style={styles.statLabel}>{t("statsWeeklyLines")}</Text>
+            <Text style={styles.statValue}>{stats.weeklyLineCount}</Text>
+            <Text style={styles.statUnit}>{t("statsLinesUnit")}</Text>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.section}>
         <Text style={styles.sectionTitle}>{t("statsTopKeywords")}</Text>
         <View style={styles.innerDivider} />
         {stats.topKeywords.length === 0 ? (
@@ -163,6 +190,21 @@ const styles = StyleSheet.create({
   metricHalf: { flex: 1 },
   metricLabel: { color: COLORS.secondaryText, fontSize: 13, marginBottom: 8 },
   metricValue: { color: COLORS.primaryText, fontSize: 20, fontWeight: "500" },
+  statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 12 },
+  statItem: {
+    flex: 1,
+    minWidth: "47%",
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 6,
+    padding: 12,
+    backgroundColor: COLORS.background,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  statLabel: { color: COLORS.secondaryText, fontSize: 12, marginBottom: 6, textAlign: "center" },
+  statValue: { color: COLORS.primaryText, fontSize: 24, fontWeight: "600" },
+  statUnit: { color: COLORS.secondaryText, fontSize: 11, marginTop: 4 },
   innerDivider: { height: StyleSheet.hairlineWidth, backgroundColor: COLORS.border, marginVertical: 12 },
   emptyText: { color: COLORS.secondaryText, fontSize: 14 },
   keywordRow: {

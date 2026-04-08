@@ -18,7 +18,7 @@ import { useJournalStore } from "../../store/journalStore";
 import { COLORS } from "../../theme/colors";
 import { setLocale, t, useLocale } from "../../utils/i18n";
 
-type MyPageTab = "subscription" | "backup";
+type MyPageTab = "sync" | "backup";
 const PROFILE_STORAGE_KEY_PREFIX = "@eerme/my-profile";
 
 type ProfileDraft = {
@@ -46,9 +46,11 @@ export default function SyncScreen() {
     deleteAccount,
     updatePassword,
     syncNow,
+    exportBackup,
+    importBackup,
   } = useJournalStore();
 
-  const [activeTab, setActiveTab] = React.useState<MyPageTab>("backup");
+  const [activeTab, setActiveTab] = React.useState<MyPageTab>("sync");
   const [busy, setBusy] = React.useState(false);
   const [products, setProducts] = React.useState<Product[]>([]);
   const [subscriptionBusy, setSubscriptionBusy] = React.useState(false);
@@ -60,6 +62,8 @@ export default function SyncScreen() {
   const [profileMenuOpen, setProfileMenuOpen] = React.useState(false);
   const [profileName, setProfileName] = React.useState("");
   const [profileImageUri, setProfileImageUri] = React.useState<string | null>(null);
+  const [backupJson, setBackupJson] = React.useState<string>("");
+  const [backupImportJson, setBackupImportJson] = React.useState<string>("");
 
   React.useEffect(() => {
     let mounted = true;
@@ -371,120 +375,18 @@ export default function SyncScreen() {
         </NeumorphicCard>
 
         <View style={styles.tabContainer}>
-          {/* 앱 심사 대응을 위해 구독 탭 노출 임시 비활성화
-          <Pressable accessibilityRole="tab" onPress={() => setActiveTab("subscription")} style={styles.tabItem}>
-            <Text style={[styles.tabText, activeTab === "subscription" && styles.tabTextActive]}>{t("tabSubscription")}</Text>
-            <View style={[styles.tabIndicator, activeTab === "subscription" && styles.tabIndicatorActive]} />
+          <Pressable accessibilityRole="tab" onPress={() => setActiveTab("sync")} style={styles.tabItem}>
+            <Text style={[styles.tabText, activeTab === "sync" && styles.tabTextActive]}>{t("syncSectionTitle")}</Text>
+            <View style={[styles.tabIndicator, activeTab === "sync" && styles.tabIndicatorActive]} />
           </Pressable>
-          */}
           <Pressable accessibilityRole="tab" onPress={() => setActiveTab("backup")} style={styles.tabItem}>
             <Text style={[styles.tabText, activeTab === "backup" && styles.tabTextActive]}>{t("tabBackup")}</Text>
             <View style={[styles.tabIndicator, activeTab === "backup" && styles.tabIndicatorActive]} />
           </Pressable>
         </View>
 
-        {/* 앱 심사 대응을 위해 구독 콘텐츠 임시 비활성화 */}
-        {false ? (
-          <>
-            <NeumorphicCard style={[styles.card, styles.subscriptionHeroCard]}>
-              <Text style={styles.subscriptionHeroTitle}>{subscriptionHeadline}</Text>
-              <Text style={styles.subscriptionHeroSubtitle}>{t("subscriptionHeroSubtitle")}</Text>
-              <View style={styles.benefitRow}>
-                <View style={styles.benefitChip}>
-                  <Ionicons name="images-outline" size={14} color={COLORS.primaryText} />
-                  <Text style={styles.benefitChipText}>{t("subscriptionBenefitPhotos")}</Text>
-                </View>
-                <View style={styles.benefitChip}>
-                  <Ionicons name="cloud-upload-outline" size={14} color={COLORS.primaryText} />
-                  <Text style={styles.benefitChipText}>{t("subscriptionBenefitBackup")}</Text>
-                </View>
-              </View>
-            </NeumorphicCard>
-
-            <NeumorphicCard style={styles.card}>
-              <Text style={styles.sectionTitle}>{t("subscriptionStatusLabel")}</Text>
-              <View style={styles.subscriptionStatusRow}>
-                <Text style={styles.subscriptionStatusValue}>{isPremium ? t("subscriptionStatusPremium") : t("subscriptionStatusFree")}</Text>
-                <View style={[styles.stateBadge, isPremium ? styles.stateBadgePremium : styles.stateBadgeFree]}>
-                  <Text style={styles.stateBadgeText}>{isPremium ? "ON" : "FREE"}</Text>
-                </View>
-              </View>
-              <Text style={styles.helperText}>{t("subscriptionNextBillingLabel", { date: renewalDateLabel })}</Text>
-            </NeumorphicCard>
-
-            <NeumorphicCard style={styles.card}>
-              <Text style={styles.sectionTitle}>{t("subscriptionProductsLabel")}</Text>
-              <Text style={styles.helperText}>{t("subscriptionHelper")}</Text>
-              <Text style={styles.helperText}>{t("subscriptionRenewalNote")}</Text>
-            {subscriptionError ? <Text style={styles.emptyText}>{subscriptionError}</Text> : null}
-            {products.length === 0 ? (
-              <Text style={styles.emptyText}>{t("subscriptionProductsEmpty")}</Text>
-            ) : (
-              products.map((product) => (
-                <Pressable
-                  key={product.productId}
-                  accessibilityRole="button"
-                  onPress={() => setSelectedProductId(product.productId)}
-                  style={[styles.planItem, selectedProductId === product.productId && styles.planItemSelected]}
-                >
-                  <View style={styles.planIndicatorOuter}>
-                    {selectedProductId === product.productId ? <View style={styles.planIndicatorInner} /> : null}
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <View style={styles.planTitleRow}>
-                      <Text style={styles.planTitle}>{product.title ?? product.productId}</Text>
-                      {(product.productId.includes("year") || product.productId.includes("annual")) ? (
-                        <View style={styles.planBadge}>
-                          <Text style={styles.planBadgeText}>{t("subscriptionPlanBadgeBest")}</Text>
-                        </View>
-                      ) : null}
-                    </View>
-                    <Text style={styles.planPrice}>{product.price ?? t("priceUnavailable")}</Text>
-                    <Text style={styles.planDescription}>{product.description ?? t("premiumAllFeatures")}</Text>
-                  </View>
-                </Pressable>
-              ))
-            )}
-
-            <View style={styles.agreementWrap}>
-              <Text style={styles.agreementTitle}>{t("subscriptionAgreementTitle")}</Text>
-              <Pressable style={styles.agreementAllRow} onPress={toggleAgreementAll}>
-                <Ionicons name={(allTermsChecked ? "checkmark-circle" : "ellipse-outline")} size={20} color={COLORS.primaryText} />
-                <Text style={styles.agreementAllText}>{t("subscriptionAgreementAll")}</Text>
-              </Pressable>
-
-              {([
-                { key: "service", label: t("subscriptionAgreementService") },
-                { key: "privacy", label: t("subscriptionAgreementPrivacy") },
-                { key: "billing", label: t("subscriptionAgreementBilling") },
-              ] as const).map((item) => (
-                <View key={item.key} style={styles.agreementRow}>
-                  <Pressable style={styles.agreementCheckArea} onPress={() => toggleAgreement(item.key)}>
-                    <Ionicons
-                      name={(agreedTerms[item.key] ? "checkmark-circle" : "ellipse-outline")}
-                      size={18}
-                      color={COLORS.primaryText}
-                    />
-                    <Text style={styles.agreementText}>[{t("subscriptionAgreementRequired")}] {item.label}</Text>
-                  </Pressable>
-                  <Pressable onPress={() => openTermsModal(item.key)}>
-                    <Text style={styles.agreementLink}>{t("subscriptionAgreementView")}</Text>
-                  </Pressable>
-                </View>
-              ))}
-            </View>
-
-            <View style={styles.row}>
-              <Pressable style={[styles.accentButton, styles.buttonFlex]} onPress={handleSubscribe}>
-                <Text style={styles.accentButtonLabel}>{subscriptionBusy ? t("requestInProgress") : t("subscribeButton")}</Text>
-              </Pressable>
-              <Pressable style={[styles.secondaryButton, styles.buttonFlex]} onPress={handleRestore}>
-                <Text style={styles.secondaryButtonLabel}>{t("restoreTitle")}</Text>
-              </Pressable>
-            </View>
-            </NeumorphicCard>
-          </>
-        ) : (
+        {/* Sync 탭 콘텐츠 */}
+        {activeTab === "sync" ? (
           <NeumorphicCard style={styles.card}>
             <Text style={styles.sectionTitle}>{t("syncSectionTitle")}</Text>
             <Text style={styles.helperText}>{t("syncStatusLabel", { status: syncStatusText })}</Text>
@@ -506,6 +408,48 @@ export default function SyncScreen() {
               <Text style={styles.accentButtonLabel}>{busy || syncStatus === "syncing" ? t("processing") : t("syncNowButton")}</Text>
             </Pressable>
           </NeumorphicCard>
+        ) : (
+          <>
+            {/* Backup 탭 콘텐츠 */}
+              <Text style={styles.sectionTitle}>{t("backupJsonSectionTitle")}</Text>
+              <Text style={styles.helperText}>{t("backupJsonHelper")}</Text>
+              <TextInput
+                style={[styles.input, { minHeight: 100, textAlignVertical: "top" }]}
+                multiline
+                numberOfLines={6}
+                placeholder={t("backupJsonPlaceholder")}
+                placeholderTextColor={COLORS.secondaryText}
+                value={backupJson}
+                editable={false}
+              />
+              <Pressable style={styles.accentButton} onPress={() => run(async () => {
+                const json = await exportBackup();
+                setBackupJson(json);
+              }, t("backupJsonExportedSuccess"))}>
+                <Text style={styles.accentButtonLabel}>{busy ? t("processing") : t("backupJsonExportButton")}</Text>
+              </Pressable>
+            </NeumorphicCard>
+
+            <NeumorphicCard style={styles.card}>
+              <Text style={styles.sectionTitle}>{t("backupJsonSectionTitle")} - {t("backupJsonImportButton")}</Text>
+              <Text style={styles.helperText}>{t("backupJsonHelper")}</Text>
+              <TextInput
+                style={[styles.input, { minHeight: 100, textAlignVertical: "top" }]}
+                multiline
+                numberOfLines={6}
+                placeholder={t("backupJsonPlaceholder")}
+                placeholderTextColor={COLORS.secondaryText}
+                value={backupImportJson}
+                onChangeText={setBackupImportJson}
+              />
+              <Pressable style={styles.accentButton} onPress={() => run(async () => {
+                await importBackup(backupImportJson);
+                setBackupImportJson("");
+              }, t("backupJsonImportedSuccess"))}>
+                <Text style={styles.accentButtonLabel}>{busy ? t("processing") : t("backupJsonImportButton")}</Text>
+              </Pressable>
+            </NeumorphicCard>
+          </>
         )}
       </ScrollView>
 
