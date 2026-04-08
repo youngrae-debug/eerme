@@ -111,6 +111,12 @@ export default function SyncScreen() {
   }, [products, selectedProductId]);
 
   React.useEffect(() => {
+    if (!isPremium && activeTab === "backup") {
+      setActiveTab("sync");
+    }
+  }, [activeTab, isPremium]);
+
+  React.useEffect(() => {
     const fallbackName = session?.user.displayName ?? (session?.user.email?.includes("@") ? session.user.email.split("@")[0] : "Me");
     setProfileName(fallbackName);
     setProfileImageUri(null);
@@ -379,14 +385,16 @@ export default function SyncScreen() {
             <Text style={[styles.tabText, activeTab === "sync" && styles.tabTextActive]}>{t("syncSectionTitle")}</Text>
             <View style={[styles.tabIndicator, activeTab === "sync" && styles.tabIndicatorActive]} />
           </Pressable>
-          <Pressable accessibilityRole="tab" onPress={() => setActiveTab("backup")} style={styles.tabItem}>
-            <Text style={[styles.tabText, activeTab === "backup" && styles.tabTextActive]}>{t("tabBackup")}</Text>
-            <View style={[styles.tabIndicator, activeTab === "backup" && styles.tabIndicatorActive]} />
-          </Pressable>
+          {isPremium ? (
+            <Pressable accessibilityRole="tab" onPress={() => setActiveTab("backup")} style={styles.tabItem}>
+              <Text style={[styles.tabText, activeTab === "backup" && styles.tabTextActive]}>{t("tabBackup")}</Text>
+              <View style={[styles.tabIndicator, activeTab === "backup" && styles.tabIndicatorActive]} />
+            </Pressable>
+          ) : null}
         </View>
 
         {/* Sync 탭 콘텐츠 */}
-        {activeTab === "sync" ? (
+        {activeTab === "sync" || !isPremium ? (
           <NeumorphicCard style={styles.card}>
             <Text style={styles.sectionTitle}>{t("syncSectionTitle")}</Text>
             <Text style={styles.helperText}>{t("syncStatusLabel", { status: syncStatusText })}</Text>
@@ -411,6 +419,7 @@ export default function SyncScreen() {
         ) : (
           <>
             {/* Backup 탭 콘텐츠 */}
+            <NeumorphicCard style={styles.card}>
               <Text style={styles.sectionTitle}>{t("backupJsonSectionTitle")}</Text>
               <Text style={styles.helperText}>{t("backupJsonHelper")}</Text>
               <TextInput
