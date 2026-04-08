@@ -1,5 +1,6 @@
 import * as SQLite from "expo-sqlite";
 import React from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { mapRemoteEntriesToLocal, remoteClient } from "../services/remoteSync";
 import { AuthSession, BackupPayload, Entry } from "../types/journal";
 import { toDateKey } from "../utils/date";
@@ -66,6 +67,8 @@ const PREMIUM_ENABLED_KEY = "premiumEnabled";
 const LAST_AUTH_USER_ID_KEY = "lastAuthUserId";
 const AUTH_MODE_GUEST = "guest";
 const AUTH_MODE_NONE = "none";
+const AUTO_BACKUP_STORAGE_KEY = "@eerme/auto-backup:v1";
+const AUTO_BACKUP_DEBOUNCE_MS = 1200;
 
 const resolveSyncErrorMessage = (error: unknown) => {
   if (!(error instanceof Error)) return t("syncFailed");
@@ -491,6 +494,14 @@ function normalizeBackupEntries(entries: Entry[]) {
     });
 }
 
+function buildBackupPayload(entries: Entry[]): BackupPayload {
+  return {
+    version: 1,
+    exportedAt: Date.now(),
+    entries,
+  };
+}
+
 export function JournalProvider({ children }: React.PropsWithChildren) {
   const [entries, setEntries] = React.useState<Entry[]>([]);
   const entriesRef = React.useRef<Entry[]>([]);
@@ -504,6 +515,8 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
   const [pendingSyncCount, setPendingSyncCount] = React.useState(0);
   const [isPremium, setIsPremium] = React.useState(false);
   const [lastAuthUserId, setLastAuthUserId] = React.useState<string | null>(null);
+  const autoBackupTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastAutoBackupHashRef = React.useRef<string>("");
 
   const setPremium = React.useCallback((value: boolean) => {
     setIsPremium(value);
@@ -571,7 +584,7 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
   );
 
   const syncNow = React.useCallback(async () => {
-    if (!isPremium || !session) return;
+    if (!session) return;
 
     let activeSession = session;
     if (remoteClient.restoreSession) {
@@ -597,7 +610,7 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
     }
 
     await performSync(activeSession, entriesRef.current, lastSyncedAtRef.current);
-  }, [isPremium, performSync, session]);
+  }, [performSync, session]);
 
   React.useEffect(() => {
     let mounted = true;
@@ -647,7 +660,7 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
         await refreshPendingSyncCount();
         setIsReady(true);
 
-        if (loadedPremiumEnabled && nextSession) {
+        if (nextSession) {
           try {
             await performSync(nextSession, loadedEntries, loadedLastSyncedAt);
           } catch {
@@ -673,12 +686,44 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
 
 
   React.useEffect(() => {
-    if (!isPremium || !session || !isReady) return;
+    if (!session || !isReady) return;
 
     syncNow().catch((error) => {
-      console.warn("Background sync failed after premium enabled", error);
+      console.warn("Background sync failed after sign-in", error);
     });
-  }, [isPremium, isReady, session, syncNow]);
+  }, [isReady, session, syncNow]);
+
+  React.useEffect(() => {
+    if (!isReady) return;
+
+    const payload = buildBackupPayload(entriesRef.current);
+    const serialized = JSON.stringify(payload);
+
+    if (serialized === lastAutoBackupHashRef.current) {
+      return;
+    }
+
+    if (autoBackupTimeoutRef.current) {
+      clearTimeout(autoBackupTimeoutRef.current);
+    }
+
+    autoBackupTimeoutRef.current = setTimeout(() => {
+      AsyncStorage.setItem(AUTO_BACKUP_STORAGE_KEY, serialized)
+        .then(() => {
+          lastAutoBackupHashRef.current = serialized;
+        })
+        .catch((error) => {
+          console.warn("Automatic backup failed", error);
+        });
+    }, AUTO_BACKUP_DEBOUNCE_MS);
+
+    return () => {
+      if (autoBackupTimeoutRef.current) {
+        clearTimeout(autoBackupTimeoutRef.current);
+        autoBackupTimeoutRef.current = null;
+      }
+    };
+  }, [entries, isReady]);
 
   const upsertEntry = React.useCallback(
     async (date: string, lines: [string, string, string], imageUri?: string | null, imageUris?: string[]) => {
@@ -712,13 +757,13 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
       await enqueueSyncFromEntries([nextEntry]);
       await refreshPendingSyncCount();
 
-      if (isPremium && session) {
+      if (session) {
         syncNow().catch((error) => {
           console.warn("Background sync failed", error);
         });
       }
     },
-    [isPremium, refreshPendingSyncCount, session, syncNow],
+    [refreshPendingSyncCount, session, syncNow],
   );
 
   const upsertTodayEntry = React.useCallback(
@@ -745,13 +790,13 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
       await enqueueSyncFromEntries([deleted]);
       await refreshPendingSyncCount();
 
-      if (isPremium && session) {
+      if (session) {
         syncNow().catch((error) => {
           console.warn("Background sync failed", error);
         });
       }
     },
-    [isPremium, refreshPendingSyncCount, session, syncNow],
+    [refreshPendingSyncCount, session, syncNow],
   );
 
   const searchEntries = React.useCallback(
@@ -791,13 +836,11 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
       await saveAuthMode(AUTH_MODE_NONE);
       await saveLastAuthUserId(nextSession.user.id);
 
-      if (isPremium) {
-        const sourceEntries = isSwitchingAccount ? [] : entries;
-        const sourceSince = isSwitchingAccount ? 0 : lastSyncedAt;
-        await performSync(nextSession, sourceEntries, sourceSince);
-      }
+      const sourceEntries = isSwitchingAccount ? [] : entries;
+      const sourceSince = isSwitchingAccount ? 0 : lastSyncedAt;
+      await performSync(nextSession, sourceEntries, sourceSince);
     },
-    [entries, isPremium, lastAuthUserId, lastSyncedAt, performSync, resetLocalDataForAccountSwitch, session?.user.id],
+    [entries, lastAuthUserId, lastSyncedAt, performSync, resetLocalDataForAccountSwitch, session?.user.id],
   );
 
   const signInWithEmail = React.useCallback(
@@ -913,11 +956,7 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
   }, [refreshPendingSyncCount, session]);
 
   const exportBackup = React.useCallback(async () => {
-    const backup: BackupPayload = {
-      version: 1,
-      exportedAt: Date.now(),
-      entries,
-    };
+    const backup = buildBackupPayload(entries);
 
     return JSON.stringify(backup, null, 2);
   }, [entries]);
@@ -948,13 +987,13 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
       entriesRef.current = importedEntries;
       await refreshPendingSyncCount();
 
-      if (isPremium && session) {
+      if (session) {
         syncNow().catch((error) => {
           console.warn("Background sync failed after backup import", error);
         });
       }
     },
-    [isPremium, refreshPendingSyncCount, session, syncNow],
+    [refreshPendingSyncCount, session, syncNow],
   );
 
   const value = React.useMemo(
