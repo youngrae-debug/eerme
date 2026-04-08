@@ -135,11 +135,15 @@ const normalizeImageUris = (entry: Entry) => (Array.isArray(entry.imageUris)
     ? [entry.imageUri]
     : []);
 
-const isLikelyLocalImageUri = (uri: string) => (
+export const isLikelyLocalImageUri = (uri: string) => (
   uri.startsWith("file:")
   || uri.startsWith("content:")
   || uri.startsWith("ph:")
   || uri.startsWith("assets-library:")
+);
+
+export const entryNeedsRemoteImageMigration = (entry: Entry) => (
+  normalizeImageUris(entry).some(isLikelyLocalImageUri)
 );
 
 const blobToDataUrl = (blob: Blob) => new Promise<string>((resolve, reject) => {

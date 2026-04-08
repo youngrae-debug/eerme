@@ -13,6 +13,42 @@ export default function StatsScreen() {
   const { entries, isReady } = useJournalStore();
   const stats = React.useMemo(() => getJournalStats(entries), [entries]);
   const [chartWidth, setChartWidth] = React.useState(screenWidth - 88);
+  const weeklySummaryRows = React.useMemo(() => ([
+    [
+      {
+        key: "active",
+        label: t("statsWeeklyActive"),
+        value: stats.weeklyActiveDays,
+        unit: t("statsDaysUnit"),
+      },
+      {
+        key: "streak",
+        label: t("statsWeeklyStreak"),
+        value: stats.weeklyStreakDays,
+        unit: t("statsDaysUnit"),
+      },
+    ],
+    [
+      {
+        key: "photos",
+        label: t("statsWeeklyPhotos"),
+        value: stats.weeklyPhotoCount,
+        unit: t("statsPhotosUnit"),
+      },
+      {
+        key: "lines",
+        label: t("statsWeeklyLines"),
+        value: stats.weeklyLineCount,
+        unit: t("statsLinesUnit"),
+      },
+    ],
+  ]), [
+    locale,
+    stats.weeklyActiveDays,
+    stats.weeklyLineCount,
+    stats.weeklyPhotoCount,
+    stats.weeklyStreakDays,
+  ]);
 
   const chartData = React.useMemo(() => {
     const labels = stats.dailyStats.map((d) => {
@@ -119,26 +155,20 @@ export default function StatsScreen() {
         <Text style={styles.sectionTitle}>{t("statsWeeklyStatsTitle")}</Text>
         <Text style={styles.sectionMeta}>{t("statsWeeklyStatsDesc")}</Text>
         <View style={styles.statsGrid}>
-          <View style={styles.statItem}>
-            <Text style={styles.statLabel}>{t("statsWeeklyActive")}</Text>
-            <Text style={styles.statValue}>{stats.weeklyActiveDays}</Text>
-            <Text style={styles.statUnit}>{t("statsDaysUnit")}</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statLabel}>{t("statsWeeklyStreak")}</Text>
-            <Text style={styles.statValue}>{stats.weeklyStreakDays}</Text>
-            <Text style={styles.statUnit}>{t("statsDaysUnit")}</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statLabel}>{t("statsWeeklyPhotos")}</Text>
-            <Text style={styles.statValue}>{stats.weeklyPhotoCount}</Text>
-            <Text style={styles.statUnit}>{t("statsPhotosUnit")}</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statLabel}>{t("statsWeeklyLines")}</Text>
-            <Text style={styles.statValue}>{stats.weeklyLineCount}</Text>
-            <Text style={styles.statUnit}>{t("statsLinesUnit")}</Text>
-          </View>
+          {weeklySummaryRows.map((row, rowIndex) => (
+            <View
+              key={`weekly-summary-row-${rowIndex}`}
+              style={[styles.statsRow, rowIndex === weeklySummaryRows.length - 1 && styles.statsRowLast]}
+            >
+              {row.map((item) => (
+                <View key={item.key} style={styles.statItem}>
+                  <Text style={styles.statLabel}>{item.label}</Text>
+                  <Text style={styles.statValue}>{item.value}</Text>
+                  <Text style={styles.statUnit}>{item.unit}</Text>
+                </View>
+              ))}
+            </View>
+          ))}
         </View>
       </View>
 
@@ -190,10 +220,17 @@ const styles = StyleSheet.create({
   metricHalf: { flex: 1 },
   metricLabel: { color: COLORS.secondaryText, fontSize: 13, marginBottom: 8 },
   metricValue: { color: COLORS.primaryText, fontSize: 20, fontWeight: "500" },
-  statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 12 },
+  statsGrid: { marginTop: 12 },
+  statsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  statsRowLast: {
+    marginBottom: 0,
+  },
   statItem: {
-    flex: 1,
-    minWidth: "47%",
+    width: "48.5%",
     borderWidth: 1,
     borderColor: COLORS.border,
     borderRadius: 6,
@@ -201,6 +238,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
     alignItems: "center",
     justifyContent: "center",
+    minHeight: 132,
   },
   statLabel: { color: COLORS.secondaryText, fontSize: 12, marginBottom: 6, textAlign: "center" },
   statValue: { color: COLORS.primaryText, fontSize: 24, fontWeight: "600" },

@@ -1,7 +1,12 @@
 import * as SQLite from "expo-sqlite";
 import React from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { mapRemoteEntriesToLocal, remoteClient } from "../services/remoteSync";
+import {
+  activeSyncProvider,
+  entryNeedsRemoteImageMigration,
+  mapRemoteEntriesToLocal,
+  remoteClient,
+} from "../services/remoteSync";
 import { AuthSession, BackupPayload, Entry } from "../types/journal";
 import { toDateKey } from "../utils/date";
 import { t } from "../utils/i18n";
@@ -65,6 +70,7 @@ const SYNC_META_KEY = "lastSyncedAt";
 const AUTH_MODE_KEY = "authMode";
 const PREMIUM_ENABLED_KEY = "premiumEnabled";
 const LAST_AUTH_USER_ID_KEY = "lastAuthUserId";
+const LEGACY_IMAGE_MIGRATION_KEY_PREFIX = "legacyImageMigrationDone";
 const AUTH_MODE_GUEST = "guest";
 const AUTH_MODE_NONE = "none";
 const AUTO_BACKUP_STORAGE_KEY = "@eerme/auto-backup:v1";
@@ -334,6 +340,33 @@ async function saveLastSyncedAt(value: number) {
   );
 }
 
+const getLegacyImageMigrationKey = (userId: string) => `${LEGACY_IMAGE_MIGRATION_KEY_PREFIX}:${userId}`;
+
+async function loadLegacyImageMigrationDone(userId: string) {
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<{ value: string }>(`SELECT value FROM ${TABLE_SYNC_META} WHERE key = ?`, [
+    getLegacyImageMigrationKey(userId),
+  ]);
+  return row?.value === "true";
+}
+
+async function saveLegacyImageMigrationDone(userId: string, value: boolean) {
+  const db = await getDatabase();
+  const key = getLegacyImageMigrationKey(userId);
+
+  if (!value) {
+    await db.runAsync(`DELETE FROM ${TABLE_SYNC_META} WHERE key = ?`, [key]);
+    return;
+  }
+
+  await db.runAsync(
+    `INSERT INTO ${TABLE_SYNC_META} (key, value)
+     VALUES (?, ?)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    [key, "true"],
+  );
+}
+
 
 async function loadAuthMode() {
   const db = await getDatabase();
@@ -548,14 +581,29 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
 
       const queue = await loadSyncQueueFromDb();
       const queuedIds = queue.map((item) => item.entryId);
-      const queuedEntries = queuedIds.length
-        ? sourceEntries.filter((entry) => queuedIds.includes(entry.id))
+      const queuedIdSet = new Set(queuedIds);
+      const queuedEntries = queuedIdSet.size > 0
+        ? sourceEntries.filter((entry) => queuedIdSet.has(entry.id))
         : [];
+      const shouldSweepLegacyImages = activeSyncProvider === "firebase"
+        && !(await loadLegacyImageMigrationDone(targetSession.user.id));
+      const legacyImageEntries = shouldSweepLegacyImages
+        ? sourceEntries.filter((entry) => (
+            !entry.deletedAt
+            && !queuedIdSet.has(entry.id)
+            && entryNeedsRemoteImageMigration(entry)
+          ))
+        : [];
+      const pushEntries = queuedEntries.concat(legacyImageEntries);
+      let didCompleteLegacyImageSweep = shouldSweepLegacyImages && legacyImageEntries.length === 0;
 
       try {
-        if (queuedEntries.length > 0) {
-          await remoteClient.push(targetSession, queuedEntries);
+        if (pushEntries.length > 0) {
+          await remoteClient.push(targetSession, pushEntries);
           await clearSyncQueueByIds(queuedIds);
+          if (shouldSweepLegacyImages) {
+            didCompleteLegacyImageSweep = true;
+          }
         }
 
         const pullResult = await remoteClient.pull(targetSession, since ?? 0);
@@ -564,6 +612,9 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
 
         await upsertEntriesToDb(merged);
         await saveLastSyncedAt(pullResult.serverTime);
+        if (didCompleteLegacyImageSweep) {
+          await saveLegacyImageMigrationDone(targetSession.user.id, true);
+        }
 
         setEntries(merged);
         entriesRef.current = merged;
