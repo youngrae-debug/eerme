@@ -202,13 +202,13 @@ export default function TodayScreen() {
       ) : (
         entries.slice(0, 7).map((entry) => {
           const nonEmptyLines = (entry.lines ?? []).filter(Boolean);
-          const titleLine = nonEmptyLines[0] ?? t("emptyEntries");
+          const titleLine = nonEmptyLines[0];
 
 
           return (
             <View key={entry.id} style={styles.listItem}>
               <View style={styles.listItemHeader}>
-                <Text style={styles.listItemTitle}>{titleLine}</Text>
+                {titleLine ? <Text style={styles.listItemTitle}>{titleLine}</Text> : <View style={styles.listItemTitleSpacer} />}
                 <Text style={styles.dateLabel}>{formatDateDisplay(entry.date)}</Text>
               </View>
               {nonEmptyLines.slice(1).map((line, idx) => (
@@ -388,6 +388,7 @@ const styles = StyleSheet.create({
     lineHeight: 27,
     fontWeight: "400",
   },
+  listItemTitleSpacer: { flex: 1 },
   dateLabel: {
     color: COLORS.secondaryText,
     fontSize: 12,

@@ -56,6 +56,7 @@ export default function SearchScreen() {
             if (trimmedKeyword.length === 0) return true;
             return line.toLowerCase().includes(trimmedKeyword.toLowerCase());
           });
+          const titleLine = filteredLines[0];
 
           return (
             <View key={entry.id} style={styles.resultItem}>
@@ -69,7 +70,7 @@ export default function SearchScreen() {
                 }
               >
                 <View style={styles.resultTopRow}>
-                  <Text style={styles.resultTitle}>{filteredLines[0] ?? t("emptyEntries")}</Text>
+                  {titleLine ? <Text style={styles.resultTitle}>{titleLine}</Text> : <View style={styles.resultTitleSpacer} />}
                   <Text style={styles.date}>{formatDateDisplay(entry.date)}</Text>
                 </View>
                 {filteredLines.slice(1).map((line, idx) => (
@@ -133,6 +134,7 @@ const styles = StyleSheet.create({
   },
   resultTopRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 12 },
   resultTitle: { flex: 1, color: COLORS.primaryText, fontSize: 18, lineHeight: 26 },
+  resultTitleSpacer: { flex: 1 },
   date: { color: COLORS.secondaryText, fontSize: 12, marginTop: 4 },
   line: { color: COLORS.secondaryText, lineHeight: 24, marginTop: 8, fontSize: 15 },
   resultImageList: { gap: 8, marginTop: 10 },
