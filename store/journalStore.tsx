@@ -687,7 +687,7 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
 
         const pullResult = await remoteClient.pull(targetSession, since ?? 0);
         const remoteEntries = mapRemoteEntriesToLocal(pullResult.entries);
-        const merged = mergeEntries(sourceEntries, remoteEntries);
+        const merged = mergeEntries(entriesRef.current, remoteEntries);
         const hasRemainingLegacyImages = activeSyncProvider === "firebase"
           && merged.some((entry) => !entry.deletedAt && entryNeedsRemoteImageMigration(entry));
         didCompleteLegacyImageSweep = shouldSweepLegacyImages && !hasRemainingLegacyImages;
