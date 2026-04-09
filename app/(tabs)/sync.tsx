@@ -5,14 +5,15 @@ import * as ImagePicker from "expo-image-picker";
 import React from "react";
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { NeumorphicCard } from "../../components/neumorphic";
+import { remoteClient } from "../../services/remoteSync";
 import {
-  attachPurchaseListener,
-  closeSubscriptionConnection,
-  getFallbackSubscriptionProducts,
-  loadSubscriptionProducts,
-  requestSubscription,
-  restoreSubscription,
-  type Product,
+    attachPurchaseListener,
+    closeSubscriptionConnection,
+    getFallbackSubscriptionProducts,
+    loadSubscriptionProducts,
+    requestSubscription,
+    restoreSubscription,
+    type Product,
 } from "../../services/subscription";
 import { useJournalStore } from "../../store/journalStore";
 import { COLORS } from "../../theme/colors";
@@ -117,22 +118,54 @@ export default function SyncScreen() {
   }, [activeTab, isPremium]);
 
   React.useEffect(() => {
+    let mounted = true;
     const fallbackName = session?.user.displayName ?? (session?.user.email?.includes("@") ? session.user.email.split("@")[0] : "Me");
     setProfileName(fallbackName);
     setProfileImageUri(null);
 
     const storageKey = getProfileStorageKey(session?.user.id ?? session?.user.email ?? null);
-    AsyncStorage.getItem(storageKey)
-      .then((raw) => {
-        if (!raw) return;
-        const saved = JSON.parse(raw) as ProfileDraft;
-        if (saved.name?.trim()) setProfileName(saved.name);
-        if (saved.imageUri) setProfileImageUri(saved.imageUri);
-      })
-      .catch(() => {
+    const loadProfile = async () => {
+      let localDraft: ProfileDraft | null = null;
+
+      try {
+        const raw = await AsyncStorage.getItem(storageKey);
+        if (raw) {
+          localDraft = JSON.parse(raw) as ProfileDraft;
+          if (!mounted) return;
+          if (localDraft.name?.trim()) setProfileName(localDraft.name);
+          if (localDraft.imageUri) setProfileImageUri(localDraft.imageUri);
+        }
+      } catch {
         // noop
-      });
-  }, [session?.user.displayName, session?.user.email, session?.user.id]);
+      }
+
+      if (!session || !remoteClient.pullProfile) return;
+
+      try {
+        const remoteProfile = await remoteClient.pullProfile(session);
+        if (!mounted || !remoteProfile) return;
+
+        const merged: ProfileDraft = {
+          name: remoteProfile.name?.trim() || localDraft?.name?.trim() || fallbackName,
+          imageUri: remoteProfile.imageUri ?? localDraft?.imageUri ?? null,
+        };
+
+        setProfileName(merged.name);
+        setProfileImageUri(merged.imageUri);
+        await AsyncStorage.setItem(storageKey, JSON.stringify(merged));
+      } catch (error) {
+        console.warn("Failed to pull remote profile", error);
+      }
+    };
+
+    loadProfile().catch(() => {
+      // noop
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, [session, session?.user.displayName, session?.user.email, session?.user.id]);
 
   const run = React.useCallback(async (task: () => Promise<void>, successMessage?: string) => {
     setBusy(true);
@@ -205,15 +238,24 @@ export default function SyncScreen() {
     }
 
     const draft: ProfileDraft = { name: trimmed, imageUri: profileImageUri };
-    AsyncStorage.setItem(getProfileStorageKey(session?.user.id ?? session?.user.email ?? null), JSON.stringify(draft))
-      .then(() => {
-        setProfileName(trimmed);
-        Alert.alert(t("doneTitle"), t("profileSaveSuccess"));
-      })
-      .catch(() => {
-        Alert.alert(t("errorTitle"), t("profileSaveFailed"));
-      });
-  }, [profileImageUri, profileName, session?.user.email, session?.user.id]);
+    const storageKey = getProfileStorageKey(session?.user.id ?? session?.user.email ?? null);
+
+    const persistProfile = async () => {
+      await AsyncStorage.setItem(storageKey, JSON.stringify(draft));
+
+      if (session && remoteClient.pushProfile) {
+        await remoteClient.pushProfile(session, draft);
+      }
+
+      setProfileName(trimmed);
+      Alert.alert(t("doneTitle"), t("profileSaveSuccess"));
+    };
+
+    persistProfile().catch((error) => {
+      console.warn("Failed to save profile", error);
+      Alert.alert(t("errorTitle"), t("profileSaveFailed"));
+    });
+  }, [profileImageUri, profileName, session]);
 
   const allTermsChecked = agreedTerms.service && agreedTerms.privacy && agreedTerms.billing;
 

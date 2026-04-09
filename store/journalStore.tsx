@@ -1,11 +1,11 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SQLite from "expo-sqlite";
 import React from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
-  activeSyncProvider,
-  entryNeedsRemoteImageMigration,
-  mapRemoteEntriesToLocal,
-  remoteClient,
+    activeSyncProvider,
+    entryNeedsRemoteImageMigration,
+    mapRemoteEntriesToLocal,
+    remoteClient,
 } from "../services/remoteSync";
 import { AuthSession, BackupPayload, Entry } from "../types/journal";
 import { toDateKey } from "../utils/date";
@@ -111,6 +111,8 @@ const resolveSyncErrorMessage = (error: unknown) => {
 
 const JournalContext = React.createContext<JournalContextValue | null>(null);
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
+let dbInitPromise: Promise<void> | null = null;
+let dbWriteQueue: Promise<void> = Promise.resolve();
 
 
 const parseImageUris = (raw: string | null): string[] => {
@@ -125,6 +127,19 @@ const parseImageUris = (raw: string | null): string[] => {
       if (Array.isArray(parsed)) {
         return parsed.filter((item): item is string => typeof item === "string" && item.length > 0);
       }
+    } catch {
+      return [];
+    }
+  }
+
+  if (trimmed.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(trimmed) as Record<string, unknown>;
+      return Object.keys(parsed)
+        .sort((a, b) => Number(a) - Number(b))
+        .map((key) => parsed[key])
+        .filter((item): item is string => typeof item === "string" && item.length > 0)
+        .slice(0, 10);
     } catch {
       return [];
     }
@@ -168,58 +183,84 @@ async function getDatabase() {
   }
 
   const db = await dbPromise;
-  await db.execAsync(
-    `CREATE TABLE IF NOT EXISTS ${TABLE_ENTRIES} (
-      id TEXT PRIMARY KEY NOT NULL,
-      date TEXT NOT NULL,
-      line1 TEXT NOT NULL,
-      line2 TEXT NOT NULL,
-      line3 TEXT NOT NULL,
-      imageUri TEXT,
-      createdAt INTEGER NOT NULL,
-      updatedAt INTEGER NOT NULL,
-      deletedAt INTEGER
-    );`,
-  );
-  // Migration: add imageUri column if not exists
-  try {
-    await db.execAsync(`ALTER TABLE ${TABLE_ENTRIES} ADD COLUMN imageUri TEXT;`);
-  } catch {
-    // Column already exists, ignore
-  }
-  await db.execAsync(`CREATE INDEX IF NOT EXISTS idx_journal_date ON ${TABLE_ENTRIES}(date);`);
-  await db.execAsync(
-    `CREATE TABLE IF NOT EXISTS ${TABLE_SYNC_META} (
-      key TEXT PRIMARY KEY NOT NULL,
-      value TEXT NOT NULL
-    );`,
-  );
-  await db.execAsync(
-    `CREATE TABLE IF NOT EXISTS ${TABLE_AUTH_SESSION} (
-      id INTEGER PRIMARY KEY NOT NULL,
-      provider TEXT NOT NULL,
-      accessToken TEXT NOT NULL,
-      refreshToken TEXT,
-      userId TEXT NOT NULL,
-      email TEXT NOT NULL,
-      displayName TEXT
-    );`,
-  );
-  await db.execAsync(
-    `CREATE TABLE IF NOT EXISTS ${TABLE_SYNC_QUEUE} (
-      entryId TEXT PRIMARY KEY NOT NULL,
-      updatedAt INTEGER NOT NULL,
-      retryCount INTEGER NOT NULL DEFAULT 0,
-      lastError TEXT
-    );`,
-  );
-  try {
-    await db.execAsync(`ALTER TABLE ${TABLE_AUTH_SESSION} ADD COLUMN refreshToken TEXT;`);
-  } catch {
-    // Column already exists, ignore
+  if (!dbInitPromise) {
+    dbInitPromise = (async () => {
+      await db.execAsync(
+        `CREATE TABLE IF NOT EXISTS ${TABLE_ENTRIES} (
+          id TEXT PRIMARY KEY NOT NULL,
+          date TEXT NOT NULL,
+          line1 TEXT NOT NULL,
+          line2 TEXT NOT NULL,
+          line3 TEXT NOT NULL,
+          imageUri TEXT,
+          createdAt INTEGER NOT NULL,
+          updatedAt INTEGER NOT NULL,
+          deletedAt INTEGER
+        );`,
+      );
+      // Migration: add imageUri column if not exists
+      try {
+        await db.execAsync(`ALTER TABLE ${TABLE_ENTRIES} ADD COLUMN imageUri TEXT;`);
+      } catch {
+        // Column already exists, ignore
+      }
+      await db.execAsync(`CREATE INDEX IF NOT EXISTS idx_journal_date ON ${TABLE_ENTRIES}(date);`);
+      await db.execAsync(
+        `CREATE TABLE IF NOT EXISTS ${TABLE_SYNC_META} (
+          key TEXT PRIMARY KEY NOT NULL,
+          value TEXT NOT NULL
+        );`,
+      );
+      await db.execAsync(
+        `CREATE TABLE IF NOT EXISTS ${TABLE_AUTH_SESSION} (
+          id INTEGER PRIMARY KEY NOT NULL,
+          provider TEXT NOT NULL,
+          accessToken TEXT NOT NULL,
+          refreshToken TEXT,
+          userId TEXT NOT NULL,
+          email TEXT NOT NULL,
+          displayName TEXT
+        );`,
+      );
+      await db.execAsync(
+        `CREATE TABLE IF NOT EXISTS ${TABLE_SYNC_QUEUE} (
+          entryId TEXT PRIMARY KEY NOT NULL,
+          updatedAt INTEGER NOT NULL,
+          retryCount INTEGER NOT NULL DEFAULT 0,
+          lastError TEXT
+        );`,
+      );
+      try {
+        await db.execAsync(`ALTER TABLE ${TABLE_AUTH_SESSION} ADD COLUMN refreshToken TEXT;`);
+      } catch {
+        // Column already exists, ignore
+      }
+    })();
   }
 
+  await dbInitPromise;
+
   return db;
+}
+
+async function withSafeWriteTransaction(db: SQLite.SQLiteDatabase, task: () => Promise<void>) {
+  if (typeof db.withExclusiveTransactionAsync === "function") {
+    await db.withExclusiveTransactionAsync(task);
+    return;
+  }
+
+  await db.withTransactionAsync(task);
+}
+
+async function enqueueDbWrite<T>(task: (db: SQLite.SQLiteDatabase) => Promise<T>) {
+  const run = async () => {
+    const db = await getDatabase();
+    return task(db);
+  };
+
+  const result = dbWriteQueue.then(run, run);
+  dbWriteQueue = result.then(() => undefined, () => undefined);
+  return result;
 }
 
 async function loadEntriesFromDb() {
@@ -233,43 +274,73 @@ async function loadEntriesFromDb() {
 }
 
 async function upsertEntriesToDb(entries: Entry[]) {
-  const db = await getDatabase();
-  await db.withTransactionAsync(async () => {
-    for (const entry of entries) {
-      await db.runAsync(
-        `INSERT INTO ${TABLE_ENTRIES} (id, date, line1, line2, line3, imageUri, createdAt, updatedAt, deletedAt)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-         ON CONFLICT(id) DO UPDATE SET
-            date = excluded.date,
-            line1 = excluded.line1,
-            line2 = excluded.line2,
-            line3 = excluded.line3,
-            imageUri = excluded.imageUri,
-            createdAt = excluded.createdAt,
-            updatedAt = excluded.updatedAt,
-            deletedAt = excluded.deletedAt`,
-        [
-          entry.id,
-          entry.date,
-          entry.lines[0],
-          entry.lines[1],
-          entry.lines[2],
-          serializeImageUris(normalizeImageUris(entry.imageUri, entry.imageUris)),
-          entry.createdAt,
-          entry.updatedAt,
-          entry.deletedAt ?? null,
-        ],
-      );
-    }
+  if (entries.length === 0) return;
+
+  await enqueueDbWrite(async (db) => {
+    await withSafeWriteTransaction(db, async () => {
+      for (const entry of entries) {
+        await db.runAsync(
+          `INSERT INTO ${TABLE_ENTRIES} (id, date, line1, line2, line3, imageUri, createdAt, updatedAt, deletedAt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT(id) DO UPDATE SET
+              date = excluded.date,
+              line1 = excluded.line1,
+              line2 = excluded.line2,
+              line3 = excluded.line3,
+              imageUri = excluded.imageUri,
+              createdAt = excluded.createdAt,
+              updatedAt = excluded.updatedAt,
+              deletedAt = excluded.deletedAt`,
+          [
+            entry.id,
+            entry.date,
+            entry.lines[0],
+            entry.lines[1],
+            entry.lines[2],
+            serializeImageUris(normalizeImageUris(entry.imageUri, entry.imageUris)),
+            entry.createdAt,
+            entry.updatedAt,
+            entry.deletedAt ?? null,
+          ],
+        );
+      }
+    });
   });
 }
 
 async function replaceEntriesToDb(entries: Entry[]) {
-  const db = await getDatabase();
-  await db.withTransactionAsync(async () => {
-    await db.runAsync(`DELETE FROM ${TABLE_ENTRIES}`);
+  await enqueueDbWrite(async (db) => {
+    await withSafeWriteTransaction(db, async () => {
+      await db.runAsync(`DELETE FROM ${TABLE_ENTRIES}`);
+
+      for (const entry of entries) {
+        await db.runAsync(
+          `INSERT INTO ${TABLE_ENTRIES} (id, date, line1, line2, line3, imageUri, createdAt, updatedAt, deletedAt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT(id) DO UPDATE SET
+              date = excluded.date,
+              line1 = excluded.line1,
+              line2 = excluded.line2,
+              line3 = excluded.line3,
+              imageUri = excluded.imageUri,
+              createdAt = excluded.createdAt,
+              updatedAt = excluded.updatedAt,
+              deletedAt = excluded.deletedAt`,
+          [
+            entry.id,
+            entry.date,
+            entry.lines[0],
+            entry.lines[1],
+            entry.lines[2],
+            serializeImageUris(normalizeImageUris(entry.imageUri, entry.imageUris)),
+            entry.createdAt,
+            entry.updatedAt,
+            entry.deletedAt ?? null,
+          ],
+        );
+      }
+    });
   });
-  await upsertEntriesToDb(entries);
 }
 
 async function loadSessionFromDb(): Promise<AuthSession | null> {
@@ -297,31 +368,32 @@ async function loadSessionFromDb(): Promise<AuthSession | null> {
 }
 
 async function saveSessionToDb(session: AuthSession | null) {
-  const db = await getDatabase();
-  if (!session) {
-    await db.runAsync(`DELETE FROM ${TABLE_AUTH_SESSION} WHERE id = 1`);
-    return;
-  }
+  await enqueueDbWrite(async (db) => {
+    if (!session) {
+      await db.runAsync(`DELETE FROM ${TABLE_AUTH_SESSION} WHERE id = 1`);
+      return;
+    }
 
-  await db.runAsync(
-    `INSERT INTO ${TABLE_AUTH_SESSION} (id, provider, accessToken, refreshToken, userId, email, displayName)
-     VALUES (1, ?, ?, ?, ?, ?, ?)
-     ON CONFLICT(id) DO UPDATE SET
-      provider = excluded.provider,
-      accessToken = excluded.accessToken,
-      refreshToken = excluded.refreshToken,
-      userId = excluded.userId,
-      email = excluded.email,
-      displayName = excluded.displayName`,
-    [
-      session.provider,
-      session.accessToken,
-      session.refreshToken ?? null,
-      session.user.id,
-      session.user.email,
-      session.user.displayName ?? null,
-    ],
-  );
+    await db.runAsync(
+      `INSERT INTO ${TABLE_AUTH_SESSION} (id, provider, accessToken, refreshToken, userId, email, displayName)
+       VALUES (1, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET
+        provider = excluded.provider,
+        accessToken = excluded.accessToken,
+        refreshToken = excluded.refreshToken,
+        userId = excluded.userId,
+        email = excluded.email,
+        displayName = excluded.displayName`,
+      [
+        session.provider,
+        session.accessToken,
+        session.refreshToken ?? null,
+        session.user.id,
+        session.user.email,
+        session.user.displayName ?? null,
+      ],
+    );
+  });
 }
 
 async function loadLastSyncedAt() {
@@ -331,13 +403,14 @@ async function loadLastSyncedAt() {
 }
 
 async function saveLastSyncedAt(value: number) {
-  const db = await getDatabase();
-  await db.runAsync(
-    `INSERT INTO ${TABLE_SYNC_META} (key, value)
-     VALUES (?, ?)
-     ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
-    [SYNC_META_KEY, String(value)],
-  );
+  await enqueueDbWrite(async (db) => {
+    await db.runAsync(
+      `INSERT INTO ${TABLE_SYNC_META} (key, value)
+       VALUES (?, ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+      [SYNC_META_KEY, String(value)],
+    );
+  });
 }
 
 const getLegacyImageMigrationKey = (userId: string) => `${LEGACY_IMAGE_MIGRATION_KEY_PREFIX}:${userId}`;
@@ -351,20 +424,21 @@ async function loadLegacyImageMigrationDone(userId: string) {
 }
 
 async function saveLegacyImageMigrationDone(userId: string, value: boolean) {
-  const db = await getDatabase();
   const key = getLegacyImageMigrationKey(userId);
 
-  if (!value) {
-    await db.runAsync(`DELETE FROM ${TABLE_SYNC_META} WHERE key = ?`, [key]);
-    return;
-  }
+  await enqueueDbWrite(async (db) => {
+    if (!value) {
+      await db.runAsync(`DELETE FROM ${TABLE_SYNC_META} WHERE key = ?`, [key]);
+      return;
+    }
 
-  await db.runAsync(
-    `INSERT INTO ${TABLE_SYNC_META} (key, value)
-     VALUES (?, ?)
-     ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
-    [key, "true"],
-  );
+    await db.runAsync(
+      `INSERT INTO ${TABLE_SYNC_META} (key, value)
+       VALUES (?, ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+      [key, "true"],
+    );
+  });
 }
 
 
@@ -381,13 +455,14 @@ async function loadPremiumEnabled() {
 }
 
 async function savePremiumEnabled(value: boolean) {
-  const db = await getDatabase();
-  await db.runAsync(
-    `INSERT INTO ${TABLE_SYNC_META} (key, value)
-     VALUES (?, ?)
-     ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
-    [PREMIUM_ENABLED_KEY, value ? "true" : "false"],
-  );
+  await enqueueDbWrite(async (db) => {
+    await db.runAsync(
+      `INSERT INTO ${TABLE_SYNC_META} (key, value)
+       VALUES (?, ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+      [PREMIUM_ENABLED_KEY, value ? "true" : "false"],
+    );
+  });
 }
 
 async function loadLastAuthUserId() {
@@ -397,29 +472,30 @@ async function loadLastAuthUserId() {
 }
 
 async function saveLastAuthUserId(userId: string | null) {
-  const db = await getDatabase();
+  await enqueueDbWrite(async (db) => {
+    if (!userId) {
+      await db.runAsync(`DELETE FROM ${TABLE_SYNC_META} WHERE key = ?`, [LAST_AUTH_USER_ID_KEY]);
+      return;
+    }
 
-  if (!userId) {
-    await db.runAsync(`DELETE FROM ${TABLE_SYNC_META} WHERE key = ?`, [LAST_AUTH_USER_ID_KEY]);
-    return;
-  }
-
-  await db.runAsync(
-    `INSERT INTO ${TABLE_SYNC_META} (key, value)
-     VALUES (?, ?)
-     ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
-    [LAST_AUTH_USER_ID_KEY, userId],
-  );
+    await db.runAsync(
+      `INSERT INTO ${TABLE_SYNC_META} (key, value)
+       VALUES (?, ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+      [LAST_AUTH_USER_ID_KEY, userId],
+    );
+  });
 }
 
 async function saveAuthMode(value: string) {
-  const db = await getDatabase();
-  await db.runAsync(
-    `INSERT INTO ${TABLE_SYNC_META} (key, value)
-     VALUES (?, ?)
-     ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
-    [AUTH_MODE_KEY, value],
-  );
+  await enqueueDbWrite(async (db) => {
+    await db.runAsync(
+      `INSERT INTO ${TABLE_SYNC_META} (key, value)
+       VALUES (?, ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+      [AUTH_MODE_KEY, value],
+    );
+  });
 }
 
 async function loadSyncQueueFromDb() {
@@ -433,50 +509,54 @@ async function loadSyncQueueFromDb() {
 
 async function enqueueSyncFromEntries(entries: Entry[]) {
   if (entries.length === 0) return;
-  const db = await getDatabase();
-  await db.withTransactionAsync(async () => {
-    for (const entry of entries) {
-      await db.runAsync(
-        `INSERT INTO ${TABLE_SYNC_QUEUE} (entryId, updatedAt, retryCount, lastError)
-         VALUES (?, ?, 0, NULL)
-         ON CONFLICT(entryId) DO UPDATE SET
-            updatedAt = excluded.updatedAt,
-            retryCount = 0,
-            lastError = NULL`,
-        [entry.id, entry.updatedAt],
-      );
-    }
+  await enqueueDbWrite(async (db) => {
+    await withSafeWriteTransaction(db, async () => {
+      for (const entry of entries) {
+        await db.runAsync(
+          `INSERT INTO ${TABLE_SYNC_QUEUE} (entryId, updatedAt, retryCount, lastError)
+           VALUES (?, ?, 0, NULL)
+           ON CONFLICT(entryId) DO UPDATE SET
+              updatedAt = excluded.updatedAt,
+              retryCount = 0,
+              lastError = NULL`,
+          [entry.id, entry.updatedAt],
+        );
+      }
+    });
   });
 }
 
 async function clearSyncQueueByIds(entryIds: string[]) {
   if (entryIds.length === 0) return;
-  const db = await getDatabase();
-  await db.withTransactionAsync(async () => {
-    for (const entryId of entryIds) {
-      await db.runAsync(`DELETE FROM ${TABLE_SYNC_QUEUE} WHERE entryId = ?`, [entryId]);
-    }
+  await enqueueDbWrite(async (db) => {
+    await withSafeWriteTransaction(db, async () => {
+      for (const entryId of entryIds) {
+        await db.runAsync(`DELETE FROM ${TABLE_SYNC_QUEUE} WHERE entryId = ?`, [entryId]);
+      }
+    });
   });
 }
 
 async function clearSyncQueueAll() {
-  const db = await getDatabase();
-  await db.runAsync(`DELETE FROM ${TABLE_SYNC_QUEUE}`);
+  await enqueueDbWrite(async (db) => {
+    await db.runAsync(`DELETE FROM ${TABLE_SYNC_QUEUE}`);
+  });
 }
 
 async function markSyncQueueFailed(entryIds: string[], errorMessage: string) {
   if (entryIds.length === 0) return;
-  const db = await getDatabase();
-  await db.withTransactionAsync(async () => {
-    for (const entryId of entryIds) {
-      await db.runAsync(
-        `UPDATE ${TABLE_SYNC_QUEUE}
-         SET retryCount = retryCount + 1,
-             lastError = ?
-         WHERE entryId = ?`,
-        [errorMessage, entryId],
-      );
-    }
+  await enqueueDbWrite(async (db) => {
+    await withSafeWriteTransaction(db, async () => {
+      for (const entryId of entryIds) {
+        await db.runAsync(
+          `UPDATE ${TABLE_SYNC_QUEUE}
+           SET retryCount = retryCount + 1,
+               lastError = ?
+           WHERE entryId = ?`,
+          [errorMessage, entryId],
+        );
+      }
+    });
   });
 }
 
@@ -585,8 +665,10 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
       const queuedEntries = queuedIdSet.size > 0
         ? sourceEntries.filter((entry) => queuedIdSet.has(entry.id))
         : [];
+      const hasLikelyLegacyImages = sourceEntries.some((entry) => !entry.deletedAt && entryNeedsRemoteImageMigration(entry));
+      const legacyImageMigrationDone = await loadLegacyImageMigrationDone(targetSession.user.id);
       const shouldSweepLegacyImages = activeSyncProvider === "firebase"
-        && !(await loadLegacyImageMigrationDone(targetSession.user.id));
+        && (hasLikelyLegacyImages || !legacyImageMigrationDone);
       const legacyImageEntries = shouldSweepLegacyImages
         ? sourceEntries.filter((entry) => (
             !entry.deletedAt
@@ -595,25 +677,25 @@ export function JournalProvider({ children }: React.PropsWithChildren) {
           ))
         : [];
       const pushEntries = queuedEntries.concat(legacyImageEntries);
-      let didCompleteLegacyImageSweep = shouldSweepLegacyImages && legacyImageEntries.length === 0;
+      let didCompleteLegacyImageSweep = false;
 
       try {
         if (pushEntries.length > 0) {
           await remoteClient.push(targetSession, pushEntries);
           await clearSyncQueueByIds(queuedIds);
-          if (shouldSweepLegacyImages) {
-            didCompleteLegacyImageSweep = true;
-          }
         }
 
         const pullResult = await remoteClient.pull(targetSession, since ?? 0);
         const remoteEntries = mapRemoteEntriesToLocal(pullResult.entries);
         const merged = mergeEntries(sourceEntries, remoteEntries);
+        const hasRemainingLegacyImages = activeSyncProvider === "firebase"
+          && merged.some((entry) => !entry.deletedAt && entryNeedsRemoteImageMigration(entry));
+        didCompleteLegacyImageSweep = shouldSweepLegacyImages && !hasRemainingLegacyImages;
 
         await upsertEntriesToDb(merged);
         await saveLastSyncedAt(pullResult.serverTime);
-        if (didCompleteLegacyImageSweep) {
-          await saveLegacyImageMigrationDone(targetSession.user.id, true);
+        if (shouldSweepLegacyImages) {
+          await saveLegacyImageMigrationDone(targetSession.user.id, didCompleteLegacyImageSweep);
         }
 
         setEntries(merged);

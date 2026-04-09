@@ -7,7 +7,7 @@ type RemoteEntry = {
   line2: string;
   line3: string;
   imageUri?: string | null;
-  imageUris?: string[];
+  imageUris?: string[] | Record<string, string>;
   createdAt: number;
   updatedAt: number;
   deletedAt?: number | null;
@@ -82,6 +82,11 @@ type SupabaseAuthResponse = {
   };
 };
 
+type RemoteProfile = {
+  name: string;
+  imageUri: string | null;
+};
+
 type RemoteClient = {
   signInWithEmail: (email: string, password: string) => Promise<AuthSession>;
   signUpWithEmail?: (email: string, password: string) => Promise<AuthSession>;
@@ -91,6 +96,8 @@ type RemoteClient = {
   signInAnonymously?: () => Promise<AuthSession>;
   pull: (session: AuthSession, since: number) => Promise<SyncPullResponse>;
   push: (session: AuthSession, entries: Entry[]) => Promise<void>;
+  pullProfile?: (session: AuthSession) => Promise<RemoteProfile | null>;
+  pushProfile?: (session: AuthSession, profile: RemoteProfile) => Promise<void>;
   deleteAccount?: (session: AuthSession) => Promise<void>;
   restoreSession?: (session: AuthSession) => Promise<AuthSession | null>;
   updatePassword?: (session: AuthSession, nextPassword: string) => Promise<AuthSession>;
@@ -199,12 +206,47 @@ const toRemoteEntry = async (entry: Entry, includeBackupSafeImages = false): Pro
   };
 };
 
+const normalizeRemoteImageUris = (
+  imageUris: RemoteEntry["imageUris"] | undefined,
+  imageUri?: string | null,
+) => {
+  if (Array.isArray(imageUris)) {
+    return imageUris.filter((item): item is string => typeof item === "string" && item.length > 0).slice(0, 10);
+  }
+
+  if (imageUris && typeof imageUris === "object") {
+    return Object.keys(imageUris)
+      .sort((a, b) => Number(a) - Number(b))
+      .map((key) => imageUris[key])
+      .filter((item): item is string => typeof item === "string" && item.length > 0)
+      .slice(0, 10);
+  }
+
+  return imageUri ? [imageUri] : [];
+};
+
+const shouldForcePullForImageRepair = (entry: RemoteEntry) => {
+  const normalized = normalizeRemoteImageUris(entry.imageUris, entry.imageUri);
+  if (normalized.length <= 1) return false;
+
+  // Firebase REST may return arrays as object maps; force a pull so old entries can be healed.
+  return !!entry.imageUris && !Array.isArray(entry.imageUris);
+};
+
+const isRemoteEntryRecord = (value: unknown): value is RemoteEntry => {
+  if (!value || typeof value !== "object") return false;
+
+  const candidate = value as Partial<RemoteEntry>;
+  if (typeof candidate.id !== "string" || !candidate.id.trim()) return false;
+  if (typeof candidate.date !== "string" || !candidate.date.trim()) return false;
+  if (!Number.isFinite(Number(candidate.updatedAt))) return false;
+  if (!Number.isFinite(Number(candidate.createdAt))) return false;
+
+  return true;
+};
+
 const toLocalEntry = (entry: RemoteEntry): Entry => {
-  const nextImageUris = Array.isArray(entry.imageUris)
-    ? entry.imageUris.filter((item): item is string => typeof item === "string" && item.length > 0).slice(0, 10)
-    : entry.imageUri
-      ? [entry.imageUri]
-      : [];
+  const nextImageUris = normalizeRemoteImageUris(entry.imageUris, entry.imageUri);
 
   return {
     id: entry.id,
@@ -368,6 +410,12 @@ const customClient: RemoteClient = {
       throw new Error("Push sync failed.");
     }
   },
+  async pullProfile() {
+    return null;
+  },
+  async pushProfile() {
+    // Custom provider profile sync is not implemented.
+  },
   async deleteAccount() {
     throw new Error("Account deletion is not supported by the custom provider.");
   },
@@ -510,7 +558,11 @@ const firebaseClient: RemoteClient = {
   },
   async pull(session, since) {
     const payload = await firebaseDbRequest<FirebaseEntriesMap | null>("GET", session, `entries/${session.user.id}`);
-    const entries = payload ? Object.values(payload).filter((entry) => Number(entry.updatedAt) >= since) : [];
+    const entries = payload
+      ? Object.values(payload)
+        .filter(isRemoteEntryRecord)
+        .filter((entry) => Number(entry.updatedAt) >= since || shouldForcePullForImageRepair(entry))
+      : [];
 
     return {
       entries,
@@ -525,6 +577,28 @@ const firebaseClient: RemoteClient = {
     }, {});
 
     await firebaseDbRequest("PATCH", session, `entries/${session.user.id}`, body);
+  },
+  async pullProfile(session) {
+    const payload = await firebaseDbRequest<{ name?: string; imageUri?: string | null } | null>(
+      "GET",
+      session,
+      `entries/${session.user.id}/__profile`,
+    );
+
+    if (!payload) return null;
+
+    return {
+      name: typeof payload.name === "string" ? payload.name : "",
+      imageUri: typeof payload.imageUri === "string" ? payload.imageUri : null,
+    };
+  },
+  async pushProfile(session, profile) {
+    const safeImageUri = profile.imageUri ? await toBackupSafeImageUri(profile.imageUri) : null;
+    await firebaseDbRequest("PATCH", session, `entries/${session.user.id}/__profile`, {
+      name: profile.name,
+      imageUri: safeImageUri,
+      updatedAt: Date.now(),
+    });
   },
   async deleteAccount(session) {
     await firebaseDbRequest("DELETE", session, `entries/${session.user.id}`);
@@ -752,6 +826,12 @@ const supabaseClient: RemoteClient = {
     if (!response.ok) {
       throw new Error("Supabase push sync failed.");
     }
+  },
+  async pullProfile() {
+    return null;
+  },
+  async pushProfile() {
+    // Supabase provider profile sync is not implemented.
   },
   async deleteAccount() {
     throw new Error("Account deletion is not supported by Supabase provider.");
